@@ -182,3 +182,29 @@ class TestOrchestrator:
         assert "[source: fastapi_path_params.md]" in response.answer
         assert "search_documents" in response.tools_used
         assert response.iterations == 2
+
+
+class TestOrchestratorIntegration:
+    """Integration test using real SearchTool + Retriever + HybridStore."""
+
+    @pytest.mark.asyncio
+    async def test_real_rag_path(self, test_retriever):
+        """Orchestrator with MockProvider + real SearchTool/Retriever returns RAG results."""
+        from agent_bench.tools.search import SearchTool
+
+        registry = ToolRegistry()
+        registry.register(SearchTool(retriever=test_retriever))
+        registry.register(CalculatorTool())
+
+        orchestrator = Orchestrator(provider=MockProvider(), registry=registry, max_iterations=3)
+        response = await orchestrator.run(
+            "How do path params work?", SYSTEM_PROMPT, top_k=3, strategy="hybrid"
+        )
+
+        # MockProvider drives the loop, but the real SearchTool executes
+        # against the real Retriever/HybridStore and returns real chunks
+        assert isinstance(response, AgentResponse)
+        assert len(response.answer) > 0
+        assert "search_documents" in response.tools_used
+        # Sources come from the real store (sample_chunks in conftest)
+        assert len(response.sources) > 0

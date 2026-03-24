@@ -31,7 +31,9 @@ class MockRetriever:
     def __init__(self, results: list[MockSearchResult] | None = None) -> None:
         self._results = results or []
 
-    async def search(self, query: str, top_k: int = 5) -> list[MockSearchResult]:
+    async def search(
+        self, query: str, top_k: int = 5, strategy: str | None = None
+    ) -> list[MockSearchResult]:
         return self._results[:top_k]
 
 

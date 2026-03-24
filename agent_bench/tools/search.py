@@ -20,7 +20,7 @@ class SearchResult(Protocol):
 class Retriever(Protocol):
     """Protocol for the retriever dependency (defined fully in rag.retriever)."""
 
-    async def search(self, query: str, top_k: int = 5) -> list: ...
+    async def search(self, query: str, top_k: int = 5, strategy: str | None = None) -> list: ...
 
 
 class SearchTool(Tool):
@@ -46,21 +46,28 @@ class SearchTool(Tool):
         "required": ["query"],
     }
 
-    def __init__(self, retriever: Retriever) -> None:
+    def __init__(
+        self,
+        retriever: Retriever,
+        default_top_k: int = 5,
+        default_strategy: str = "hybrid",
+    ) -> None:
         self._retriever = retriever
+        self.default_top_k = default_top_k
+        self.default_strategy = default_strategy
 
     async def execute(self, **kwargs: object) -> ToolOutput:
         query = str(kwargs.get("query", ""))
-        top_k_val = kwargs.get("top_k", 5)
+        top_k_val = kwargs.get("top_k", self.default_top_k)
         try:
             top_k: int = top_k_val if isinstance(top_k_val, int) else int(str(top_k_val))
         except (ValueError, TypeError):
-            top_k = 5
+            top_k = self.default_top_k
 
         if not query:
             return ToolOutput(success=False, result="No query provided")
 
-        results = await self._retriever.search(query, top_k=top_k)
+        results = await self._retriever.search(query, top_k=top_k, strategy=self.default_strategy)
 
         if not results:
             return ToolOutput(
