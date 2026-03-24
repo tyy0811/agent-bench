@@ -29,6 +29,8 @@ class AgentResponse(BaseModel):
     iterations: int
     tools_used: list[str] = Field(default_factory=list)
     usage: TokenUsage
+    provider: str = ""
+    model: str = ""
     latency_ms: float
 
 
@@ -65,9 +67,9 @@ class Orchestrator:
     ) -> AgentResponse:
         start = time.perf_counter()
 
-        # Store request-level retrieval settings for tool execution
-        self._request_top_k = top_k
-        self._request_strategy = strategy
+        # Request-level retrieval settings — local variables only, no self mutation
+        req_top_k = top_k
+        req_strategy = strategy
 
         messages: list[Message] = [
             Message(role=Role.SYSTEM, content=system_prompt),
@@ -96,6 +98,8 @@ class Orchestrator:
                     iterations=iteration + 1,
                     tools_used=tools_used,
                     usage=total_usage,
+                    provider=response.provider,
+                    model=response.model,
                     latency_ms=latency,
                 )
 
@@ -112,9 +116,10 @@ class Orchestrator:
             for tc in response.tool_calls:
                 kwargs = dict(tc.arguments)
                 # Inject request-level retrieval settings for search tool
+                # All local — no shared state mutation
                 if tc.name == "search_documents":
-                    kwargs.setdefault("top_k", self._request_top_k)
-                    kwargs["_strategy"] = self._request_strategy
+                    kwargs.setdefault("top_k", req_top_k)
+                    kwargs["_strategy"] = req_strategy
                 result = await self.registry.execute(tc.name, **kwargs)
                 messages.append(Message(role=Role.TOOL, content=result.result, tool_call_id=tc.id))
                 tools_used.append(tc.name)
@@ -134,6 +139,8 @@ class Orchestrator:
             iterations=self.max_iterations,
             tools_used=tools_used,
             usage=total_usage,
+            provider=response.provider,
+            model=response.model,
             latency_ms=latency,
         )
 

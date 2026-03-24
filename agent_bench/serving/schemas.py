@@ -11,7 +11,7 @@ from agent_bench.core.types import TokenUsage
 
 
 class AskRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1)
     top_k: int = 5
     retrieval_strategy: Literal["semantic", "keyword", "hybrid"] = "hybrid"
 

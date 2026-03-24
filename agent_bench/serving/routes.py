@@ -43,8 +43,8 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
         answer=result.answer,
         sources=result.sources,
         metadata=ResponseMetadata(
-            provider=result.usage.estimated_cost_usd and "openai" or "mock",
-            model="gpt-4o-mini",
+            provider=result.provider,
+            model=result.model,
             iterations=result.iterations,
             tools_used=result.tools_used,
             latency_ms=result.latency_ms,

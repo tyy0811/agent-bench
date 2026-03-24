@@ -101,6 +101,8 @@ class TestAskEndpoint:
         assert "metadata" in data
         assert len(data["answer"]) > 0
         assert data["metadata"]["request_id"]
+        assert data["metadata"]["provider"] == "mock"
+        assert data["metadata"]["model"] == "mock-1"
 
     @pytest.mark.asyncio
     async def test_empty_question_returns_422(self, test_app):
@@ -108,10 +110,7 @@ class TestAskEndpoint:
             transport=ASGITransport(app=test_app), base_url="http://test"
         ) as client:
             response = await client.post("/ask", json={"question": ""})
-        # FastAPI doesn't reject empty strings by default (only missing fields)
-        # But the orchestrator will still process it
-        # If we want 422, we'd add a validator — for now, just verify it doesn't crash
-        assert response.status_code in (200, 422)
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_missing_question_returns_422(self, test_app):
