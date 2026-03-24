@@ -88,5 +88,158 @@
         "category": "out_of_scope",
         "difficulty": "easy",
         "requires_calculator": false
+    },
+    {
+        "id": "q011",
+        "question": "What is the default Swagger UI endpoint in FastAPI?",
+        "expected_answer_keywords": ["/docs", "Swagger", "interactive"],
+        "expected_sources": ["fastapi_openapi.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q012",
+        "question": "How do you raise an HTTP error in a FastAPI route handler?",
+        "expected_answer_keywords": ["HTTPException", "status_code", "detail"],
+        "expected_sources": ["fastapi_error_handling.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q013",
+        "question": "How do you define a request body in FastAPI?",
+        "expected_answer_keywords": ["Pydantic", "BaseModel", "JSON"],
+        "expected_sources": ["fastapi_request_body.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q014",
+        "question": "What testing tools does FastAPI use, and what class provides the test client?",
+        "expected_answer_keywords": ["TestClient", "pytest", "Starlette"],
+        "expected_sources": ["fastapi_testing.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q015",
+        "question": "How does FastAPI manage application configuration and environment variables?",
+        "expected_answer_keywords": ["BaseSettings", "pydantic", "env", "environment"],
+        "expected_sources": ["fastapi_configuration.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q016",
+        "question": "What is the minimum response size for GZip compression middleware in FastAPI, and how do you enable it?",
+        "expected_answer_keywords": ["500", "bytes", "GZipMiddleware", "minimum_size"],
+        "expected_sources": ["fastapi_middleware.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q017",
+        "question": "How do yield dependencies work in FastAPI and what is the maximum number supported per request?",
+        "expected_answer_keywords": ["yield", "cleanup", "finally", "32"],
+        "expected_sources": ["fastapi_dependencies.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q018",
+        "question": "What are the three documentation endpoints FastAPI exposes by default and what OpenAPI version does it use?",
+        "expected_answer_keywords": ["/docs", "/redoc", "/openapi.json", "3.1"],
+        "expected_sources": ["fastapi_openapi.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q019",
+        "question": "How does FastAPI handle WebSocket connections, and what must be called before sending data?",
+        "expected_answer_keywords": ["accept", "WebSocket", "send", "receive"],
+        "expected_sources": ["fastapi_websockets.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q020",
+        "question": "For a server with 4 CPU cores, how many Gunicorn workers should be configured using the recommended formula?",
+        "expected_answer_keywords": ["9", "workers", "2", "CPU", "1"],
+        "expected_sources": ["fastapi_deployment.md"],
+        "category": "calculation",
+        "difficulty": "medium",
+        "requires_calculator": true
+    },
+    {
+        "id": "q021",
+        "question": "If the CORS max_age is 600 seconds, how many minutes does the browser cache preflight results?",
+        "expected_answer_keywords": ["10", "minutes"],
+        "expected_sources": ["fastapi_middleware.md"],
+        "category": "calculation",
+        "difficulty": "easy",
+        "requires_calculator": true
+    },
+    {
+        "id": "q022",
+        "question": "How do route ordering and dependency injection interact when building a secure FastAPI application with scoped endpoints?",
+        "expected_answer_keywords": ["order", "Depends", "Security", "scopes"],
+        "expected_sources": ["fastapi_path_params.md", "fastapi_dependencies.md", "fastapi_security.md"],
+        "category": "retrieval",
+        "difficulty": "hard",
+        "requires_calculator": false
+    },
+    {
+        "id": "q023",
+        "question": "How would you set up a FastAPI application with custom error handling, CORS middleware, and structured testing including dependency overrides?",
+        "expected_answer_keywords": ["HTTPException", "CORSMiddleware", "TestClient", "override"],
+        "expected_sources": ["fastapi_error_handling.md", "fastapi_middleware.md", "fastapi_testing.md"],
+        "category": "retrieval",
+        "difficulty": "hard",
+        "requires_calculator": false
+    },
+    {
+        "id": "q024",
+        "question": "Explain how to deploy a FastAPI app with Docker using Gunicorn workers, health checks, and environment-based configuration via Pydantic Settings.",
+        "expected_answer_keywords": ["Docker", "Gunicorn", "health", "BaseSettings", "env"],
+        "expected_sources": ["fastapi_deployment.md", "fastapi_configuration.md"],
+        "category": "retrieval",
+        "difficulty": "hard",
+        "requires_calculator": false
+    },
+    {
+        "id": "q025",
+        "question": "How would you build a paginated API with cursor-based navigation, response model validation, and background task processing for analytics logging?",
+        "expected_answer_keywords": ["cursor", "response_model", "BackgroundTasks"],
+        "expected_sources": ["fastapi_pagination.md", "fastapi_response_model.md", "fastapi_background_tasks.md"],
+        "category": "retrieval",
+        "difficulty": "hard",
+        "requires_calculator": false
+    },
+    {
+        "id": "q026",
+        "question": "Does FastAPI have built-in support for database migrations like Alembic?",
+        "expected_answer_keywords": ["not", "does not contain", "no information"],
+        "expected_sources": [],
+        "category": "out_of_scope",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q027",
+        "question": "How does FastAPI handle automatic load balancing across multiple servers?",
+        "expected_answer_keywords": ["not", "does not contain", "no information"],
+        "expected_sources": [],
+        "category": "out_of_scope",
+        "difficulty": "easy",
+        "requires_calculator": false
     }
 ]
