@@ -27,8 +27,11 @@ dev = [
     "ruff>=0.6.0",
     "mypy>=1.11.0",
     "respx>=0.21.0",
-    "types-PyYAML>=2024.0.0",
+    "types-PyYAML",
 ]
+
+[tool.setuptools.packages.find]
+include = ["agent_bench*"]
 
 [build-system]
 requires = ["setuptools>=69.0"]
