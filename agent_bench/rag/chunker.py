@@ -117,12 +117,19 @@ def _segments_to_chunks(
     chunk_size: int,
     chunk_overlap: int,
 ) -> list[Chunk]:
-    """Convert text segments to Chunk objects, applying overlap where possible."""
+    """Convert text segments to Chunk objects, prepending overlap from previous segment."""
     chunks: list[Chunk] = []
+    prev_tail = ""
     for idx, seg in enumerate(segments):
         content = seg.strip()
         if not content:
             continue
+        # Prepend overlap context from previous segment's tail
+        # Overlap is additional context — it may push content slightly over chunk_size
+        # but we don't truncate, because truncation would lose source words
+        if prev_tail and chunk_overlap > 0 and idx > 0:
+            overlap_text = prev_tail[-chunk_overlap:]
+            content = overlap_text + " " + content
         chunks.append(
             Chunk(
                 id=_make_chunk_id(content, source),
@@ -132,6 +139,7 @@ def _segments_to_chunks(
                 metadata={"strategy": "recursive"},
             )
         )
+        prev_tail = seg.strip()
     return chunks
 
 

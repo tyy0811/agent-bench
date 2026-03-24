@@ -22,6 +22,7 @@ class Embedder:
         model_name: str = "all-MiniLM-L6-v2",
         cache_dir: str = ".cache/embeddings",
     ) -> None:
+        self._model_name = model_name
         if model is not None:
             self._model = model
         else:
@@ -31,10 +32,14 @@ class Embedder:
         self._cache_dir = Path(cache_dir)
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
+    def _cache_key(self, text: str) -> str:
+        """Cache key scoped to model name + text content."""
+        raw = f"{self._model_name}:{text}"
+        return hashlib.sha256(raw.encode()).hexdigest()
+
     def embed(self, text: str) -> np.ndarray:
         """Embed a single text string. Returns shape (384,) normalized vector."""
-        cache_key = hashlib.sha256(text.encode()).hexdigest()
-        cache_path = self._cache_dir / f"{cache_key}.npy"
+        cache_path = self._cache_dir / f"{self._cache_key(text)}.npy"
 
         if cache_path.exists():
             vec = np.load(cache_path)
@@ -52,8 +57,7 @@ class Embedder:
         uncached_indices: list[int] = []
 
         for i, text in enumerate(texts):
-            cache_key = hashlib.sha256(text.encode()).hexdigest()
-            cache_path = self._cache_dir / f"{cache_key}.npy"
+            cache_path = self._cache_dir / f"{self._cache_key(text)}.npy"
             if cache_path.exists():
                 results.append((i, np.load(cache_path)))
             else:
@@ -67,8 +71,7 @@ class Embedder:
             for j, idx in enumerate(uncached_indices):
                 vec = vecs[j]
                 # Save to cache
-                cache_key = hashlib.sha256(uncached_texts[j].encode()).hexdigest()
-                cache_path = self._cache_dir / f"{cache_key}.npy"
+                cache_path = self._cache_dir / f"{self._cache_key(uncached_texts[j])}.npy"
                 np.save(cache_path, vec)
                 # Update results
                 for k, (ri, rv) in enumerate(results):
