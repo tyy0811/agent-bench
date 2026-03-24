@@ -1,0 +1,92 @@
+[
+    {
+        "id": "q001",
+        "question": "How do you define a path parameter in FastAPI?",
+        "expected_answer_keywords": ["curly braces", "path", "function parameter", "URL"],
+        "expected_sources": ["fastapi_path_params.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q002",
+        "question": "What is the default page size for pagination in FastAPI and what is the maximum allowed?",
+        "expected_answer_keywords": ["20", "100", "default", "maximum"],
+        "expected_sources": ["fastapi_pagination.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q003",
+        "question": "How does FastAPI handle CORS and what is the default max_age for preflight caching?",
+        "expected_answer_keywords": ["CORSMiddleware", "600", "seconds", "preflight"],
+        "expected_sources": ["fastapi_middleware.md"],
+        "category": "retrieval",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q004",
+        "question": "What algorithm and expiry time does the FastAPI security example use for JWT tokens?",
+        "expected_answer_keywords": ["HS256", "30", "minutes"],
+        "expected_sources": ["fastapi_security.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q005",
+        "question": "What is the recommended formula for calculating the number of Gunicorn workers for a FastAPI deployment?",
+        "expected_answer_keywords": ["2", "CPU", "cores", "1"],
+        "expected_sources": ["fastapi_deployment.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q006",
+        "question": "How does dependency caching work in FastAPI, and how can you disable it?",
+        "expected_answer_keywords": ["cache", "once", "use_cache", "False"],
+        "expected_sources": ["fastapi_dependencies.md"],
+        "category": "retrieval",
+        "difficulty": "medium",
+        "requires_calculator": false
+    },
+    {
+        "id": "q007",
+        "question": "If a paginated endpoint returns 20 items per page and there are 10,000 items total, how many total pages are there? And if the page size is changed to 30, how many pages would there be?",
+        "expected_answer_keywords": ["500", "334", "ceil", "pages"],
+        "expected_sources": ["fastapi_pagination.md"],
+        "category": "calculation",
+        "difficulty": "medium",
+        "requires_calculator": true
+    },
+    {
+        "id": "q008",
+        "question": "Does FastAPI support automatic Kubernetes deployment?",
+        "expected_answer_keywords": ["not", "does not contain", "no information"],
+        "expected_sources": [],
+        "category": "out_of_scope",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q009",
+        "question": "How does FastAPI integrate with Apache Kafka for event streaming?",
+        "expected_answer_keywords": ["not", "does not contain", "no information"],
+        "expected_sources": [],
+        "category": "out_of_scope",
+        "difficulty": "easy",
+        "requires_calculator": false
+    },
+    {
+        "id": "q010",
+        "question": "Can FastAPI generate GraphQL schemas natively?",
+        "expected_answer_keywords": ["not", "does not contain", "no information"],
+        "expected_sources": [],
+        "category": "out_of_scope",
+        "difficulty": "easy",
+        "requires_calculator": false
+    }
+]
