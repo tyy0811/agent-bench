@@ -20,6 +20,14 @@ def generate_report(
     lines: list[str] = []
     lines.append("# Benchmark Results — Technical Documentation Q&A")
     lines.append("")
+    if "mock" in provider_name.lower():
+        lines.append(
+            "> **Note:** This report was generated with MockProvider (deterministic, "
+            "no API key). Metrics reflect the evaluation infrastructure, not real "
+            "LLM performance. Run `make evaluate-fast` with a real provider for "
+            "production numbers."
+        )
+        lines.append("")
     lines.append(f"**Provider:** {provider_name} | **Corpus:** {corpus_size} markdown files")
     lines.append("")
 

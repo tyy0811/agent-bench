@@ -30,6 +30,7 @@ class GoldenQuestion(BaseModel):
     category: str
     difficulty: str
     requires_calculator: bool
+    reference_answer: str = ""
 
 
 class EvalResult(BaseModel):
@@ -104,9 +105,7 @@ async def run_evaluation(
             retrieval_recall=retrieval_recall_at_k(ranked_sources, q.expected_sources),
             keyword_hit_rate=keyword_hit_rate(agent_response.answer, q.expected_answer_keywords),
             has_source_citation=source_presence(agent_response),
-            grounded_refusal=grounded_refusal(
-                agent_response.answer, q.category, q.expected_sources
-            ),
+            grounded_refusal=grounded_refusal(agent_response.answer, q.category, deduped_sources),
             citation_accuracy=citation_accuracy(agent_response.answer, deduped_sources),
             calculator_used_correctly=calculator_used_when_expected(
                 agent_response, q.requires_calculator
@@ -127,11 +126,12 @@ async def run_evaluation(
                 source_chunks=agent_response.source_chunks,
                 judge_provider=judge_provider,
             )
-            result.correctness = await answer_correctness(
-                answer=agent_response.answer,
-                reference_answer=", ".join(q.expected_answer_keywords),
-                judge_provider=judge_provider,
-            )
+            if q.reference_answer:
+                result.correctness = await answer_correctness(
+                    answer=agent_response.answer,
+                    reference_answer=q.reference_answer,
+                    judge_provider=judge_provider,
+                )
 
         results.append(result)
 

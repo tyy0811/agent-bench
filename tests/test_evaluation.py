@@ -82,7 +82,7 @@ class TestSourcePresence:
 
 
 class TestGroundedRefusal:
-    def test_out_of_scope_with_refusal(self):
+    def test_out_of_scope_with_refusal_no_sources(self):
         assert (
             grounded_refusal("The documentation does not contain this info.", "out_of_scope", [])
             is True
@@ -90,6 +90,17 @@ class TestGroundedRefusal:
 
     def test_out_of_scope_without_refusal(self):
         assert grounded_refusal("Here is how you do it...", "out_of_scope", []) is False
+
+    def test_out_of_scope_refusal_but_has_sources(self):
+        """Refusal language + sources cited = NOT a grounded refusal."""
+        assert (
+            grounded_refusal(
+                "The documentation does not contain this info.",
+                "out_of_scope",
+                ["some_doc.md"],
+            )
+            is False
+        )
 
     def test_in_scope_always_true(self):
         assert grounded_refusal("any answer", "retrieval", ["a.md"]) is True

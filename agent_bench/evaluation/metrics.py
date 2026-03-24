@@ -56,13 +56,13 @@ def source_presence(response: AgentResponse) -> bool:
 def grounded_refusal(
     answer: str,
     category: str,
-    expected_sources: list[str],
+    response_sources: list[str],
 ) -> bool:
-    """For out_of_scope: does the answer correctly refuse?
+    """For out_of_scope: does the answer correctly refuse AND cite no sources?
 
     Returns True if:
     - Category is not out_of_scope (metric not applicable)
-    - Category is out_of_scope AND answer contains refusal language
+    - Category is out_of_scope AND answer contains refusal language AND no sources cited
     """
     if category != "out_of_scope":
         return True  # not applicable
@@ -77,7 +77,9 @@ def grounded_refusal(
         "outside the scope",
     ]
     answer_lower = answer.lower()
-    return any(phrase in answer_lower for phrase in refusal_phrases)
+    has_refusal = any(phrase in answer_lower for phrase in refusal_phrases)
+    has_no_sources = len(response_sources) == 0
+    return has_refusal and has_no_sources
 
 
 def citation_accuracy(answer: str, sources: list[str]) -> float:

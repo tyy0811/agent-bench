@@ -6,7 +6,8 @@
         "expected_sources": ["fastapi_path_params.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "Path parameters in FastAPI are defined using curly braces {} in the route path string, with a corresponding parameter in the function signature."
     },
     {
         "id": "q002",
@@ -15,7 +16,8 @@
         "expected_sources": ["fastapi_pagination.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "The default page size for pagination in FastAPI is 20 items per page, and the maximum allowed page size is 100."
     },
     {
         "id": "q003",
@@ -24,7 +26,8 @@
         "expected_sources": ["fastapi_middleware.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "FastAPI handles CORS by adding CORSMiddleware to the application, which manages preflight requests. The default max_age for preflight caching is 600 seconds."
     },
     {
         "id": "q004",
@@ -33,7 +36,8 @@
         "expected_sources": ["fastapi_security.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "The FastAPI security example uses the HS256 algorithm for JWT tokens with an expiry time of 30 minutes."
     },
     {
         "id": "q005",
@@ -42,7 +46,8 @@
         "expected_sources": ["fastapi_deployment.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "The recommended formula for calculating Gunicorn workers is (2 * CPU cores) + 1."
     },
     {
         "id": "q006",
@@ -51,7 +56,8 @@
         "expected_sources": ["fastapi_dependencies.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "FastAPI caches dependency results so each dependency is called only once per request. Caching can be disabled by setting use_cache=False in the Depends() call."
     },
     {
         "id": "q007",
@@ -60,7 +66,8 @@
         "expected_sources": ["fastapi_pagination.md"],
         "category": "calculation",
         "difficulty": "medium",
-        "requires_calculator": true
+        "requires_calculator": true,
+        "reference_answer": "With 10,000 items at 20 per page, there are 500 total pages (10000/20). At 30 per page, there are 334 pages (ceil(10000/30))."
     },
     {
         "id": "q008",
@@ -69,7 +76,8 @@
         "expected_sources": [],
         "category": "out_of_scope",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": ""
     },
     {
         "id": "q009",
@@ -78,7 +86,8 @@
         "expected_sources": [],
         "category": "out_of_scope",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": ""
     },
     {
         "id": "q010",
@@ -87,7 +96,8 @@
         "expected_sources": [],
         "category": "out_of_scope",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": ""
     },
     {
         "id": "q011",
@@ -96,7 +106,8 @@
         "expected_sources": ["fastapi_openapi.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "The default Swagger UI endpoint in FastAPI is /docs, which provides an interactive API documentation interface."
     },
     {
         "id": "q012",
@@ -105,7 +116,8 @@
         "expected_sources": ["fastapi_error_handling.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "You raise an HTTP error in FastAPI by raising an HTTPException with a status_code and a detail message describing the error."
     },
     {
         "id": "q013",
@@ -114,7 +126,8 @@
         "expected_sources": ["fastapi_request_body.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "Request bodies in FastAPI are defined by creating a Pydantic BaseModel class, which FastAPI automatically parses from the incoming JSON request body."
     },
     {
         "id": "q014",
@@ -123,7 +136,8 @@
         "expected_sources": ["fastapi_testing.md"],
         "category": "retrieval",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "FastAPI uses pytest for testing, and the TestClient class (provided by Starlette) is used to simulate HTTP requests to the application."
     },
     {
         "id": "q015",
@@ -132,7 +146,8 @@
         "expected_sources": ["fastapi_configuration.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "FastAPI manages configuration using Pydantic's BaseSettings class, which automatically reads values from environment variables and supports .env files."
     },
     {
         "id": "q016",
@@ -141,7 +156,8 @@
         "expected_sources": ["fastapi_middleware.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "GZip compression is enabled by adding GZipMiddleware to the application with a minimum_size parameter. The default minimum response size is 500 bytes."
     },
     {
         "id": "q017",
@@ -150,7 +166,8 @@
         "expected_sources": ["fastapi_dependencies.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "Yield dependencies in FastAPI execute code before yielding a value and run cleanup code in a finally block after the response is sent. The maximum number of yield dependencies per request is 32."
     },
     {
         "id": "q018",
@@ -159,7 +176,8 @@
         "expected_sources": ["fastapi_openapi.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "FastAPI exposes three documentation endpoints by default: /docs (Swagger UI), /redoc (ReDoc), and /openapi.json (the raw OpenAPI schema). It uses OpenAPI version 3.1."
     },
     {
         "id": "q019",
@@ -168,7 +186,8 @@
         "expected_sources": ["fastapi_websockets.md"],
         "category": "retrieval",
         "difficulty": "medium",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "FastAPI handles WebSocket connections using the WebSocket class. You must call await websocket.accept() before sending or receiving any data."
     },
     {
         "id": "q020",
@@ -177,7 +196,8 @@
         "expected_sources": ["fastapi_deployment.md"],
         "category": "calculation",
         "difficulty": "medium",
-        "requires_calculator": true
+        "requires_calculator": true,
+        "reference_answer": "Using the recommended formula (2 * CPU cores) + 1, a server with 4 CPU cores should be configured with 9 Gunicorn workers (2 * 4 + 1 = 9)."
     },
     {
         "id": "q021",
@@ -186,7 +206,8 @@
         "expected_sources": ["fastapi_middleware.md"],
         "category": "calculation",
         "difficulty": "easy",
-        "requires_calculator": true
+        "requires_calculator": true,
+        "reference_answer": "With a CORS max_age of 600 seconds, the browser caches preflight results for 10 minutes (600 / 60 = 10)."
     },
     {
         "id": "q022",
@@ -195,7 +216,8 @@
         "expected_sources": ["fastapi_path_params.md", "fastapi_dependencies.md", "fastapi_security.md"],
         "category": "retrieval",
         "difficulty": "hard",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "In FastAPI, route ordering matters because more specific routes must be defined before general ones. Security scopes are enforced via the Security() dependency (similar to Depends()), allowing fine-grained access control on scoped endpoints."
     },
     {
         "id": "q023",
@@ -204,7 +226,8 @@
         "expected_sources": ["fastapi_error_handling.md", "fastapi_middleware.md", "fastapi_testing.md"],
         "category": "retrieval",
         "difficulty": "hard",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "Custom error handling is set up by raising HTTPException or registering exception handlers, CORS is configured by adding CORSMiddleware with allowed origins, and testing uses TestClient with app.dependency_overrides to replace dependencies during tests."
     },
     {
         "id": "q024",
@@ -213,7 +236,8 @@
         "expected_sources": ["fastapi_deployment.md", "fastapi_configuration.md"],
         "category": "retrieval",
         "difficulty": "hard",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "A FastAPI app is deployed in Docker with Gunicorn as the process manager using the recommended worker formula. Health check endpoints verify application status, and environment-based configuration is managed via Pydantic BaseSettings which reads environment variables and .env files."
     },
     {
         "id": "q025",
@@ -222,7 +246,8 @@
         "expected_sources": ["fastapi_pagination.md", "fastapi_response_model.md", "fastapi_background_tasks.md"],
         "category": "retrieval",
         "difficulty": "hard",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": "Cursor-based pagination uses an opaque cursor token for navigation instead of page numbers. Response models are validated using the response_model parameter on route decorators, and analytics logging is handled asynchronously via FastAPI's BackgroundTasks dependency."
     },
     {
         "id": "q026",
@@ -231,7 +256,8 @@
         "expected_sources": [],
         "category": "out_of_scope",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": ""
     },
     {
         "id": "q027",
@@ -240,6 +266,7 @@
         "expected_sources": [],
         "category": "out_of_scope",
         "difficulty": "easy",
-        "requires_calculator": false
+        "requires_calculator": false,
+        "reference_answer": ""
     }
 ]

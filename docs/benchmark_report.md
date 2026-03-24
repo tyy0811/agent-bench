@@ -1,5 +1,7 @@
 # Benchmark Results — Technical Documentation Q&A
 
+> **Note:** This report was generated with MockProvider (deterministic, no API key). Metrics reflect the evaluation infrastructure, not real LLM performance. Run `make evaluate-fast` with a real provider for production numbers.
+
 **Provider:** MockProvider (deterministic) | **Corpus:** 16 markdown files
 
 ## Aggregate Metrics
@@ -14,7 +16,7 @@
 | Grounded Refusal Rate | 0/5 |
 | Calculator Accuracy | 0/3 |
 | Latency p50 | 1 ms |
-| Latency p95 | 1 ms |
+| Latency p95 | 2 ms |
 | Cost per query | $0.0003 |
 
 ## By Category
