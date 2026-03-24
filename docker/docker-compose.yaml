@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  agent-bench:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../.cache:/app/.cache
