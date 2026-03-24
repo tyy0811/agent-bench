@@ -1,22 +1,25 @@
 # agent-bench
 
-> Evaluation-first agentic RAG system built from API primitives.
-> One provider, one domain, one API, one benchmark report.
+Evaluation-first agentic RAG system built from API primitives — no LangChain, no LlamaIndex.
+
+**Stack:** FastAPI, OpenAI gpt-4o-mini, FAISS + BM25 (Reciprocal Rank Fusion), Pydantic v2, Docker, 97 deterministic tests
 
 ## Benchmark Results
 
-| Metric | Value |
-|--------|-------|
-| Retrieval P@5 | 0.70 |
-| Retrieval R@5 | 0.83 |
-| Keyword Hit Rate | 0.89 |
-| Citation Accuracy | 1.00 |
-| Grounded Refusal | 0/5 |
-| Calculator Accuracy | 2/3 |
-| Latency p50 | 4,690 ms |
-| Cost per query | $0.0004 |
+Evaluated on 27 hand-crafted questions (19 retrieval, 3 calculation, 5 out-of-scope) over 16 FastAPI documentation files.
 
-[Full benchmark report](docs/benchmark_report.md)
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Retrieval P@5 | **0.70** | Hybrid RRF (FAISS + BM25) |
+| Retrieval R@5 | **0.83** | Expected sources found in top 5 |
+| Keyword Hit Rate | **0.89** | Expected facts present in answer |
+| Citation Accuracy | **1.00** | Zero hallucinated citations |
+| Grounded Refusal | **0/5** | LLM never refuses — top V2 priority |
+| Calculator Accuracy | **2/3** | LLM sometimes skips tool use |
+| Latency p50 | 4,690 ms | gpt-4o-mini, single iteration |
+| Cost per query | $0.0004 | ~$0.01 for full 27-question eval |
+
+[Full benchmark report with failure analysis](docs/benchmark_report.md) | [Design decisions](DECISIONS.md)
 
 ## Quick Start
 
