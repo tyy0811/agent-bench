@@ -52,7 +52,10 @@ class SearchTool(Tool):
     async def execute(self, **kwargs: object) -> ToolOutput:
         query = str(kwargs.get("query", ""))
         top_k_val = kwargs.get("top_k", 5)
-        top_k: int = top_k_val if isinstance(top_k_val, int) else int(str(top_k_val))
+        try:
+            top_k: int = top_k_val if isinstance(top_k_val, int) else int(str(top_k_val))
+        except (ValueError, TypeError):
+            top_k = 5
 
         if not query:
             return ToolOutput(success=False, result="No query provided")

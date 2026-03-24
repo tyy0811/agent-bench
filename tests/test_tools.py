@@ -56,6 +56,15 @@ class TestToolRegistry:
         assert result.success is False
         assert "Unknown tool: nonexistent" in result.result
 
+    @pytest.mark.asyncio
+    async def test_execute_registered_tool(self):
+        """Registry dispatches to a registered tool and returns its output."""
+        registry = ToolRegistry()
+        registry.register(CalculatorTool())
+        result = await registry.execute("calculator", expression="1 + 2")
+        assert result.success is True
+        assert result.result == "3"
+
     def test_get_definitions(self):
         registry = ToolRegistry()
         registry.register(CalculatorTool())
@@ -172,6 +181,21 @@ class TestSearchTool:
         tool = SearchTool(retriever=retriever)
         result = await tool.execute(query="test")
         assert result.metadata["sources"] == ["same_file.md"]
+
+    @pytest.mark.asyncio
+    async def test_malformed_top_k_falls_back_to_default(self):
+        """Model-generated bad top_k (e.g. 'five') should not crash."""
+        retriever = MockRetriever(
+            results=[
+                MockSearchResult(
+                    chunk=MockChunk(content="Some content", source="test.md"),
+                    score=0.9,
+                ),
+            ]
+        )
+        tool = SearchTool(retriever=retriever)
+        result = await tool.execute(query="test", top_k="five")
+        assert result.success is True
 
     @pytest.mark.asyncio
     async def test_empty_query(self):
