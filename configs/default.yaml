@@ -1,0 +1,40 @@
+agent:
+  max_iterations: 3
+  temperature: 0.0
+
+provider:
+  default: openai
+  models:
+    gpt-4o-mini:
+      input_cost_per_mtok: 0.15
+      output_cost_per_mtok: 0.60
+    claude-sonnet-4-20250514:
+      input_cost_per_mtok: 3.0
+      output_cost_per_mtok: 15.0
+
+rag:
+  chunking:
+    strategy: recursive
+    chunk_size: 512
+    chunk_overlap: 64
+  retrieval:
+    strategy: hybrid
+    rrf_k: 60
+    candidates_per_system: 10
+    top_k: 5
+  reranker:
+    enabled: false
+  store_path: .cache/store
+
+embedding:
+  model: all-MiniLM-L6-v2
+  cache_dir: .cache/embeddings
+
+serving:
+  host: 0.0.0.0
+  port: 8000
+  request_timeout_seconds: 30
+
+evaluation:
+  judge_provider: openai
+  golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json
