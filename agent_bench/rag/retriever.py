@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 from agent_bench.rag.embedder import Embedder
 from agent_bench.rag.store import HybridStore, SearchResult
@@ -27,10 +27,13 @@ class Retriever:
         self,
         query: str,
         top_k: int = 5,
-        strategy: Literal["semantic", "keyword", "hybrid"] | None = None,
+        strategy: str | None = None,
     ) -> list[SearchResult]:
         """Embed query and search the store."""
-        strat = strategy or self._default_strategy
+        strat: Literal["semantic", "keyword", "hybrid"] = cast(
+            Literal["semantic", "keyword", "hybrid"],
+            strategy or self._default_strategy,
+        )
         query_embedding = self._embedder.embed(query)
         return self._store.search(
             query_embedding=query_embedding,

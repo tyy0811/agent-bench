@@ -65,11 +65,9 @@ class Orchestrator:
     ) -> AgentResponse:
         start = time.perf_counter()
 
-        # Wire request-level retrieval settings through to SearchTool
-        search_tool = self.registry.get("search_documents")
-        if search_tool is not None and hasattr(search_tool, "default_top_k"):
-            search_tool.default_top_k = top_k  # type: ignore[attr-defined]
-            search_tool.default_strategy = strategy  # type: ignore[attr-defined]
+        # Store request-level retrieval settings for tool execution
+        self._request_top_k = top_k
+        self._request_strategy = strategy
 
         messages: list[Message] = [
             Message(role=Role.SYSTEM, content=system_prompt),
@@ -112,7 +110,12 @@ class Orchestrator:
 
             # Execute each tool call, append results
             for tc in response.tool_calls:
-                result = await self.registry.execute(tc.name, **tc.arguments)
+                kwargs = dict(tc.arguments)
+                # Inject request-level retrieval settings for search tool
+                if tc.name == "search_documents":
+                    kwargs.setdefault("top_k", self._request_top_k)
+                    kwargs["_strategy"] = self._request_strategy
+                result = await self.registry.execute(tc.name, **kwargs)
                 messages.append(Message(role=Role.TOOL, content=result.result, tool_call_id=tc.id))
                 tools_used.append(tc.name)
                 if "sources" in result.metadata:

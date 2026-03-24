@@ -63,11 +63,13 @@ class SearchTool(Tool):
             top_k: int = top_k_val if isinstance(top_k_val, int) else int(str(top_k_val))
         except (ValueError, TypeError):
             top_k = self.default_top_k
+        # _strategy is injected by the orchestrator per-request (not from LLM args)
+        strategy = str(kwargs.get("_strategy", self.default_strategy))
 
         if not query:
             return ToolOutput(success=False, result="No query provided")
 
-        results = await self._retriever.search(query, top_k=top_k, strategy=self.default_strategy)
+        results = await self._retriever.search(query, top_k=top_k, strategy=strategy)
 
         if not results:
             return ToolOutput(
