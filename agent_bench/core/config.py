@@ -93,8 +93,15 @@ class TaskFileConfig(BaseModel):
 
 
 def _resolve_config_dir() -> Path:
-    """Resolve configs directory relative to cwd."""
-    return Path.cwd() / "configs"
+    """Resolve configs directory: cwd first, then package-relative fallback."""
+    cwd_configs = Path.cwd() / "configs"
+    if cwd_configs.is_dir():
+        return cwd_configs
+    # Fallback: relative to package location (works for installed packages)
+    pkg_configs = Path(__file__).resolve().parent.parent.parent / "configs"
+    if pkg_configs.is_dir():
+        return pkg_configs
+    return cwd_configs  # Let the caller get a clear FileNotFoundError
 
 
 def load_config(path: Path | None = None) -> AppConfig:

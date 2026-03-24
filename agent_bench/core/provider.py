@@ -152,8 +152,11 @@ class OpenAIProvider(LLMProvider):
         except ImportError as e:
             raise ImportError("openai package required: pip install openai") from e
 
+        import os
+
         self.config = config or load_config()
-        self.client = AsyncOpenAI()
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        self.client = AsyncOpenAI(api_key=api_key)
         self.model = "gpt-4o-mini"
         model_pricing = self.config.provider.models.get(self.model)
         self._input_cost = model_pricing.input_cost_per_mtok if model_pricing else 0.15

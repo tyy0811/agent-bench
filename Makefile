@@ -15,16 +15,16 @@ serve:
 	uvicorn agent_bench.serving.app:create_app --factory --reload --port 8000
 
 ingest:
-	python scripts/ingest.py --config configs/tasks/tech_docs.yaml
+	python3 scripts/ingest.py --config configs/tasks/tech_docs.yaml
 
 evaluate-fast:
-	python scripts/evaluate.py --config configs/default.yaml --mode deterministic
+	python3 scripts/evaluate.py --config configs/default.yaml --mode deterministic
 
 evaluate-full:
-	python scripts/evaluate.py --config configs/default.yaml --mode full
+	python3 scripts/evaluate.py --config configs/default.yaml --mode full
 
 benchmark:
-	python scripts/benchmark.py --output docs/benchmark_report.md
+	python3 scripts/benchmark.py --output docs/benchmark_report.md
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build

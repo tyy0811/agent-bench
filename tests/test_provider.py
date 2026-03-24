@@ -222,6 +222,150 @@ class TestOpenAIFormat:
         assert formatted[3]["tool_call_id"] == "call_1"
 
 
+# --- OpenAI provider (mocked HTTP) ---
+
+
+class TestOpenAIProvider:
+    def test_factory_creates_openai_provider(self, monkeypatch):
+        """Factory returns OpenAIProvider for 'openai' config."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(provider=ProviderConfig(default="openai"))
+        provider = create_provider(config)
+        assert isinstance(provider, OpenAIProvider)
+
+    def test_format_tools_via_instance(self, monkeypatch):
+        """OpenAIProvider.format_tools delegates to format_tools_openai correctly."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(provider=ProviderConfig(default="openai"))
+        provider = OpenAIProvider(config)
+        tools = [
+            ToolDefinition(
+                name="search_documents",
+                description="Search docs",
+                parameters={"type": "object", "properties": {"query": {"type": "string"}}},
+            )
+        ]
+        formatted = provider.format_tools(tools)
+        assert formatted[0]["type"] == "function"
+        assert formatted[0]["function"]["name"] == "search_documents"
+
+    @pytest.mark.asyncio
+    async def test_complete_with_mocked_response(self, monkeypatch):
+        """OpenAI complete() parses a mocked API response correctly."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(provider=ProviderConfig(default="openai"))
+        provider = OpenAIProvider(config)
+
+        mock_response = {
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4o-mini",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "FastAPI uses curly braces. [source: path_params.md]",
+                        "tool_calls": None,
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 30, "total_tokens": 130},
+        }
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(200, json=mock_response)
+            )
+            response = await provider.complete(
+                [Message(role=Role.USER, content="How do path params work?")]
+            )
+
+        assert response.content == "FastAPI uses curly braces. [source: path_params.md]"
+        assert response.tool_calls == []
+        assert response.provider == "openai"
+        assert response.usage.input_tokens == 100
+        assert response.usage.output_tokens == 30
+        assert response.usage.estimated_cost_usd > 0
+        assert response.latency_ms > 0
+
+    @pytest.mark.asyncio
+    async def test_complete_parses_tool_calls(self, monkeypatch):
+        """OpenAI complete() correctly parses tool_calls from response."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+        import json
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(provider=ProviderConfig(default="openai"))
+        provider = OpenAIProvider(config)
+
+        mock_response = {
+            "id": "chatcmpl-test2",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4o-mini",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call_abc123",
+                                "type": "function",
+                                "function": {
+                                    "name": "search_documents",
+                                    "arguments": json.dumps({"query": "path parameters"}),
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "usage": {"prompt_tokens": 80, "completion_tokens": 20, "total_tokens": 100},
+        }
+
+        tools = [
+            ToolDefinition(
+                name="search_documents",
+                description="Search docs",
+                parameters={"type": "object", "properties": {"query": {"type": "string"}}},
+            )
+        ]
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(200, json=mock_response)
+            )
+            response = await provider.complete(
+                [Message(role=Role.USER, content="search for path params")],
+                tools=tools,
+            )
+
+        assert len(response.tool_calls) == 1
+        assert response.tool_calls[0].id == "call_abc123"
+        assert response.tool_calls[0].name == "search_documents"
+        assert response.tool_calls[0].arguments == {"query": "path parameters"}
+
+
 # --- Anthropic stub ---
 
 
