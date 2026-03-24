@@ -21,6 +21,10 @@ class ProviderTimeoutError(Exception):
     """Raised when the LLM provider times out."""
 
 
+class ProviderRateLimitError(Exception):
+    """Raised when the LLM provider returns a rate limit / quota error."""
+
+
 # --- Pure formatting functions (used by providers and tests directly) ---
 
 
@@ -187,6 +191,10 @@ class OpenAIProvider(LLMProvider):
             response = await self.client.chat.completions.create(**kwargs)
         except APITimeoutError as e:
             raise ProviderTimeoutError(f"OpenAI timed out: {e}") from e
+        except Exception as e:
+            if "insufficient_quota" in str(e) or "rate_limit" in str(e).lower():
+                raise ProviderRateLimitError(f"OpenAI rate limit / quota: {e}") from e
+            raise
         latency_ms = (time.perf_counter() - start) * 1000
 
         choice = response.choices[0]

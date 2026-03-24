@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from agent_bench.core.provider import ProviderTimeoutError
+from agent_bench.core.provider import ProviderRateLimitError, ProviderTimeoutError
 
 logger = structlog.get_logger()
 
@@ -81,13 +81,33 @@ class RequestMiddleware(BaseHTTPMiddleware):
                 latency_ms=round(latency_ms, 2),
                 request_id=request_id,
             )
-            # Record error in metrics if available
             metrics = getattr(request.app.state, "metrics", None)
             if metrics is not None:
                 metrics.record(latency_ms, error=True)
             return JSONResponse(
                 status_code=504,
                 content={"detail": "Provider timed out", "request_id": request_id},
+                headers={"X-Request-ID": request_id},
+            )
+
+        except ProviderRateLimitError:
+            latency_ms = (time.perf_counter() - start) * 1000
+            logger.error(
+                "provider_rate_limit",
+                method=request.method,
+                path=str(request.url.path),
+                latency_ms=round(latency_ms, 2),
+                request_id=request_id,
+            )
+            metrics = getattr(request.app.state, "metrics", None)
+            if metrics is not None:
+                metrics.record(latency_ms, error=True)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": "Provider rate limit or quota exceeded",
+                    "request_id": request_id,
+                },
                 headers={"X-Request-ID": request_id},
             )
 
