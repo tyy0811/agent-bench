@@ -8,7 +8,7 @@ Built as a portfolio project demonstrating AI engineering depth: provider abstra
 
 ## Benchmark Results
 
-Evaluated on 27 hand-crafted questions (19 retrieval, 3 calculation, 5 out-of-scope) over 16 FastAPI documentation files.
+Evaluated on 27 hand-crafted questions using **gpt-4o-mini** ($0.0004/query) over 16 FastAPI documentation files. Provider is swappable via config — Anthropic Claude stubbed for V2.
 
 | Metric | Value | Notes |
 |--------|-------|-------|
