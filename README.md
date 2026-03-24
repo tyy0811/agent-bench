@@ -20,11 +20,11 @@
 ## Quick Start
 
 ```bash
-# Install
-pip install -e ".[dev]"
+# Install (uses the pinned interpreter from Makefile)
+make install
 
 # Ingest the documentation corpus
-python scripts/ingest.py
+make ingest
 
 # Start the API server
 make serve
@@ -133,9 +133,9 @@ make benchmark
 ```
 
 The golden dataset (`agent_bench/evaluation/datasets/tech_docs_golden.json`) contains 27 hand-crafted questions:
-- 20 positive: 8 easy (single chunk), 8 medium (multi-chunk), 4 hard (multi-source)
-- 5 negative: out-of-scope questions testing grounded refusal
-- 3 calculator questions requiring tool use
+- 19 retrieval: 8 easy (single chunk), 7 medium (multi-chunk), 4 hard (multi-source)
+- 3 calculation: questions requiring the calculator tool
+- 5 out-of-scope: questions testing grounded refusal (answer not in corpus)
 
 Metrics measured: Retrieval P@5, R@5, keyword hit rate, source citation rate, citation accuracy, grounded refusal rate, calculator accuracy, latency, cost.
 
