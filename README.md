@@ -7,15 +7,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Retrieval P@5 | _run with real provider_ |
-| Retrieval R@5 | _run with real provider_ |
-| Citation Accuracy | _run with real provider_ |
-| Grounded Refusal | _/5_ |
-| Answer Faithfulness | _run with real provider_ |
-| Latency p50 | _run with real provider_ |
-| Cost per query | _run with real provider_ |
+| Retrieval P@5 | 0.70 |
+| Retrieval R@5 | 0.83 |
+| Keyword Hit Rate | 0.89 |
+| Citation Accuracy | 1.00 |
+| Grounded Refusal | 0/5 |
+| Calculator Accuracy | 2/3 |
+| Latency p50 | 4,690 ms |
+| Cost per query | $0.0004 |
 
-[Full benchmark report](docs/benchmark_report.md) (currently MockProvider proof-of-structure; real numbers after `make evaluate-fast` with API key)
+[Full benchmark report](docs/benchmark_report.md)
 
 ## Quick Start
 
