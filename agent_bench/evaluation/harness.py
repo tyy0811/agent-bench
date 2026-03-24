@@ -90,8 +90,9 @@ async def run_evaluation(
             system_prompt=system_prompt,
         )
 
-        # Extract sources
-        retrieved_sources = [s.source for s in agent_response.sources]
+        # Use ranked_sources for retrieval metrics (preserves rank order)
+        ranked_sources = agent_response.ranked_sources
+        deduped_sources = [s.source for s in agent_response.sources]
 
         # Compute deterministic metrics
         result = EvalResult(
@@ -99,14 +100,14 @@ async def run_evaluation(
             question=q.question,
             category=q.category,
             difficulty=q.difficulty,
-            retrieval_precision=retrieval_precision_at_k(retrieved_sources, q.expected_sources),
-            retrieval_recall=retrieval_recall_at_k(retrieved_sources, q.expected_sources),
+            retrieval_precision=retrieval_precision_at_k(ranked_sources, q.expected_sources),
+            retrieval_recall=retrieval_recall_at_k(ranked_sources, q.expected_sources),
             keyword_hit_rate=keyword_hit_rate(agent_response.answer, q.expected_answer_keywords),
             has_source_citation=source_presence(agent_response),
             grounded_refusal=grounded_refusal(
                 agent_response.answer, q.category, q.expected_sources
             ),
-            citation_accuracy=citation_accuracy(agent_response.answer, retrieved_sources),
+            citation_accuracy=citation_accuracy(agent_response.answer, deduped_sources),
             calculator_used_correctly=calculator_used_when_expected(
                 agent_response, q.requires_calculator
             ),
@@ -114,16 +115,21 @@ async def run_evaluation(
             latency_ms=agent_response.latency_ms,
             tokens_used=agent_response.usage,
             answer=agent_response.answer,
-            retrieved_sources=retrieved_sources,
+            retrieved_sources=ranked_sources,
         )
 
         # Optional LLM judge
         if judge_provider is not None and q.category != "out_of_scope":
-            from agent_bench.evaluation.metrics import answer_faithfulness
+            from agent_bench.evaluation.metrics import answer_correctness, answer_faithfulness
 
             result.faithfulness = await answer_faithfulness(
                 answer=agent_response.answer,
-                source_chunks=[],  # Would need raw chunks — simplified for now
+                source_chunks=agent_response.source_chunks,
+                judge_provider=judge_provider,
+            )
+            result.correctness = await answer_correctness(
+                answer=agent_response.answer,
+                reference_answer=", ".join(q.expected_answer_keywords),
                 judge_provider=judge_provider,
             )
 

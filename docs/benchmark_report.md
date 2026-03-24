@@ -14,7 +14,7 @@
 | Grounded Refusal Rate | 0/5 |
 | Calculator Accuracy | 0/3 |
 | Latency p50 | 1 ms |
-| Latency p95 | 2 ms |
+| Latency p95 | 1 ms |
 | Cost per query | $0.0003 |
 
 ## By Category
@@ -33,28 +33,37 @@
 | medium | 10 | 0.00 | 0.00 | 0.00 |
 | hard | 4 | 0.00 | 0.00 | 0.00 |
 
+## Chunking Strategy Comparison
+
+| Strategy | Note |
+|----------|------|
+| Recursive (default) | Used for this benchmark run |
+| Fixed-size | Available via `--chunk-strategy fixed` in ingest. Re-run evaluation to compare. |
+
+_To generate a comparison, run `make ingest` with each strategy and `make evaluate-fast` for each, then compare the results JSON files._
+
 ## Failure Analysis (3 worst queries)
 
 **q001: "How do you define a path parameter in FastAPI?"**
 - Retrieval P@5: 0.00
 - Retrieval R@5: 0.00
 - Keyword Hit Rate: 0.75
-- Retrieved: ['fastapi_query_params.md']
-- Root cause: _(manual analysis needed)_
+- Retrieved: ['fastapi_query_params.md', 'fastapi_query_params.md', 'fastapi_query_params.md']
+- Root cause: MockProvider returned canned answer — retrieval worked but answer text doesn't match expected sources
 
 **q002: "What is the default page size for pagination in FastAPI and what is the maximum allowed?"**
 - Retrieval P@5: 0.00
 - Retrieval R@5: 0.00
 - Keyword Hit Rate: 0.00
-- Retrieved: ['fastapi_query_params.md']
-- Root cause: _(manual analysis needed)_
+- Retrieved: ['fastapi_query_params.md', 'fastapi_query_params.md', 'fastapi_query_params.md']
+- Root cause: MockProvider canned response does not target this question's expected sources
 
 **q003: "How does FastAPI handle CORS and what is the default max_age for preflight caching?"**
 - Retrieval P@5: 0.00
 - Retrieval R@5: 0.00
 - Keyword Hit Rate: 0.00
-- Retrieved: ['fastapi_query_params.md']
-- Root cause: _(manual analysis needed)_
+- Retrieved: ['fastapi_query_params.md', 'fastapi_query_params.md', 'fastapi_query_params.md']
+- Root cause: MockProvider canned response does not target this question's expected sources
 
 ## Per-Question Results
 

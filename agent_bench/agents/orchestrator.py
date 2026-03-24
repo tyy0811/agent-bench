@@ -26,6 +26,8 @@ class SourceReference(BaseModel):
 class AgentResponse(BaseModel):
     answer: str
     sources: list[SourceReference] = Field(default_factory=list)
+    ranked_sources: list[str] = Field(default_factory=list)
+    source_chunks: list[str] = Field(default_factory=list)
     iterations: int
     tools_used: list[str] = Field(default_factory=list)
     usage: TokenUsage
@@ -77,6 +79,8 @@ class Orchestrator:
         ]
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
+        all_ranked_sources: list[str] = []
+        all_source_chunks: list[str] = []
         tools_used: list[str] = []
         total_usage = TokenUsage(input_tokens=0, output_tokens=0, estimated_cost_usd=0.0)
 
@@ -95,6 +99,8 @@ class Orchestrator:
                 return AgentResponse(
                     answer=response.content,
                     sources=_dedup_sources(all_sources),
+                    ranked_sources=all_ranked_sources,
+                    source_chunks=all_source_chunks,
                     iterations=iteration + 1,
                     tools_used=tools_used,
                     usage=total_usage,
@@ -125,6 +131,10 @@ class Orchestrator:
                 tools_used.append(tc.name)
                 if "sources" in result.metadata:
                     all_sources.extend(result.metadata["sources"])
+                if "ranked_sources" in result.metadata:
+                    all_ranked_sources.extend(result.metadata["ranked_sources"])
+                if "source_chunks" in result.metadata:
+                    all_source_chunks.extend(result.metadata["source_chunks"])
 
         # Max iterations hit — force a text answer without tools
         response = await self.provider.complete(messages, tools=None, temperature=self.temperature)
@@ -136,6 +146,8 @@ class Orchestrator:
         return AgentResponse(
             answer=response.content,
             sources=_dedup_sources(all_sources),
+            ranked_sources=all_ranked_sources,
+            source_chunks=all_source_chunks,
             iterations=self.max_iterations,
             tools_used=tools_used,
             usage=total_usage,

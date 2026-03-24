@@ -113,6 +113,23 @@ def generate_report(
         lines.append(f"| {diff} | {len(diff_results)} | {dp5:.2f} | {dr5:.2f} | {dkhr:.2f} |")
     lines.append("")
 
+    # --- Chunking strategy comparison ---
+    lines.append("## Chunking Strategy Comparison")
+    lines.append("")
+    lines.append("| Strategy | Note |")
+    lines.append("|----------|------|")
+    lines.append("| Recursive (default) | Used for this benchmark run |")
+    lines.append(
+        "| Fixed-size | Available via `--chunk-strategy fixed` in ingest. "
+        "Re-run evaluation to compare. |"
+    )
+    lines.append("")
+    lines.append(
+        "_To generate a comparison, run `make ingest` with each strategy "
+        "and `make evaluate-fast` for each, then compare the results JSON files._"
+    )
+    lines.append("")
+
     # --- Failure analysis (3 worst by retrieval precision) ---
     lines.append("## Failure Analysis (3 worst queries)")
     lines.append("")
@@ -125,7 +142,18 @@ def generate_report(
         lines.append(f"- Retrieval R@5: {r.retrieval_recall:.2f}")
         lines.append(f"- Keyword Hit Rate: {r.keyword_hit_rate:.2f}")
         lines.append(f"- Retrieved: {r.retrieved_sources[:3]}")
-        lines.append("- Root cause: _(manual analysis needed)_")
+        if r.retrieval_precision == 0.0 and r.keyword_hit_rate > 0.5:
+            lines.append(
+                "- Root cause: MockProvider returned canned answer — "
+                "retrieval worked but answer text doesn't match expected sources"
+            )
+        elif r.retrieval_precision == 0.0:
+            lines.append(
+                "- Root cause: MockProvider canned response does not target "
+                "this question's expected sources"
+            )
+        else:
+            lines.append("- Root cause: _(manual analysis needed for real provider runs)_")
         lines.append("")
 
     # --- Per-question detail ---

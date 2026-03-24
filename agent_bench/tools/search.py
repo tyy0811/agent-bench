@@ -81,15 +81,23 @@ class SearchTool(Tool):
         # Format as numbered passages with filename attribution
         lines = []
         sources = []
+        ranked_sources = []  # preserves rank order with duplicates
+        source_chunks = []  # raw chunk text for LLM judge
         for i, r in enumerate(results, 1):
             source = r.chunk.source
             content = r.chunk.content
             lines.append(f"[{i}] ({source}): {content}")
+            ranked_sources.append(source)
+            source_chunks.append(content)
             if source not in sources:
                 sources.append(source)
 
         return ToolOutput(
             success=True,
             result="\n\n".join(lines),
-            metadata={"sources": sources},
+            metadata={
+                "sources": sources,
+                "ranked_sources": ranked_sources,
+                "source_chunks": source_chunks,
+            },
         )

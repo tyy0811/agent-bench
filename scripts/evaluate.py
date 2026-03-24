@@ -56,10 +56,18 @@ async def main_async(args: argparse.Namespace) -> None:
         temperature=config.agent.temperature,
     )
 
-    # Judge provider for full mode
+    # Judge provider for full mode — uses configured judge_provider
     judge = None
     if args.mode == "full":
-        judge = create_provider(config)
+        from agent_bench.core.config import AppConfig, ProviderConfig
+
+        judge_config = AppConfig(
+            provider=ProviderConfig(
+                default=config.evaluation.judge_provider,
+                models=config.provider.models,
+            )
+        )
+        judge = create_provider(judge_config)
 
     # Run evaluation
     golden_path = config.evaluation.golden_dataset
