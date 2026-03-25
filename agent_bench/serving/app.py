@@ -104,4 +104,17 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.serving.rate_limit_rpm)
     app.include_router(router)
 
+    # Startup warmup: eager-load models to reduce cold start latency
+    @app.on_event("startup")
+    async def warmup() -> None:
+        import structlog
+
+        log = structlog.get_logger()
+        log.info("warmup_start")
+        # Trigger lazy model loads
+        _ = embedder.embed("warmup")
+        if reranker is not None:
+            _ = reranker.model  # noqa: F841
+        log.info("warmup_complete")
+
     return app
