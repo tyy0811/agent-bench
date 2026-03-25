@@ -172,8 +172,8 @@ See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
 
 ## Roadmap
 
-- [ ] Streaming responses (SSE for final synthesis)
-- [ ] SQLite conversation sessions
+- [x] Streaming responses (SSE for final synthesis)
+- [x] SQLite conversation sessions
 - [ ] Anthropic provider (multi-provider comparison)
 
 *CPU-only, single-domain. Framework scales to larger corpora and additional providers.*
