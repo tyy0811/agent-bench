@@ -1,12 +1,13 @@
-"""Tests for RAG pipeline: chunker, embedder, store, and retriever."""
+"""Tests for RAG pipeline: chunker, embedder, store, retriever, and reranker."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from agent_bench.rag.chunker import chunk_fixed, chunk_recursive, chunk_text
+from agent_bench.rag.chunker import Chunk, chunk_fixed, chunk_recursive, chunk_text
 from agent_bench.rag.embedder import Embedder
+from agent_bench.rag.reranker import CrossEncoderReranker
 from agent_bench.rag.retriever import Retriever
 from agent_bench.rag.store import HybridStore, SearchResult
 
@@ -219,3 +220,112 @@ class TestRetriever:
         results = await test_retriever.search("Pydantic models", top_k=3, strategy="keyword")
         assert len(results) > 0
         assert all(r.retrieval_strategy == "keyword" for r in results)
+
+
+# --- Reranker tests ---
+
+
+class MockCrossEncoder:
+    """Mock cross-encoder that returns deterministic scores based on content length."""
+
+    def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
+        # Score based on content length — longer content scores higher
+        # This gives a deterministic, predictable reordering
+        return [float(len(content)) for _, content in pairs]
+
+
+class TestCrossEncoderReranker:
+    def _make_chunks(self, contents: list[str]) -> list[Chunk]:
+        return [
+            Chunk(id=f"c{i}", content=c, source=f"doc_{i}.md", chunk_index=0)
+            for i, c in enumerate(contents)
+        ]
+
+    def test_reranker_reorders(self):
+        """Reranker reorders chunks by cross-encoder score."""
+        chunks = self._make_chunks(["short", "a medium length chunk", "longest chunk content here"])
+        reranker = CrossEncoderReranker(model=MockCrossEncoder())
+        result = reranker.rerank("test query", chunks, top_k=3)
+
+        # MockCrossEncoder scores by content length, so longest first
+        assert result[0].content == "longest chunk content here"
+        assert result[1].content == "a medium length chunk"
+        assert result[2].content == "short"
+
+    def test_reranker_top_k(self):
+        """Reranker returns exactly top_k results from a larger input."""
+        chunks = self._make_chunks([f"content {i}" for i in range(20)])
+        reranker = CrossEncoderReranker(model=MockCrossEncoder())
+        result = reranker.rerank("test query", chunks, top_k=5)
+        assert len(result) == 5
+
+    def test_reranker_disabled(self, mock_embedder: Embedder, test_store: HybridStore):
+        """Retriever without reranker preserves RRF order."""
+        retriever_no_reranker = Retriever(embedder=mock_embedder, store=test_store)
+        retriever_with_none = Retriever(
+            embedder=mock_embedder, store=test_store, reranker=None,
+        )
+
+        import asyncio
+
+        results_a = asyncio.get_event_loop().run_until_complete(
+            retriever_no_reranker.search("path parameters", top_k=3)
+        )
+        results_b = asyncio.get_event_loop().run_until_complete(
+            retriever_with_none.search("path parameters", top_k=3)
+        )
+        assert [r.chunk.id for r in results_a] == [r.chunk.id for r in results_b]
+
+    def test_reranker_empty_input(self):
+        """Empty chunk list returns empty list."""
+        reranker = CrossEncoderReranker(model=MockCrossEncoder())
+        result = reranker.rerank("test query", [], top_k=5)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_reranked_results_preserve_rrf_scores(
+        self, mock_embedder: Embedder, test_store: HybridStore,
+    ):
+        """Reranked results carry original RRF scores, not 0.0.
+
+        This is critical: the refusal gate in SearchTool checks max_score
+        from the returned results. If reranking zeroes out scores, the
+        refusal gate would reject every reranked query.
+        """
+        reranker = CrossEncoderReranker(model=MockCrossEncoder())
+        retriever = Retriever(
+            embedder=mock_embedder,
+            store=test_store,
+            reranker=reranker,
+            reranker_top_k=3,
+        )
+        results = await retriever.search("path parameters", top_k=3)
+        assert len(results) > 0
+        # All scores must be positive (preserved from RRF), not 0.0
+        assert all(r.score > 0 for r in results), (
+            f"Reranked scores should be positive RRF scores, got: {[r.score for r in results]}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_refusal_with_reranker_enabled(self):
+        """Integration: out-of-scope query with reranker on still refuses.
+
+        The refusal gate fires on RRF max_score BEFORE reranking (go/no-go
+        decision). This test validates the Feature 1 + Feature 2 interaction.
+        """
+        from agent_bench.tools.search import SearchTool
+        from tests.test_tools import MockChunk, MockRetriever, MockSearchResult
+
+        # Low scores — should trigger refusal regardless of reranker
+        low_score_results = [
+            MockSearchResult(
+                chunk=MockChunk(content="Unrelated content", source="irrelevant.md"),
+                score=0.005,
+            ),
+        ]
+        retriever = MockRetriever(results=low_score_results)
+        tool = SearchTool(retriever=retriever, refusal_threshold=0.02)
+        result = await tool.execute(query="how to cook pasta")
+
+        assert result.metadata["refused"] is True
+        assert "No relevant documents found" in result.result

@@ -52,11 +52,20 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             cache_dir=config.embedding.cache_dir,
         )
 
+    # Optional reranker
+    reranker = None
+    if config.rag.reranker.enabled:
+        from agent_bench.rag.reranker import CrossEncoderReranker
+
+        reranker = CrossEncoderReranker(model_name=config.rag.reranker.model_name)
+
     retriever = Retriever(
         embedder=embedder,
         store=store,
         default_strategy=config.rag.retrieval.strategy,  # type: ignore[arg-type]
         candidates_per_system=config.rag.retrieval.candidates_per_system,
+        reranker=reranker,
+        reranker_top_k=config.rag.reranker.top_k,
     )
 
     # Tools

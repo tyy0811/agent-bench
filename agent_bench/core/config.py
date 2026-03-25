@@ -40,7 +40,9 @@ class RetrievalConfig(BaseModel):
 
 
 class RerankerConfig(BaseModel):
-    enabled: bool = False
+    enabled: bool = True
+    model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    top_k: int = 5  # independent of retrieval.top_k
 
 
 class RAGConfig(BaseModel):

@@ -146,6 +146,28 @@ relevant to the query?"). Rejected because it adds latency, cost, and a
 second point of failure. The score-based approach is deterministic, fast,
 and debuggable.
 
+## Why cross-encoder reranking improves precision
+
+BM25 retrieves lexically similar but semantically irrelevant chunks.
+RRF fusion mitigates this partially, but noisy BM25 results still
+dilute the top-5 set. P@5 was 0.70 in V1.
+
+A cross-encoder (`ms-marco-MiniLM-L-6-v2`, ~80MB) scores each
+(query, chunk) pair jointly, capturing semantic relevance that
+bi-encoder similarity misses. The tradeoff is ~100–200ms extra latency
+per query — acceptable given our 4.7s baseline is dominated by LLM
+generation, not retrieval.
+
+The reranker is enabled by default. Setting `rag.reranker.enabled: false`
+restores V1 behavior exactly. `reranker.top_k` is independent of
+`retrieval.top_k`, so the reranker's output count can be tuned without
+affecting the RRF candidate pool.
+
+The retriever passes all RRF-fused candidates to the reranker rather
+than a computed subset. The reranker's `top_k` handles truncation.
+This is simpler and more robust than computing an input size from
+per-system candidate counts.
+
 ## Why ranked_sources separate from deduplicated sources?
 
 The deduplicated `sources` list in `AgentResponse` is for the API
