@@ -6,6 +6,7 @@ import time
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
+from starlette.responses import Response
 
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.serving.middleware import MetricsCollector
@@ -21,18 +22,53 @@ router = APIRouter()
 
 
 @router.get("/")
-async def root() -> dict:
-    """Self-documenting root endpoint."""
-    return {
-        "name": "agent-bench",
-        "description": "RAG agent evaluation benchmark",
-        "endpoints": {
-            "POST /ask": "Ask a question, get answer with sources",
-            "GET /health": "Health check and store stats",
-            "GET /metrics": "Request count, latency, cost metrics",
-        },
-        "source": "https://github.com/tyy0811/agent-bench",
-    }
+async def root() -> Response:
+    """Human-friendly landing page for recruiters clicking the live URL."""
+    from starlette.responses import HTMLResponse
+
+    html = (  # noqa: E501
+        "<!DOCTYPE html>"
+        "<html lang='en'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>agent-bench</title><style>"
+        "body{font-family:system-ui,sans-serif;max-width:640px;"
+        "margin:60px auto;padding:0 20px;color:#1a1a1a;line-height:1.6}"
+        "h1{margin-bottom:4px}.sub{color:#666;margin-top:0}"
+        "code{background:#f4f4f4;padding:2px 6px;border-radius:3px}"
+        "pre{background:#f4f4f4;padding:16px;border-radius:6px;"
+        "overflow-x:auto}a{color:#0066cc}"
+        "table{border-collapse:collapse;width:100%;margin:12px 0}"
+        "th,td{text-align:left;padding:8px 12px;"
+        "border-bottom:1px solid #e0e0e0}th{font-weight:600}"
+        "</style></head><body>"
+        "<h1>agent-bench</h1>"
+        "<p class='sub'>RAG agent evaluation benchmark"
+        " &mdash; built from API primitives</p>"
+        "<table>"
+        "<tr><th>Endpoint</th><th>Description</th></tr>"
+        "<tr><td><code>POST /ask</code></td>"
+        "<td>Ask a question, get answer with sources</td></tr>"
+        "<tr><td><code>POST /ask/stream</code></td>"
+        "<td>SSE streaming</td></tr>"
+        "<tr><td><code>GET /health</code></td>"
+        "<td>Health check and store stats</td></tr>"
+        "<tr><td><code>GET /metrics</code></td>"
+        "<td>Request count, latency, cost</td></tr>"
+        "</table>"
+        "<h3>Try it</h3>"
+        "<pre>curl -X POST "
+        "https://nomearod-agentbench.hf.space/ask \\\n"
+        "  -H 'Content-Type: application/json' \\\n"
+        "  -d '{\"question\": "
+        "\"How do I add auth to FastAPI?\"}'</pre>"
+        "<p><strong>145 tests</strong> &middot; "
+        "<strong>2 providers</strong> (OpenAI + Anthropic)"
+        " &middot; <strong>27-question benchmark</strong></p>"
+        "<p><a href='https://github.com/tyy0811/agent-bench'>"
+        "GitHub</a></p>"
+        "</body></html>"
+    )
+    return HTMLResponse(content=html)
 
 
 @router.post("/ask", response_model=AskResponse)
