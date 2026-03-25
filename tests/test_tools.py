@@ -212,3 +212,89 @@ class TestSearchTool:
         assert defn.parameters["type"] == "object"
         assert "query" in defn.parameters["properties"]
         assert "query" in defn.parameters["required"]
+
+
+# --- Refusal gate tests ---
+
+
+class TestRefusalGate:
+    """Tests for grounded refusal based on retrieval score threshold."""
+
+    def _make_results(self, scores: list[float]) -> list[MockSearchResult]:
+        return [
+            MockSearchResult(
+                chunk=MockChunk(content=f"Content {i}", source=f"doc_{i}.md"),
+                score=s,
+            )
+            for i, s in enumerate(scores)
+        ]
+
+    @pytest.mark.asyncio
+    async def test_refusal_out_of_scope(self):
+        """Low-scoring results below threshold trigger refusal."""
+        retriever = MockRetriever(results=self._make_results([0.005, 0.003]))
+        tool = SearchTool(retriever=retriever, refusal_threshold=0.02)
+        result = await tool.execute(query="how to cook pasta")
+
+        assert result.success is True
+        assert "No relevant documents found" in result.result
+        assert result.metadata["refused"] is True
+        assert result.metadata["sources"] == []
+
+    @pytest.mark.asyncio
+    async def test_no_refusal_in_scope(self):
+        """High-scoring results above threshold proceed normally."""
+        retriever = MockRetriever(results=self._make_results([0.03, 0.025]))
+        tool = SearchTool(retriever=retriever, refusal_threshold=0.02)
+        result = await tool.execute(query="FastAPI authentication")
+
+        assert result.success is True
+        assert "No relevant documents found" not in result.result
+        assert result.metadata.get("refused") is None
+        assert len(result.metadata["sources"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_refusal_metadata(self):
+        """Refused response includes max_score and refused=True."""
+        retriever = MockRetriever(results=self._make_results([0.01, 0.008]))
+        tool = SearchTool(retriever=retriever, refusal_threshold=0.02)
+        result = await tool.execute(query="unrelated topic")
+
+        assert result.metadata["max_score"] == 0.01
+        assert result.metadata["refused"] is True
+
+    @pytest.mark.asyncio
+    async def test_threshold_zero_disables(self):
+        """threshold=0.0 (default) never refuses, preserving V1 behavior."""
+        retriever = MockRetriever(results=self._make_results([0.001]))
+        tool = SearchTool(retriever=retriever, refusal_threshold=0.0)
+        result = await tool.execute(query="anything")
+
+        assert result.success is True
+        assert "No relevant documents found" not in result.result
+        assert result.metadata.get("refused") is None
+
+    @pytest.mark.asyncio
+    async def test_threshold_configurable(self):
+        """Different threshold values change refusal behavior."""
+        results = self._make_results([0.015, 0.012])
+        retriever = MockRetriever(results=results)
+
+        # With threshold=0.01 -> passes (max_score 0.015 > 0.01)
+        tool_low = SearchTool(retriever=retriever, refusal_threshold=0.01)
+        result_low = await tool_low.execute(query="test")
+        assert result_low.metadata.get("refused") is None
+
+        # With threshold=0.02 -> refuses (max_score 0.015 < 0.02)
+        tool_high = SearchTool(retriever=retriever, refusal_threshold=0.02)
+        result_high = await tool_high.execute(query="test")
+        assert result_high.metadata["refused"] is True
+
+    @pytest.mark.asyncio
+    async def test_max_score_in_normal_metadata(self):
+        """Non-refused responses also include max_score in metadata."""
+        retriever = MockRetriever(results=self._make_results([0.05, 0.03]))
+        tool = SearchTool(retriever=retriever, refusal_threshold=0.02)
+        result = await tool.execute(query="test")
+
+        assert result.metadata["max_score"] == 0.05

@@ -34,17 +34,30 @@ async def main_async(args: argparse.Namespace) -> None:
     # Build the RAG pipeline
     store = HybridStore.load(config.rag.store_path, rrf_k=config.rag.retrieval.rrf_k)
     embedder = Embedder(model_name=config.embedding.model, cache_dir=config.embedding.cache_dir)
+    # Optional reranker
+    reranker = None
+    if config.rag.reranker.enabled:
+        from agent_bench.rag.reranker import CrossEncoderReranker
+
+        reranker = CrossEncoderReranker(model_name=config.rag.reranker.model_name)
+
     retriever = Retriever(
         embedder=embedder,
         store=store,
         default_strategy=config.rag.retrieval.strategy,
         candidates_per_system=config.rag.retrieval.candidates_per_system,
+        reranker=reranker,
+        reranker_top_k=config.rag.reranker.top_k,
     )
 
     # Build tools + orchestrator
     registry = ToolRegistry()
     registry.register(
-        SearchTool(retriever=retriever, default_top_k=config.rag.retrieval.top_k)
+        SearchTool(
+            retriever=retriever,
+            default_top_k=config.rag.retrieval.top_k,
+            refusal_threshold=config.rag.refusal_threshold,
+        )
     )
     registry.register(CalculatorTool())
 

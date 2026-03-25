@@ -10,8 +10,9 @@ COPY scripts/ scripts/
 
 RUN pip install --no-cache-dir .
 
-# Pre-download embedding model at build time
+# Pre-download models at build time
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
 
 # Run ingestion at build time so the store is ready
 RUN python scripts/ingest.py --doc-dir data/tech_docs/ --store-path .cache/store
