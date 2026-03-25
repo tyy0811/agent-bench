@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
+import structlog
+
 from agent_bench.tools.base import Tool, ToolOutput
+
+log = structlog.get_logger()
 
 
 class SearchResult(Protocol):
@@ -51,10 +55,12 @@ class SearchTool(Tool):
         retriever: Retriever,
         default_top_k: int = 5,
         default_strategy: str = "hybrid",
+        refusal_threshold: float = 0.0,
     ) -> None:
         self._retriever = retriever
         self.default_top_k = default_top_k
         self.default_strategy = default_strategy
+        self.refusal_threshold = refusal_threshold
 
     async def execute(self, **kwargs: object) -> ToolOutput:
         query = str(kwargs.get("query", ""))
@@ -78,6 +84,20 @@ class SearchTool(Tool):
                 metadata={"sources": []},
             )
 
+        # Compute max retrieval score for refusal gate
+        max_score = max(r.score for r in results)
+        log.info("retrieval_scores", query=query, max_score=max_score, num_results=len(results))
+
+        # Refusal gate: if max score is below threshold, refuse to answer
+        if self.refusal_threshold > 0 and max_score < self.refusal_threshold:
+            log.info("retrieval_refused", query=query, max_score=max_score,
+                     threshold=self.refusal_threshold)
+            return ToolOutput(
+                success=True,
+                result="No relevant documents found for this query.",
+                metadata={"sources": [], "max_score": max_score, "refused": True},
+            )
+
         # Format as numbered passages with filename attribution
         lines = []
         sources = []
@@ -99,5 +119,6 @@ class SearchTool(Tool):
                 "sources": sources,
                 "ranked_sources": ranked_sources,
                 "source_chunks": source_chunks,
+                "max_score": max_score,
             },
         )

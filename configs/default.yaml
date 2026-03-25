@@ -24,6 +24,7 @@ rag:
     top_k: 5
   reranker:
     enabled: false
+  refusal_threshold: 0.02  # provisional — pending eval sweep
   store_path: .cache/store
 
 embedding:

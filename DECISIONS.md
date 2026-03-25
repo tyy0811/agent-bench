@@ -110,6 +110,42 @@ Storing `top_k` / `strategy` on `self` causes cross-request state
 bleed. Instead, these are passed as local variables through the
 tool execution kwargs — no shared state is mutated.
 
+## Why a relevance threshold for grounded refusal
+
+V1 never refuses — it always retrieves tangentially related content and
+synthesizes an answer. This is a trust failure: users cannot distinguish
+"the system found relevant information" from "the system fabricated from
+vaguely related chunks." Grounded refusal rate was 0/5.
+
+We add a refusal gate in `SearchTool.execute()` based on the maximum RRF
+score across retrieved chunks. If no chunk scores above the threshold, the
+tool returns "No relevant documents found" — the LLM then refuses via the
+system prompt rather than fabricating from irrelevant content.
+
+**Gate location:** The gate fires in `SearchTool.execute()`, not the
+orchestrator. `SearchTool` is where retrieval scores are still available —
+they are dropped before results reach the orchestrator. This also keeps
+the orchestrator unchanged.
+
+**Threshold value:** `rag.refusal_threshold: 0.02` is a provisional default
+pending an empirical sweep across the evaluation set. The sweep will test
+values 0.01–0.03 and select the value that maximizes refusal on out-of-scope
+queries without degrading in-scope P@5 and R@5. The actual RRF score
+distribution will be documented here after tuning.
+
+**Interaction with reranking:** The refusal gate fires on RRF scores BEFORE
+reranking. It is a go/no-go decision, not a per-chunk filter. If the gate
+passes, the full candidate set proceeds to the reranker. This keeps the
+threshold calibration independent of whether reranking is enabled.
+
+**Default disabled:** `refusal_threshold: 0.0` preserves V1 behavior exactly.
+The feature is opt-in until the threshold is tuned.
+
+**Alternative considered:** LLM-based relevance judgment ("is this content
+relevant to the query?"). Rejected because it adds latency, cost, and a
+second point of failure. The score-based approach is deterministic, fast,
+and debuggable.
+
 ## Why ranked_sources separate from deduplicated sources?
 
 The deduplicated `sources` list in `AgentResponse` is for the API

@@ -44,7 +44,11 @@ async def main_async(args: argparse.Namespace) -> None:
     # Build tools + orchestrator
     registry = ToolRegistry()
     registry.register(
-        SearchTool(retriever=retriever, default_top_k=config.rag.retrieval.top_k)
+        SearchTool(
+            retriever=retriever,
+            default_top_k=config.rag.retrieval.top_k,
+            refusal_threshold=config.rag.refusal_threshold,
+        )
     )
     registry.register(CalculatorTool())
 

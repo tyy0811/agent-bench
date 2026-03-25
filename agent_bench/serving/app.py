@@ -66,6 +66,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             retriever=retriever,
             default_top_k=config.rag.retrieval.top_k,
             default_strategy=config.rag.retrieval.strategy,
+            refusal_threshold=config.rag.refusal_threshold,
         )
     )
     registry.register(CalculatorTool())

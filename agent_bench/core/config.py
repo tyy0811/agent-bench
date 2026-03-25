@@ -48,6 +48,7 @@ class RAGConfig(BaseModel):
     retrieval: RetrievalConfig = RetrievalConfig()
     reranker: RerankerConfig = RerankerConfig()
     store_path: str = ".cache/store"
+    refusal_threshold: float = 0.0  # 0.0 = disabled (V1 behavior)
 
 
 class EmbeddingConfig(BaseModel):
