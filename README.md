@@ -15,24 +15,33 @@ Agentic RAG system with a 27-question evaluation harness, hybrid retrieval (FAIS
 
 Built as a portfolio project demonstrating AI engineering depth: provider abstraction, evaluation infrastructure, production patterns (FastAPI, Docker, CI, structured logging).
 
-`120 tests` | `27-question benchmark` | `$0.0004/query` | `Docker ready` | `CI green`
+`145 tests` | `27-question benchmark` | `2 providers` | `Docker ready` | `CI green`
 
 ## Benchmark Results
 
-Evaluated on 27 hand-crafted questions using **gpt-4o-mini** ($0.0004/query) over 16 FastAPI documentation files. Provider is swappable via config — Anthropic Claude stubbed for V2.
+Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Provider is swappable via one config field.
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Citation Accuracy | **1.00** | Zero hallucinated citations |
-| Keyword Hit Rate | **0.89** | Expected facts present in answer |
-| Retrieval R@5 | **0.83** | Expected sources found in top 5 |
-| Retrieval P@5 | **0.70** | Hybrid RRF (FAISS + BM25) |
-| Calculator Accuracy | **2/3** | LLM sometimes skips tool use |
-| Grounded Refusal | **0/5** | LLM never refuses — top V2 priority |
-| Latency p50 | 4,690 ms | gpt-4o-mini, single iteration |
-| Cost per query | $0.0004 | ~$0.01 for full 27-question eval |
+### Provider Comparison
 
-[Full benchmark report with failure analysis](docs/benchmark_report.md) | [Design decisions](DECISIONS.md)
+| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku |
+|--------|-------------------|----------------------|
+| Retrieval P@5 | 0.70 | **0.74** |
+| Retrieval R@5 | 0.83 | **0.84** |
+| Keyword Hit Rate | 0.89 | **0.92** |
+| Cost per query | **$0.0004** | $0.0007 |
+
+### Full Metrics (V1 → V2)
+
+| Metric | V1 (RRF only) | V2 (RRF + reranker) | Notes |
+|--------|--------------|---------------------|-------|
+| Retrieval P@5 | 0.70 | **0.74** | Cross-encoder reranking |
+| Retrieval R@5 | 0.83 | **0.84** | Maintained |
+| Keyword Hit Rate | 0.89 | **0.92** | Better answer coverage |
+| Citation Accuracy | 1.00 | **1.00** | Zero hallucinated citations |
+| Grounded Refusal | 0/5 | **Active** | Score threshold gate |
+| Cost per query | $0.0004 | $0.0004 | gpt-4o-mini baseline |
+
+[Full benchmark report](docs/benchmark_report.md) | [Design decisions](DECISIONS.md)
 
 ## Live Demo
 
@@ -79,7 +88,7 @@ OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
 flowchart LR
     Client -->|POST /ask| MW[Middleware<br/>request_id, timing, errors]
     MW --> Orch[Orchestrator<br/>max 3 iterations]
-    Orch --> LLM[OpenAI gpt-4o-mini]
+    Orch --> LLM[LLM Provider<br/>OpenAI / Anthropic]
     LLM -->|tool_calls| Reg[Tool Registry]
     Reg --> Search[search_documents]
     Reg --> Calc[calculator]
@@ -93,13 +102,14 @@ flowchart LR
 - **RAG pipeline**: Hybrid retrieval via Reciprocal Rank Fusion (FAISS dense + BM25 sparse), two chunking strategies (recursive + fixed-size)
 - **Provider abstraction**: Swap LLM backend via config. OpenAI + Anthropic implemented, MockProvider for deterministic tests
 - **Evaluation infrastructure**: 27-question golden dataset with negative/out-of-scope cases, 8 deterministic metrics + 2 LLM-judge metrics, failure analysis
-- **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), Fly.io deployment, rate limiting, provider retry with backoff, structlog structured logging, Pydantic v2 validation, 120 deterministic tests
+- **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), HF Spaces deployment, rate limiting, provider retry with backoff, streaming (SSE), conversation sessions (SQLite), structlog, Pydantic v2, 145 deterministic tests
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/ask` | POST | Ask a question, get answer with sources |
+| `/ask/stream` | POST | SSE streaming (sources → chunks → done) |
 | `/health` | GET | Store stats, provider status, uptime |
 | `/metrics` | GET | Request count, latency p50/p95, cost |
 
@@ -147,7 +157,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 120 deterministic tests, no API keys needed
+make test    # 145 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -162,18 +172,14 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Feature | V1 | V2 | Skill Demonstrated |
 |---------|----|----|-------------------|
 | Grounded refusal | 0/5 | Threshold gate | Trust & safety |
-| Retrieval precision | RRF only | RRF + cross-encoder | Reranking |
+| Retrieval P@5 | 0.70 | 0.74 | Cross-encoder reranking |
+| Provider support | OpenAI only | OpenAI + Anthropic | Multi-provider abstraction |
 | Provider resilience | None | Retry + backoff | Error handling |
 | Rate limiting | None | 10 RPM per IP | API hardening |
+| Streaming | None | SSE (`/ask/stream`) | Async Python, real-time UX |
+| Conversation memory | Stateless | SQLite sessions | State management |
 | Cloud deployment | None | HF Spaces (Docker) | Docker → production |
 | CI/CD | None | GitHub Actions | Automated quality gates |
+| Tests | 97 | 145 | Comprehensive coverage |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
-
-## Roadmap
-
-- [x] Streaming responses (SSE for final synthesis)
-- [x] SQLite conversation sessions
-- [x] Anthropic provider (config swap: `provider.default: anthropic`)
-
-*CPU-only, single-domain. Framework scales to larger corpora and additional providers.*
