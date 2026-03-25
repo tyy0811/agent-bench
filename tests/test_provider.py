@@ -480,7 +480,7 @@ class TestAnthropicProvider:
             "id": "msg_test",
             "type": "message",
             "role": "assistant",
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-haiku-4-5-20251001",
             "content": [
                 {
                     "type": "text",
@@ -524,7 +524,7 @@ class TestAnthropicProvider:
             "id": "msg_test2",
             "type": "message",
             "role": "assistant",
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-haiku-4-5-20251001",
             "content": [
                 {
                     "type": "tool_use",

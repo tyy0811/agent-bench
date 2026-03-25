@@ -409,13 +409,13 @@ class AnthropicProvider(LLMProvider):
         self.config = config or load_config()
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = "claude-sonnet-4-20250514"
+        self.model = "claude-haiku-4-5-20251001"
         model_pricing = self.config.provider.models.get(self.model)
         self._input_cost = (
-            model_pricing.input_cost_per_mtok if model_pricing else 3.0
+            model_pricing.input_cost_per_mtok if model_pricing else 0.80
         )
         self._output_cost = (
-            model_pricing.output_cost_per_mtok if model_pricing else 15.0
+            model_pricing.output_cost_per_mtok if model_pricing else 4.0
         )
 
     async def complete(
