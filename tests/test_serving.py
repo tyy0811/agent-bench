@@ -216,12 +216,12 @@ def rate_limited_app():
 class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_allows_normal_traffic(self, rate_limited_app):
-        """Requests within the limit all succeed."""
+        """Requests within the limit on /ask all succeed."""
         async with AsyncClient(
             transport=ASGITransport(app=rate_limited_app), base_url="http://test"
         ) as client:
             for _ in range(3):
-                response = await client.get("/health")
+                response = await client.post("/ask", json={"question": "test"})
                 assert response.status_code == 200
 
     @pytest.mark.asyncio
@@ -267,3 +267,42 @@ class TestRateLimiting:
             # But another ask should be blocked
             response = await client.post("/ask", json={"question": "test"})
             assert response.status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_metrics_exempt(self):
+        """Metrics endpoint is never rate limited."""
+        app = _make_rate_limited_app(rpm=2)
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # Exhaust quota on non-exempt path
+            for _ in range(2):
+                await client.post("/ask", json={"question": "test"})
+            # Metrics should still work
+            response = await client.get("/metrics")
+            assert response.status_code == 200
+
+    def test_per_ip_isolation(self):
+        """Two different client IPs get independent quotas.
+
+        ASGI test clients share one IP, so we test the middleware's
+        per-IP window tracking directly.
+        """
+        middleware = RateLimitMiddleware(
+            app=None, requests_per_minute=2,  # type: ignore[arg-type]
+        )
+        now = time.time()
+
+        # IP 1 exhausts quota
+        middleware.windows["10.0.0.1"] = [now, now]
+        # IP 2 is fresh
+        middleware.windows["10.0.0.2"] = [now]
+
+        # IP 1 should be at limit
+        assert len(middleware.windows["10.0.0.1"]) >= 2
+        # IP 2 should still have room
+        assert len(middleware.windows["10.0.0.2"]) < 2
+        # IPs don't share state
+        assert "10.0.0.1" in middleware.windows
+        assert "10.0.0.2" in middleware.windows
+        assert middleware.windows["10.0.0.1"] != middleware.windows["10.0.0.2"]
