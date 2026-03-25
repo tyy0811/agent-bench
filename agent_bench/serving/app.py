@@ -91,9 +91,17 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     # Metrics
     metrics = MetricsCollector()
 
+    # Conversation memory (optional, SQLite-backed)
+    conversation_store = None
+    if config.memory.enabled:
+        from agent_bench.memory.store import ConversationStore
+
+        conversation_store = ConversationStore(db_path=config.memory.db_path)
+
     # Attach to app state
     app.state.orchestrator = orchestrator
     app.state.store = store
+    app.state.conversation_store = conversation_store
     app.state.config = config
     app.state.system_prompt = task.system_prompt
     app.state.start_time = time.time()

@@ -43,12 +43,25 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
 
+    # Load conversation history if session_id provided
+    history: list[dict] | None = None
+    conversation_store = getattr(request.app.state, "conversation_store", None)
+    if body.session_id and conversation_store:
+        max_turns = request.app.state.config.memory.max_turns
+        history = conversation_store.get_history(body.session_id, max_turns=max_turns)
+
     result = await orchestrator.run(
         question=body.question,
         system_prompt=system_prompt,
         top_k=body.top_k,
         strategy=body.retrieval_strategy,
+        history=history,
     )
+
+    # Store Q+A if session_id provided
+    if body.session_id and conversation_store:
+        conversation_store.append(body.session_id, "user", body.question)
+        conversation_store.append(body.session_id, "assistant", result.answer)
 
     metrics.record(
         latency_ms=result.latency_ms,

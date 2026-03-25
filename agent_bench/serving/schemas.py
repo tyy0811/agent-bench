@@ -14,6 +14,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1)
     top_k: int = 5
     retrieval_strategy: Literal["semantic", "keyword", "hybrid"] = "hybrid"
+    session_id: str | None = None  # None = stateless (V1 behavior)
 
 
 class ResponseMetadata(BaseModel):
