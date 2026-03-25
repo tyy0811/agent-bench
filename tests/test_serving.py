@@ -306,3 +306,33 @@ class TestRateLimiting:
         assert "10.0.0.1" in middleware.windows
         assert "10.0.0.2" in middleware.windows
         assert middleware.windows["10.0.0.1"] != middleware.windows["10.0.0.2"]
+
+    @pytest.mark.asyncio
+    async def test_window_resets_after_60s(self):
+        """Sliding window prunes old timestamps, restoring quota after 60s."""
+        from unittest.mock import patch
+
+        app = _make_rate_limited_app(rpm=2)
+        fake_time = time.time()
+
+        with patch("agent_bench.serving.middleware.time") as mock_time:
+            mock_time.time.return_value = fake_time
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                # Exhaust quota at t=0
+                for _ in range(2):
+                    resp = await client.post("/ask", json={"question": "test"})
+                    assert resp.status_code == 200
+
+                # Blocked at t=0
+                resp = await client.post("/ask", json={"question": "test"})
+                assert resp.status_code == 429
+
+                # Advance time past the 60s window
+                mock_time.time.return_value = fake_time + 61
+
+                # Quota should be restored — old timestamps pruned
+                resp = await client.post("/ask", json={"question": "test"})
+                assert resp.status_code == 200
