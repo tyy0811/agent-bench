@@ -19,6 +19,21 @@ from agent_bench.serving.schemas import (
 router = APIRouter()
 
 
+@router.get("/")
+async def root() -> dict:
+    """Self-documenting root endpoint."""
+    return {
+        "name": "agent-bench",
+        "description": "RAG agent evaluation benchmark",
+        "endpoints": {
+            "POST /ask": "Ask a question, get answer with sources",
+            "GET /health": "Health check and store stats",
+            "GET /metrics": "Request count, latency, cost metrics",
+        },
+        "source": "https://github.com/tyy0811/agent-bench",
+    }
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     """Ask a question and get an answer with sources."""
