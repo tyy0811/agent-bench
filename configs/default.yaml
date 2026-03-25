@@ -38,6 +38,11 @@ retry:
   base_delay: 1.0
   max_delay: 8.0
 
+memory:
+  enabled: true
+  db_path: data/conversations.db
+  max_turns: 10
+
 serving:
   host: 0.0.0.0
   port: 8000

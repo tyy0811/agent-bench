@@ -71,6 +71,12 @@ class ServingConfig(BaseModel):
     rate_limit_rpm: int = 10  # requests per minute per IP
 
 
+class MemoryConfig(BaseModel):
+    enabled: bool = True
+    db_path: str = "data/conversations.db"
+    max_turns: int = 10
+
+
 class EvaluationConfig(BaseModel):
     judge_provider: str = "openai"
     golden_dataset: str = "agent_bench/evaluation/datasets/tech_docs_golden.json"
@@ -81,6 +87,7 @@ class AppConfig(BaseModel):
     provider: ProviderConfig = ProviderConfig()
     rag: RAGConfig = RAGConfig()
     retry: RetryConfig = RetryConfig()
+    memory: MemoryConfig = MemoryConfig()
     embedding: EmbeddingConfig = EmbeddingConfig()
     serving: ServingConfig = ServingConfig()
     evaluation: EvaluationConfig = EvaluationConfig()

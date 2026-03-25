@@ -71,6 +71,7 @@ class Orchestrator:
         system_prompt: str,
         top_k: int = 5,
         strategy: str = "hybrid",
+        history: list[dict] | None = None,
     ) -> AgentResponse:
         start = time.perf_counter()
 
@@ -80,8 +81,13 @@ class Orchestrator:
 
         messages: list[Message] = [
             Message(role=Role.SYSTEM, content=system_prompt),
-            Message(role=Role.USER, content=question),
         ]
+        # Insert prior conversation history between system prompt and new question
+        if history:
+            for turn in history:
+                role = Role.USER if turn["role"] == "user" else Role.ASSISTANT
+                messages.append(Message(role=role, content=turn["content"]))
+        messages.append(Message(role=Role.USER, content=question))
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
         all_ranked_sources: list[str] = []
