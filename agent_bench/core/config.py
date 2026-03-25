@@ -116,9 +116,18 @@ def _resolve_config_dir() -> Path:
 
 
 def load_config(path: Path | None = None) -> AppConfig:
-    """Load application config from YAML."""
+    """Load application config from YAML.
+
+    If AGENT_BENCH_ENV is set (e.g. 'production'), loads configs/{env}.yaml
+    if it exists, otherwise falls back to default.yaml.
+    """
     if path is None:
-        path = _resolve_config_dir() / "default.yaml"
+        import os
+
+        env = os.environ.get("AGENT_BENCH_ENV", "")
+        config_dir = _resolve_config_dir()
+        env_path = config_dir / f"{env}.yaml"
+        path = env_path if env and env_path.exists() else config_dir / "default.yaml"
     with open(path) as f:
         data: dict[str, Any] = yaml.safe_load(f)
     return AppConfig.model_validate(data)
