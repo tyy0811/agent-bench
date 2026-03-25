@@ -1,10 +1,10 @@
-"""Request middleware: ID generation, logging, error handling, metrics."""
+"""Request middleware: ID generation, logging, error handling, metrics, rate limiting."""
 
 from __future__ import annotations
 
 import time
 import uuid
-from collections import deque
+from collections import defaultdict, deque
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -45,6 +45,44 @@ class MetricsCollector:
         if self.requests_total == 0:
             return 0.0
         return self.total_cost_usd / self.requests_total
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """In-memory sliding window rate limiter, per client IP."""
+
+    EXEMPT_PATHS = {"/health", "/metrics"}
+
+    def __init__(self, app: object, requests_per_minute: int = 10) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self.rpm = requests_per_minute
+        self.windows: dict[str, list[float]] = defaultdict(list)
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.url.path in self.EXEMPT_PATHS:
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        window_start = now - 60
+
+        # Prune timestamps outside the window
+        self.windows[client_ip] = [
+            t for t in self.windows[client_ip] if t > window_start
+        ]
+
+        if len(self.windows[client_ip]) >= self.rpm:
+            retry_after = max(1, int(60 - (now - self.windows[client_ip][0])))
+            logger.warning("rate_limited",
+                           client_ip=client_ip,
+                           requests_in_window=len(self.windows[client_ip]))
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Rate limit exceeded", "retry_after": retry_after},
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        self.windows[client_ip].append(now)
+        return await call_next(request)
 
 
 class RequestMiddleware(BaseHTTPMiddleware):
