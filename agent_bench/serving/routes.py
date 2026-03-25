@@ -1,10 +1,11 @@
-"""API routes: /ask, /health, /metrics."""
+"""API routes: /ask, /ask/stream, /health, /metrics."""
 
 from __future__ import annotations
 
 import time
 
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.serving.middleware import MetricsCollector
@@ -66,6 +67,32 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
             token_usage=result.usage,
             request_id=request_id,
         ),
+    )
+
+
+@router.post("/ask/stream")
+async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
+    """Stream an answer via Server-Sent Events."""
+    orchestrator: Orchestrator = request.app.state.orchestrator
+    system_prompt: str = request.app.state.system_prompt
+
+    async def event_generator():
+        async for event in orchestrator.run_stream(
+            question=body.question,
+            system_prompt=system_prompt,
+            top_k=body.top_k,
+            strategy=body.retrieval_strategy,
+        ):
+            yield event.to_sse()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
