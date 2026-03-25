@@ -45,3 +45,15 @@ class MetricsResponse(BaseModel):
     latency_p95_ms: float
     errors_total: int
     avg_cost_per_query_usd: float
+
+
+class StreamEvent(BaseModel):
+    """SSE event for streaming responses."""
+
+    type: str  # "sources", "chunk", "done"
+    content: str | None = None
+    sources: list[dict] | None = None
+    metadata: dict | None = None
+
+    def to_sse(self) -> str:
+        return f"data: {self.model_dump_json()}\n\n"

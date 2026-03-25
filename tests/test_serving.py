@@ -336,3 +336,99 @@ class TestRateLimiting:
                 # Quota should be restored — old timestamps pruned
                 resp = await client.post("/ask", json={"question": "test"})
                 assert resp.status_code == 200
+
+
+# --- Streaming tests ---
+
+
+class TestStreaming:
+    @pytest.mark.asyncio
+    async def test_stream_endpoint_returns_sse(self, test_app):
+        """Content-type is text/event-stream."""
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/ask/stream", json={"question": "How do path parameters work?"}
+            )
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+
+    @pytest.mark.asyncio
+    async def test_stream_events_ordered(self, test_app):
+        """Event sequence: sources → chunk* → done."""
+        import json as json_mod
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/ask/stream", json={"question": "How do path parameters work?"}
+            )
+
+        events = []
+        for line in response.text.strip().split("\n"):
+            if line.startswith("data: "):
+                events.append(json_mod.loads(line[6:]))
+
+        assert len(events) >= 3  # at least sources + 1 chunk + done
+        assert events[0]["type"] == "sources"
+        assert events[-1]["type"] == "done"
+        assert all(e["type"] == "chunk" for e in events[1:-1])
+
+    @pytest.mark.asyncio
+    async def test_stream_chunks_assemble(self, test_app):
+        """Concatenating chunks produces coherent text."""
+        import json as json_mod
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/ask/stream", json={"question": "test"}
+            )
+
+        chunks = []
+        for line in response.text.strip().split("\n"):
+            if line.startswith("data: "):
+                event = json_mod.loads(line[6:])
+                if event["type"] == "chunk":
+                    chunks.append(event["content"])
+
+        full_text = "".join(chunks)
+        assert len(full_text) > 0
+        assert "FastAPI" in full_text  # MockProvider mentions FastAPI
+
+    @pytest.mark.asyncio
+    async def test_stream_mock_provider_3_chunks(self, test_app):
+        """MockProvider yields exactly 3 deterministic chunks."""
+        import json as json_mod
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/ask/stream", json={"question": "test"}
+            )
+
+        chunks = [
+            json_mod.loads(line[6:])
+            for line in response.text.strip().split("\n")
+            if line.startswith("data: ")
+            and json_mod.loads(line[6:])["type"] == "chunk"
+        ]
+        assert len(chunks) == 3
+
+    @pytest.mark.asyncio
+    async def test_non_streaming_unchanged(self, test_app):
+        """POST /ask still works identically."""
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/ask", json={"question": "How do path parameters work?"}
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert "answer" in data
+        assert "sources" in data
