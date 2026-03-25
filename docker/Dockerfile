@@ -1,12 +1,15 @@
 FROM python:3.11-slim
-WORKDIR /app
 
-# Copy all source before pip install (package needs agent_bench/ to build)
-COPY pyproject.toml .
-COPY agent_bench/ agent_bench/
-COPY configs/ configs/
-COPY data/ data/
-COPY scripts/ scripts/
+# HF Spaces requires user ID 1000
+RUN useradd -m -u 1000 user
+WORKDIR /home/user/app
+
+# Copy source and install
+COPY --chown=user pyproject.toml .
+COPY --chown=user agent_bench/ agent_bench/
+COPY --chown=user configs/ configs/
+COPY --chown=user data/ data/
+COPY --chown=user scripts/ scripts/
 
 RUN pip install --no-cache-dir .
 
@@ -17,5 +20,6 @@ RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cro
 # Run ingestion at build time so the store is ready
 RUN python scripts/ingest.py --doc-dir data/tech_docs/ --store-path .cache/store
 
-EXPOSE 8000
-CMD ["uvicorn", "agent_bench.serving.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+USER user
+EXPOSE 7860
+CMD ["uvicorn", "agent_bench.serving.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "7860"]
