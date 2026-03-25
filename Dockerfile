@@ -20,6 +20,9 @@ RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cro
 # Run ingestion at build time so the store is ready
 RUN python scripts/ingest.py --doc-dir data/tech_docs/ --store-path .cache/store
 
+# Give user 1000 ownership of build-time artifacts
+RUN chown -R user:user .cache/
+
 USER user
 EXPOSE 7860
 CMD ["uvicorn", "agent_bench.serving.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "7860"]
