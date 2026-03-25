@@ -194,6 +194,26 @@ Design choices:
 - `/health` and `/metrics` exempt: monitoring should never be rate-limited.
 - `Retry-After` header: follows HTTP 429 spec, lets clients back off.
 
+## Why SQLite for conversation persistence
+
+Three options considered:
+1. In-memory dict: Lost on restart.
+2. SQLite: Zero-dependency, file-based, survives restarts.
+3. Redis/PostgreSQL: Adds infrastructure complexity.
+
+SQLite is right for this scale. `session_id` is optional — when omitted,
+the system behaves identically to V1 (stateless). This preserves backward
+compatibility and keeps benchmark evaluation deterministic.
+
+The route handler manages session state (load history, store Q+A), not
+the orchestrator. The orchestrator accepts an optional `history` parameter
+but has no knowledge of persistence. This keeps the agent loop testable
+without a database.
+
+Note: On HF Spaces, SQLite is ephemeral (no persistent storage on free
+tier). For the demo this is acceptable — sessions last until the container
+sleeps. Production would use a volume or managed database.
+
 ## Why ranked_sources separate from deduplicated sources?
 
 The deduplicated `sources` list in `AgentResponse` is for the API
