@@ -1,11 +1,20 @@
 """Tests for core types, config, and provider abstraction."""
 
+from unittest.mock import patch
+
 import pytest
 
-from agent_bench.core.config import AppConfig, ProviderConfig, load_config, load_task_config
+from agent_bench.core.config import (
+    AppConfig,
+    ProviderConfig,
+    RetryConfig,
+    load_config,
+    load_task_config,
+)
 from agent_bench.core.provider import (
     AnthropicProvider,
     MockProvider,
+    ProviderRateLimitError,
     create_provider,
     format_messages_openai,
     format_tools_openai,
@@ -395,3 +404,168 @@ class TestProviderFactory:
         config = AppConfig(provider=ProviderConfig(default="unknown"))
         with pytest.raises(ValueError, match="Unknown provider"):
             create_provider(config)
+
+
+# --- Retry logic ---
+
+
+class TestProviderRetry:
+    """Tests for OpenAI provider retry with exponential backoff."""
+
+    MOCK_SUCCESS_RESPONSE = {
+        "id": "chatcmpl-retry",
+        "object": "chat.completion",
+        "created": 1234567890,
+        "model": "gpt-4o-mini",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Success after retry.",
+                    "tool_calls": None,
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 50, "completion_tokens": 10, "total_tokens": 60},
+    }
+
+    @pytest.mark.asyncio
+    async def test_retry_on_rate_limit(self, monkeypatch):
+        """Two failures then success — returns answer."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.1),
+        )
+        provider = OpenAIProvider(config)
+
+        call_count = 0
+
+        def side_effect(request):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return httpx.Response(429, json={"error": {"message": "Rate limit exceeded"}})
+            return httpx.Response(200, json=self.MOCK_SUCCESS_RESPONSE)
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                side_effect=side_effect
+            )
+            from agent_bench.core.types import Message, Role
+
+            response = await provider.complete(
+                [Message(role=Role.USER, content="test")]
+            )
+
+        assert response.content == "Success after retry."
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_retry_exhausted(self, monkeypatch):
+        """All retries fail — raises ProviderRateLimitError."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=2, base_delay=0.01, max_delay=0.1),
+        )
+        provider = OpenAIProvider(config)
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(429, json={"error": {"message": "Rate limit"}})
+            )
+            from agent_bench.core.types import Message, Role
+
+            with pytest.raises(ProviderRateLimitError, match="Rate limited after"):
+                await provider.complete(
+                    [Message(role=Role.USER, content="test")]
+                )
+
+    @pytest.mark.asyncio
+    async def test_no_retry_on_other_errors(self, monkeypatch):
+        """Non-rate-limit errors fail immediately without retry."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.1),
+        )
+        provider = OpenAIProvider(config)
+
+        call_count = 0
+
+        def side_effect(request):
+            nonlocal call_count
+            call_count += 1
+            return httpx.Response(400, json={"error": {"message": "Bad request"}})
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                side_effect=side_effect
+            )
+            from agent_bench.core.types import Message, Role
+
+            with pytest.raises(Exception):
+                await provider.complete(
+                    [Message(role=Role.USER, content="test")]
+                )
+
+        assert call_count == 1  # no retry
+
+    @pytest.mark.asyncio
+    async def test_retry_backoff_timing(self, monkeypatch):
+        """Verify exponential backoff delays between retries."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=3, base_delay=1.0, max_delay=8.0),
+        )
+        provider = OpenAIProvider(config)
+
+        sleep_calls: list[float] = []
+
+        async def mock_sleep(seconds):
+            sleep_calls.append(seconds)
+
+        with respx.mock, patch("asyncio.sleep", side_effect=mock_sleep):
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(429, json={"error": {"message": "Rate limit"}})
+            )
+            from agent_bench.core.types import Message, Role
+
+            with pytest.raises(ProviderRateLimitError):
+                await provider.complete(
+                    [Message(role=Role.USER, content="test")]
+                )
+
+        # 3 retries: delays should be 1.0, 2.0, 4.0
+        assert len(sleep_calls) == 3
+        assert sleep_calls[0] == pytest.approx(1.0)
+        assert sleep_calls[1] == pytest.approx(2.0)
+        assert sleep_calls[2] == pytest.approx(4.0)

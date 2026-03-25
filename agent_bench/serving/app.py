@@ -13,7 +13,7 @@ from agent_bench.core.provider import create_provider
 from agent_bench.rag.embedder import Embedder
 from agent_bench.rag.retriever import Retriever
 from agent_bench.rag.store import HybridStore
-from agent_bench.serving.middleware import MetricsCollector, RequestMiddleware
+from agent_bench.serving.middleware import MetricsCollector, RateLimitMiddleware, RequestMiddleware
 from agent_bench.serving.routes import router
 from agent_bench.tools.calculator import CalculatorTool
 from agent_bench.tools.registry import ToolRegistry
@@ -99,8 +99,9 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.state.start_time = time.time()
     app.state.metrics = metrics
 
-    # Middleware and routes
+    # Middleware and routes (order matters: rate limit checked first)
     app.add_middleware(RequestMiddleware)
+    app.add_middleware(RateLimitMiddleware, requests_per_minute=config.serving.rate_limit_rpm)
     app.include_router(router)
 
     return app

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from abc import ABC, abstractmethod
+
+import structlog
 
 from agent_bench.core.config import AppConfig, load_config
 from agent_bench.core.types import (
@@ -15,6 +18,8 @@ from agent_bench.core.types import (
     ToolCall,
     ToolDefinition,
 )
+
+log = structlog.get_logger()
 
 
 class ProviderTimeoutError(Exception):
@@ -173,7 +178,7 @@ class OpenAIProvider(LLMProvider):
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> CompletionResponse:
-        from openai import APITimeoutError
+        from openai import APITimeoutError, RateLimitError
 
         formatted_messages = format_messages_openai(messages)
         kwargs: dict = {
@@ -186,15 +191,30 @@ class OpenAIProvider(LLMProvider):
             kwargs["tools"] = self.format_tools(tools)
             kwargs["tool_choice"] = "auto"
 
+        retry_cfg = self.config.retry
         start = time.perf_counter()
-        try:
-            response = await self.client.chat.completions.create(**kwargs)
-        except APITimeoutError as e:
-            raise ProviderTimeoutError(f"OpenAI timed out: {e}") from e
-        except Exception as e:
-            if "insufficient_quota" in str(e) or "rate_limit" in str(e).lower():
-                raise ProviderRateLimitError(f"OpenAI rate limit / quota: {e}") from e
-            raise
+
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                response = await self.client.chat.completions.create(**kwargs)
+                break  # success
+            except RateLimitError as e:
+                if attempt == retry_cfg.max_retries:
+                    log.error("provider_rate_limited",
+                              attempts=attempt + 1, error=str(e))
+                    raise ProviderRateLimitError(
+                        f"Rate limited after {retry_cfg.max_retries} retries: {e}"
+                    ) from e
+                wait = min(
+                    retry_cfg.base_delay * (2 ** attempt),
+                    retry_cfg.max_delay,
+                )
+                log.warning("provider_retry",
+                            attempt=attempt + 1, wait_seconds=wait, error=str(e))
+                await asyncio.sleep(wait)
+            except APITimeoutError as e:
+                raise ProviderTimeoutError(f"OpenAI timed out: {e}") from e
+
         latency_ms = (time.perf_counter() - start) * 1000
 
         choice = response.choices[0]

@@ -11,7 +11,7 @@ from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.config import AppConfig, ProviderConfig
 from agent_bench.core.provider import MockProvider, ProviderTimeoutError
 from agent_bench.rag.store import HybridStore
-from agent_bench.serving.middleware import MetricsCollector, RequestMiddleware
+from agent_bench.serving.middleware import MetricsCollector, RateLimitMiddleware, RequestMiddleware
 from agent_bench.tools.calculator import CalculatorTool
 from agent_bench.tools.registry import ToolRegistry
 
@@ -174,3 +174,96 @@ class TestMiddleware:
         data = response.json()
         assert "request_id" in data
         assert "x-request-id" in response.headers
+
+
+# --- Rate limiting tests ---
+
+
+def _make_rate_limited_app(rpm: int = 3):
+    """Create a test app with rate limiting enabled."""
+    from fastapi import FastAPI
+
+    app = FastAPI(title="agent-bench-ratelimit")
+
+    registry = ToolRegistry()
+    registry.register(FakeSearchTool())
+    registry.register(CalculatorTool())
+
+    provider = MockProvider()
+    orchestrator = Orchestrator(provider=provider, registry=registry, max_iterations=3)
+
+    app.state.orchestrator = orchestrator
+    app.state.store = HybridStore(dimension=384)
+    app.state.config = AppConfig(provider=ProviderConfig(default="mock"))
+    app.state.system_prompt = "You are a test assistant."
+    app.state.start_time = time.time()
+    app.state.metrics = MetricsCollector()
+
+    app.add_middleware(RequestMiddleware)
+    app.add_middleware(RateLimitMiddleware, requests_per_minute=rpm)
+
+    from agent_bench.serving.routes import router
+
+    app.include_router(router)
+    return app
+
+
+@pytest.fixture
+def rate_limited_app():
+    return _make_rate_limited_app(rpm=3)
+
+
+class TestRateLimiting:
+    @pytest.mark.asyncio
+    async def test_allows_normal_traffic(self, rate_limited_app):
+        """Requests within the limit all succeed."""
+        async with AsyncClient(
+            transport=ASGITransport(app=rate_limited_app), base_url="http://test"
+        ) as client:
+            for _ in range(3):
+                response = await client.get("/health")
+                assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_blocks_excess(self, rate_limited_app):
+        """Request beyond the limit gets 429."""
+        async with AsyncClient(
+            transport=ASGITransport(app=rate_limited_app), base_url="http://test"
+        ) as client:
+            # Use up the quota
+            for _ in range(3):
+                await client.post("/ask", json={"question": "test"})
+            # Next request should be blocked
+            response = await client.post("/ask", json={"question": "test"})
+            assert response.status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_retry_after_header(self, rate_limited_app):
+        """429 response includes Retry-After header."""
+        async with AsyncClient(
+            transport=ASGITransport(app=rate_limited_app), base_url="http://test"
+        ) as client:
+            # Exhaust quota on non-exempt path
+            for _ in range(3):
+                await client.post("/ask", json={"question": "test"})
+            response = await client.post("/ask", json={"question": "test"})
+            assert response.status_code == 429
+            assert "retry-after" in response.headers
+            assert int(response.headers["retry-after"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_health_exempt(self):
+        """Health endpoint is never rate limited."""
+        app = _make_rate_limited_app(rpm=2)
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # Exhaust quota on non-exempt path
+            for _ in range(2):
+                await client.post("/ask", json={"question": "test"})
+            # Health should still work
+            response = await client.get("/health")
+            assert response.status_code == 200
+            # But another ask should be blocked
+            response = await client.post("/ask", json={"question": "test"})
+            assert response.status_code == 429

@@ -168,6 +168,32 @@ than a computed subset. The reranker's `top_k` handles truncation.
 This is simpler and more robust than computing an input size from
 per-system candidate counts.
 
+## Why provider retry with exponential backoff
+
+OpenAI returns 429 (rate limit) errors under load. Without retry logic,
+a single 429 causes a user-visible failure. We add exponential backoff:
+attempt after 1s, 2s, 4s. After 3 retries, raise `ProviderRateLimitError`
+so the middleware returns a clear 503.
+
+The retry wraps the raw `openai.RateLimitError` — it must fire BEFORE
+the error gets translated to `ProviderRateLimitError`, otherwise retry
+logic is dead code. Other errors (400, 401, timeout) fail immediately.
+
+## Why in-memory API rate limiting
+
+A public-facing API needs abuse protection. We use a simple in-memory
+sliding window limiter: 10 requests/minute per IP. Sufficient for a
+demo deployment; a production system would use Redis.
+
+Known limitation: the per-IP dict grows without bound across distinct
+IPs. Acceptable for Fly.io with auto-stop (memory resets). If running
+continuously under bot traffic, add a periodic sweep or switch to a
+TTL-based structure.
+
+Design choices:
+- `/health` and `/metrics` exempt: monitoring should never be rate-limited.
+- `Retry-After` header: follows HTTP 429 spec, lets clients back off.
+
 ## Why ranked_sources separate from deduplicated sources?
 
 The deduplicated `sources` list in `AgentResponse` is for the API
