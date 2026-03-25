@@ -1,12 +1,3 @@
----
-title: agent-bench
-emoji: "🔍"
-colorFrom: blue
-colorTo: purple
-sdk: docker
-app_port: 7860
----
-
 # agent-bench
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
