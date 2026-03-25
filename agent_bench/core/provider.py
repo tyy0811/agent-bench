@@ -331,8 +331,92 @@ class OpenAIProvider(LLMProvider):
         return format_tools_openai(tools)
 
 
+def format_tools_anthropic(tools: list[ToolDefinition]) -> list[dict]:
+    """Format tool definitions into Anthropic tool schema."""
+    return [
+        {
+            "name": t.name,
+            "description": t.description,
+            "input_schema": t.parameters,
+        }
+        for t in tools
+    ]
+
+
+def format_messages_anthropic(
+    messages: list[Message],
+) -> tuple[str, list[dict]]:
+    """Extract system prompt and format messages for Anthropic API.
+
+    Returns (system_prompt, messages) where system is separated out
+    because Anthropic uses a system= parameter, not a message role.
+    """
+    system_prompt = ""
+    formatted = []
+
+    for m in messages:
+        if m.role == Role.SYSTEM:
+            system_prompt = m.content
+            continue
+
+        if m.role == Role.TOOL:
+            # Anthropic: tool results are user messages with tool_result blocks
+            formatted.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": m.tool_call_id,
+                        "content": m.content,
+                    }
+                ],
+            })
+        elif m.role == Role.ASSISTANT and m.tool_calls:
+            # Assistant message with tool_use content blocks
+            content: list[dict] = []
+            if m.content:
+                content.append({"type": "text", "text": m.content})
+            for tc in m.tool_calls:
+                content.append({
+                    "type": "tool_use",
+                    "id": tc.id,
+                    "name": tc.name,
+                    "input": tc.arguments,
+                })
+            formatted.append({"role": "assistant", "content": content})
+        else:
+            formatted.append({
+                "role": m.role.value,
+                "content": m.content,
+            })
+
+    return system_prompt, formatted
+
+
 class AnthropicProvider(LLMProvider):
-    """Anthropic Claude provider -- stub for V2."""
+    """Anthropic Claude provider."""
+
+    def __init__(self, config: AppConfig | None = None) -> None:
+        try:
+            from anthropic import AsyncAnthropic
+        except ImportError as e:
+            raise ImportError(
+                "anthropic package required: pip install anthropic"
+            ) from e
+
+        import os
+
+        self.config = config or load_config()
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        self.client = AsyncAnthropic(api_key=api_key)
+        self.model = "claude-sonnet-4-20250514"
+        model_pricing = self.config.provider.models.get(self.model)
+        self._input_cost = (
+            model_pricing.input_cost_per_mtok if model_pricing else 3.0
+        )
+        self._output_cost = (
+            model_pricing.output_cost_per_mtok if model_pricing else 15.0
+        )
 
     async def complete(
         self,
@@ -341,7 +425,88 @@ class AnthropicProvider(LLMProvider):
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> CompletionResponse:
-        raise NotImplementedError("Anthropic provider planned for V2")
+        from anthropic import APITimeoutError, RateLimitError
+
+        system_prompt, formatted_messages = format_messages_anthropic(messages)
+        kwargs: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        if tools:
+            kwargs["tools"] = self.format_tools(tools)
+
+        retry_cfg = self.config.retry
+        start = time.perf_counter()
+
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                response = await self.client.messages.create(**kwargs)
+                break
+            except RateLimitError as e:
+                if attempt == retry_cfg.max_retries:
+                    log.error(
+                        "provider_rate_limited",
+                        attempts=attempt + 1,
+                        error=str(e),
+                    )
+                    raise ProviderRateLimitError(
+                        f"Rate limited after {retry_cfg.max_retries} retries: {e}"
+                    ) from e
+                wait = min(
+                    retry_cfg.base_delay * (2 ** attempt),
+                    retry_cfg.max_delay,
+                )
+                log.warning(
+                    "provider_retry",
+                    attempt=attempt + 1,
+                    wait_seconds=wait,
+                )
+                await asyncio.sleep(wait)
+            except APITimeoutError as e:
+                raise ProviderTimeoutError(
+                    f"Anthropic timed out: {e}"
+                ) from e
+
+        latency_ms = (time.perf_counter() - start) * 1000
+
+        # Parse response content blocks
+        content = ""
+        tool_calls_out: list[ToolCall] = []
+        for block in response.content:
+            if block.type == "text":
+                content += block.text
+            elif block.type == "tool_use":
+                tool_calls_out.append(
+                    ToolCall(
+                        id=block.id,
+                        name=block.name,
+                        arguments=block.input,
+                    )
+                )
+
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
+        cost = (
+            input_tokens * self._input_cost
+            + output_tokens * self._output_cost
+        ) / 1_000_000
+
+        return CompletionResponse(
+            content=content,
+            tool_calls=tool_calls_out,
+            usage=TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                estimated_cost_usd=cost,
+            ),
+            provider="anthropic",
+            model=self.model,
+            latency_ms=latency_ms,
+        )
 
     async def stream_complete(
         self,
@@ -350,11 +515,53 @@ class AnthropicProvider(LLMProvider):
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> AsyncIterator[str]:
-        raise NotImplementedError("Anthropic provider planned for V2")
-        yield ""  # pragma: no cover
+        """Yield content chunks from Anthropic streaming API."""
+        from anthropic import APITimeoutError, RateLimitError
+
+        system_prompt, formatted_messages = format_messages_anthropic(messages)
+        kwargs: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        if tools:
+            kwargs["tools"] = self.format_tools(tools)
+
+        # Retry wraps the full stream lifecycle: .stream() returns a manager,
+        # but the HTTP request fires in __aenter__. Both must be inside the
+        # try/except to catch 429s and timeouts.
+        retry_cfg = self.config.retry
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                async with self.client.messages.stream(**kwargs) as s:
+                    async for text in s.text_stream:
+                        yield text
+                return  # success — exit retry loop
+            except RateLimitError as e:
+                if attempt == retry_cfg.max_retries:
+                    raise ProviderRateLimitError(
+                        f"Rate limited after {retry_cfg.max_retries} retries: {e}"
+                    ) from e
+                wait = min(
+                    retry_cfg.base_delay * (2 ** attempt),
+                    retry_cfg.max_delay,
+                )
+                log.warning(
+                    "provider_stream_retry",
+                    attempt=attempt + 1,
+                    wait_seconds=wait,
+                )
+                await asyncio.sleep(wait)
+            except APITimeoutError as e:
+                raise ProviderTimeoutError(
+                    f"Anthropic timed out: {e}"
+                ) from e
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
-        raise NotImplementedError("Anthropic provider planned for V2")
+        return format_tools_anthropic(tools)
 
 
 def create_provider(config: AppConfig | None = None) -> LLMProvider:
@@ -365,7 +572,7 @@ def create_provider(config: AppConfig | None = None) -> LLMProvider:
     if name == "openai":
         return OpenAIProvider(config)
     elif name == "anthropic":
-        return AnthropicProvider()
+        return AnthropicProvider(config)
     elif name == "mock":
         return MockProvider()
     else:
