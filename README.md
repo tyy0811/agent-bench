@@ -91,7 +91,7 @@ flowchart LR
 
 - **Agentic architecture**: Iterative tool-use loop — max 3 iterations with toolless fallback, no LangChain or LlamaIndex
 - **RAG pipeline**: Hybrid retrieval via Reciprocal Rank Fusion (FAISS dense + BM25 sparse), two chunking strategies (recursive + fixed-size)
-- **Provider abstraction**: Swap LLM backend via config. OpenAI implemented, Anthropic stubbed, MockProvider for deterministic tests
+- **Provider abstraction**: Swap LLM backend via config. OpenAI + Anthropic implemented, MockProvider for deterministic tests
 - **Evaluation infrastructure**: 27-question golden dataset with negative/out-of-scope cases, 8 deterministic metrics + 2 LLM-judge metrics, failure analysis
 - **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), Fly.io deployment, rate limiting, provider retry with backoff, structlog structured logging, Pydantic v2 validation, 120 deterministic tests
 
@@ -174,6 +174,6 @@ See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
 
 - [x] Streaming responses (SSE for final synthesis)
 - [x] SQLite conversation sessions
-- [ ] Anthropic provider (multi-provider comparison)
+- [x] Anthropic provider (config swap: `provider.default: anthropic`)
 
 *CPU-only, single-domain. Framework scales to larger corpora and additional providers.*

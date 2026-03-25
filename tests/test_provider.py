@@ -16,7 +16,9 @@ from agent_bench.core.provider import (
     MockProvider,
     ProviderRateLimitError,
     create_provider,
+    format_messages_anthropic,
     format_messages_openai,
+    format_tools_anthropic,
     format_tools_openai,
 )
 from agent_bench.core.types import (
@@ -378,17 +380,190 @@ class TestOpenAIProvider:
 # --- Anthropic stub ---
 
 
-class TestAnthropicProvider:
-    @pytest.mark.asyncio
-    async def test_complete_raises_not_implemented(self):
-        provider = AnthropicProvider()
-        with pytest.raises(NotImplementedError, match="planned for V2"):
-            await provider.complete([Message(role=Role.USER, content="test")])
+class TestAnthropicFormat:
+    def test_format_tools_produces_anthropic_schema(self):
+        tools = [
+            ToolDefinition(
+                name="search_documents",
+                description="Search docs",
+                parameters={
+                    "type": "object",
+                    "properties": {"query": {"type": "string"}},
+                    "required": ["query"],
+                },
+            )
+        ]
+        formatted = format_tools_anthropic(tools)
+        assert len(formatted) == 1
+        assert formatted[0]["name"] == "search_documents"
+        assert "input_schema" in formatted[0]
+        assert "parameters" not in formatted[0]
+        assert formatted[0]["input_schema"]["required"] == ["query"]
 
-    def test_format_tools_raises_not_implemented(self):
-        provider = AnthropicProvider()
-        with pytest.raises(NotImplementedError, match="planned for V2"):
-            provider.format_tools([])
+    def test_format_messages_extracts_system(self):
+        messages = [
+            Message(role=Role.SYSTEM, content="You are helpful."),
+            Message(role=Role.USER, content="Hello"),
+        ]
+        system, formatted = format_messages_anthropic(messages)
+        assert system == "You are helpful."
+        assert len(formatted) == 1
+        assert formatted[0]["role"] == "user"
+
+    def test_format_messages_tool_result(self):
+        messages = [
+            Message(role=Role.USER, content="search for X"),
+            Message(
+                role=Role.ASSISTANT,
+                content="",
+                tool_calls=[
+                    ToolCall(
+                        id="tc_1",
+                        name="search",
+                        arguments={"query": "X"},
+                    )
+                ],
+            ),
+            Message(
+                role=Role.TOOL,
+                content="Result for X",
+                tool_call_id="tc_1",
+            ),
+        ]
+        _, formatted = format_messages_anthropic(messages)
+        assert len(formatted) == 3
+        # Assistant with tool_use block
+        assert formatted[1]["content"][0]["type"] == "tool_use"
+        assert formatted[1]["content"][0]["id"] == "tc_1"
+        # Tool result as user message with tool_result block
+        assert formatted[2]["role"] == "user"
+        assert formatted[2]["content"][0]["type"] == "tool_result"
+        assert formatted[2]["content"][0]["tool_use_id"] == "tc_1"
+
+
+class TestAnthropicProvider:
+    def test_factory_creates_anthropic_provider(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-fake")
+        config = AppConfig(provider=ProviderConfig(default="anthropic"))
+        provider = create_provider(config)
+        assert isinstance(provider, AnthropicProvider)
+
+    def test_format_tools_via_instance(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-fake")
+        config = AppConfig(provider=ProviderConfig(default="anthropic"))
+        provider = AnthropicProvider(config)
+        tools = [
+            ToolDefinition(
+                name="search_documents",
+                description="Search docs",
+                parameters={
+                    "type": "object",
+                    "properties": {"query": {"type": "string"}},
+                },
+            )
+        ]
+        formatted = provider.format_tools(tools)
+        assert formatted[0]["name"] == "search_documents"
+        assert "input_schema" in formatted[0]
+
+    @pytest.mark.asyncio
+    async def test_complete_with_mocked_response(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        config = AppConfig(provider=ProviderConfig(default="anthropic"))
+        provider = AnthropicProvider(config)
+
+        mock_response = {
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-20250514",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "FastAPI uses curly braces. [source: path_params.md]",
+                }
+            ],
+            "stop_reason": "end_turn",
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 30,
+            },
+        }
+
+        with respx.mock:
+            respx.post("https://api.anthropic.com/v1/messages").mock(
+                return_value=httpx.Response(200, json=mock_response)
+            )
+            response = await provider.complete(
+                [
+                    Message(role=Role.SYSTEM, content="Be helpful."),
+                    Message(role=Role.USER, content="How do path params work?"),
+                ]
+            )
+
+        assert "curly braces" in response.content
+        assert response.tool_calls == []
+        assert response.provider == "anthropic"
+        assert response.usage.input_tokens == 100
+
+    @pytest.mark.asyncio
+    async def test_complete_parses_tool_calls(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        config = AppConfig(provider=ProviderConfig(default="anthropic"))
+        provider = AnthropicProvider(config)
+
+        mock_response = {
+            "id": "msg_test2",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-20250514",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_abc123",
+                    "name": "search_documents",
+                    "input": {"query": "path parameters"},
+                }
+            ],
+            "stop_reason": "tool_use",
+            "usage": {
+                "input_tokens": 80,
+                "output_tokens": 20,
+            },
+        }
+
+        with respx.mock:
+            respx.post("https://api.anthropic.com/v1/messages").mock(
+                return_value=httpx.Response(200, json=mock_response)
+            )
+            response = await provider.complete(
+                [Message(role=Role.USER, content="search for path params")],
+                tools=[
+                    ToolDefinition(
+                        name="search_documents",
+                        description="Search docs",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string"},
+                            },
+                        },
+                    )
+                ],
+            )
+
+        assert len(response.tool_calls) == 1
+        assert response.tool_calls[0].id == "toolu_abc123"
+        assert response.tool_calls[0].name == "search_documents"
+        assert response.tool_calls[0].arguments == {"query": "path parameters"}
 
 
 # --- Provider factory ---
@@ -677,6 +852,79 @@ class TestStreamingRetry:
             raise APITimeoutError(request=None)
 
         provider.client.chat.completions.create = mock_create  # type: ignore[assignment]
+
+        from agent_bench.core.types import Message, Role
+
+        with pytest.raises(ProviderTimeoutError, match="timed out"):
+            async for _ in provider.stream_complete(
+                [Message(role=Role.USER, content="test")]
+            ):
+                pass  # pragma: no cover
+
+
+class TestAnthropicStreamingRetry:
+    """Tests for Anthropic stream_complete() retry/timeout parity."""
+
+    @pytest.mark.asyncio
+    async def test_stream_retry_exhausted(self, monkeypatch):
+        """stream_complete raises ProviderRateLimitError after retries."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-fake")
+
+        from anthropic import RateLimitError as AnthropicRateLimitError
+
+        config = AppConfig(
+            provider=ProviderConfig(default="anthropic"),
+            retry=RetryConfig(max_retries=2, base_delay=0.01, max_delay=0.1),
+        )
+        provider = AnthropicProvider(config)
+
+        call_count = 0
+
+        def mock_stream(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            url = "https://api.anthropic.com/v1/messages"
+            mock_req = type("Req", (), {"method": "POST", "url": url})()
+            mock_resp = type(
+                "Resp", (), {"status_code": 429, "headers": {}, "request": mock_req}
+            )()
+            raise AnthropicRateLimitError(
+                message="rate limited",
+                response=mock_resp,
+                body=None,
+            )
+
+        provider.client.messages.stream = mock_stream  # type: ignore[assignment]
+
+        from agent_bench.core.types import Message, Role
+
+        with pytest.raises(ProviderRateLimitError, match="Rate limited"):
+            async for _ in provider.stream_complete(
+                [Message(role=Role.USER, content="test")]
+            ):
+                pass  # pragma: no cover
+
+        assert call_count == 3  # initial + 2 retries
+
+    @pytest.mark.asyncio
+    async def test_stream_timeout_raises(self, monkeypatch):
+        """stream_complete translates APITimeoutError to ProviderTimeoutError."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-fake")
+
+        from agent_bench.core.provider import ProviderTimeoutError
+
+        config = AppConfig(
+            provider=ProviderConfig(default="anthropic"),
+            retry=RetryConfig(max_retries=1, base_delay=0.01, max_delay=0.1),
+        )
+        provider = AnthropicProvider(config)
+
+        from anthropic import APITimeoutError as AnthropicTimeoutError
+
+        def mock_stream(**kwargs):
+            raise AnthropicTimeoutError(request=None)
+
+        provider.client.messages.stream = mock_stream  # type: ignore[assignment]
 
         from agent_bench.core.types import Message, Role
 

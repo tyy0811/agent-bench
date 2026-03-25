@@ -214,6 +214,25 @@ Note: On HF Spaces, SQLite is ephemeral (no persistent storage on free
 tier). For the demo this is acceptable — sessions last until the container
 sleeps. Production would use a volume or managed database.
 
+## Why a second provider (Anthropic)
+
+The provider abstraction existed since V1 but only had OpenAI + Mock.
+Adding Anthropic proves the abstraction works across fundamentally
+different APIs:
+
+- System message: `system=` parameter, not in the messages list
+- Tool definitions: `input_schema` instead of `parameters`
+- Tool results: `tool_result` content blocks in user messages
+- Tool calls: `tool_use` content blocks, not a separate field
+- Stop reason: `tool_use` vs `stop`
+
+The implementation is a config swap — `provider.default: anthropic` in
+YAML switches the entire system to Claude. The orchestrator, tools,
+evaluation harness, and serving layer are completely unchanged.
+
+Same retry/timeout handling as OpenAI. Both providers are tested with
+mocked HTTP responses — no API keys needed in CI.
+
 ## Why ranked_sources separate from deduplicated sources?
 
 The deduplicated `sources` list in `AgentResponse` is for the API
