@@ -1,3 +1,12 @@
+---
+title: agent-bench
+emoji: "🔍"
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+---
+
 # agent-bench
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
@@ -27,21 +36,21 @@ Evaluated on 27 hand-crafted questions using **gpt-4o-mini** ($0.0004/query) ove
 
 ## Live Demo
 
-**https://agent-bench.onrender.com** (Frankfurt, free tier — first request after idle may take ~30-60s for cold start)
+**https://tyy0811-agent-bench.hf.space** (Hugging Face Spaces — first request after idle may take ~30s for cold start)
 
 ```bash
 # In-scope question (expect answer with sources)
-curl -X POST https://agent-bench.onrender.com/ask \
+curl -X POST https://tyy0811-agent-bench.hf.space/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "How do I define a path parameter in FastAPI?"}'
 
 # Out-of-scope question (expect grounded refusal)
-curl -X POST https://agent-bench.onrender.com/ask \
+curl -X POST https://tyy0811-agent-bench.hf.space/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "How do I cook pasta?"}'
 
 # Health check
-curl https://agent-bench.onrender.com/health
+curl https://tyy0811-agent-bench.hf.space/health
 ```
 
 ## Quick Start (Local)
@@ -156,7 +165,7 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Retrieval precision | RRF only | RRF + cross-encoder | Reranking |
 | Provider resilience | None | Retry + backoff | Error handling |
 | Rate limiting | None | 10 RPM per IP | API hardening |
-| Cloud deployment | None | Render (Frankfurt) | Docker → production |
+| Cloud deployment | None | HF Spaces (Docker) | Docker → production |
 | CI/CD | None | GitHub Actions | Automated quality gates |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
