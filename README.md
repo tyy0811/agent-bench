@@ -1,5 +1,7 @@
 # agent-bench
 
+![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
+
 Agentic RAG system with a 27-question evaluation harness, hybrid retrieval (FAISS + BM25 + RRF), tool use, and zero hallucinated citations — built from API primitives.
 
 Built as a portfolio project demonstrating AI engineering depth: provider abstraction, evaluation infrastructure, production patterns (FastAPI, Docker, CI, structured logging).
