@@ -53,6 +53,12 @@ class RAGConfig(BaseModel):
     refusal_threshold: float = 0.0  # 0.0 = disabled (V1 behavior)
 
 
+class RetryConfig(BaseModel):
+    max_retries: int = 3
+    base_delay: float = 1.0  # seconds
+    max_delay: float = 8.0  # cap for exponential backoff
+
+
 class EmbeddingConfig(BaseModel):
     model: str = "all-MiniLM-L6-v2"
     cache_dir: str = ".cache/embeddings"
@@ -62,6 +68,7 @@ class ServingConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     request_timeout_seconds: int = 30
+    rate_limit_rpm: int = 10  # requests per minute per IP
 
 
 class EvaluationConfig(BaseModel):
@@ -73,6 +80,7 @@ class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig = ProviderConfig()
     rag: RAGConfig = RAGConfig()
+    retry: RetryConfig = RetryConfig()
     embedding: EmbeddingConfig = EmbeddingConfig()
     serving: ServingConfig = ServingConfig()
     evaluation: EvaluationConfig = EvaluationConfig()
