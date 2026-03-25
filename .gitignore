@@ -16,3 +16,4 @@ build/
 venv/
 .worktrees/
 *.db
+docs/DESIGN.md
