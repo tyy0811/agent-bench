@@ -7,6 +7,8 @@ No cross-request state. No memory.py in V1.
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +19,9 @@ from agent_bench.core.types import (
     TokenUsage,
 )
 from agent_bench.tools.registry import ToolRegistry
+
+if TYPE_CHECKING:
+    from agent_bench.serving.schemas import StreamEvent
 
 
 class SourceReference(BaseModel):
@@ -155,6 +160,75 @@ class Orchestrator:
             model=response.model,
             latency_ms=latency,
         )
+
+
+    async def run_stream(
+        self,
+        question: str,
+        system_prompt: str,
+        top_k: int = 5,
+        strategy: str = "hybrid",
+    ) -> AsyncIterator[StreamEvent]:
+        """Stream the final synthesis. Tool-use iterations are NOT streamed.
+
+        Tool calls (retrieval, calculator) are fast (~100ms each). The slow
+        part is the final LLM synthesis (~3-4s). Streaming only the final
+        answer keeps the tool-use loop simple and deterministic.
+        """
+        from agent_bench.serving.schemas import StreamEvent
+
+        req_top_k = top_k
+        req_strategy = strategy
+
+        messages: list[Message] = [
+            Message(role=Role.SYSTEM, content=system_prompt),
+            Message(role=Role.USER, content=question),
+        ]
+        tools = self.registry.get_definitions()
+        all_sources: list[str] = []
+
+        # Step 1: Run tool-use loop normally (non-streamed)
+        for _ in range(self.max_iterations):
+            response = await self.provider.complete(
+                messages, tools=tools, temperature=self.temperature
+            )
+            if not response.tool_calls:
+                # No tools needed — but we still want to stream, so break
+                # and re-do with streaming below
+                break
+
+            messages.append(
+                Message(
+                    role=Role.ASSISTANT,
+                    content=response.content or "",
+                    tool_calls=response.tool_calls,
+                )
+            )
+            for tc in response.tool_calls:
+                kwargs = dict(tc.arguments)
+                if tc.name == "search_documents":
+                    kwargs.setdefault("top_k", req_top_k)
+                    kwargs["_strategy"] = req_strategy
+                result = await self.registry.execute(tc.name, **kwargs)
+                messages.append(
+                    Message(role=Role.TOOL, content=result.result, tool_call_id=tc.id)
+                )
+                if "sources" in result.metadata:
+                    all_sources.extend(result.metadata["sources"])
+
+        # Step 2: Emit sources
+        yield StreamEvent(
+            type="sources",
+            sources=[{"source": s} for s in dict.fromkeys(all_sources)],
+        )
+
+        # Step 3: Stream the final synthesis
+        async for chunk in self.provider.stream_complete(
+            messages, temperature=self.temperature
+        ):
+            yield StreamEvent(type="chunk", content=chunk)
+
+        yield StreamEvent(type="done")
 
 
 def _dedup_sources(sources: list[str]) -> list[SourceReference]:
