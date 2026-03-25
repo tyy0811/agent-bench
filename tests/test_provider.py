@@ -569,3 +569,119 @@ class TestProviderRetry:
         assert sleep_calls[0] == pytest.approx(1.0)
         assert sleep_calls[1] == pytest.approx(2.0)
         assert sleep_calls[2] == pytest.approx(4.0)
+
+
+class TestStreamingRetry:
+    """Tests for stream_complete() retry/timeout parity with complete()."""
+
+    @pytest.mark.asyncio
+    async def test_stream_retry_on_rate_limit(self, monkeypatch):
+        """stream_complete retries on 429 then succeeds."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.1),
+        )
+        provider = OpenAIProvider(config)
+
+        call_count = 0
+
+        # Streaming API: first 2 calls return 429, third returns SSE chunks
+        def side_effect(request):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return httpx.Response(
+                    429, json={"error": {"message": "Rate limit"}}
+                )
+            # Simulate streaming response with SSE format
+            sse_body = (
+                'data: {"id":"x","object":"chat.completion.chunk",'
+                '"choices":[{"index":0,"delta":{"content":"hello"},'
+                '"finish_reason":null}]}\n\n'
+                'data: [DONE]\n\n'
+            )
+            return httpx.Response(
+                200,
+                content=sse_body.encode(),
+                headers={"content-type": "text/event-stream"},
+            )
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                side_effect=side_effect
+            )
+            from agent_bench.core.types import Message, Role
+
+            chunks = []
+            async for chunk in provider.stream_complete(
+                [Message(role=Role.USER, content="test")]
+            ):
+                chunks.append(chunk)
+
+        assert call_count == 3
+        assert len(chunks) > 0
+
+    @pytest.mark.asyncio
+    async def test_stream_retry_exhausted(self, monkeypatch):
+        """stream_complete raises ProviderRateLimitError after retries."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        import httpx
+        import respx
+
+        from agent_bench.core.provider import OpenAIProvider
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=2, base_delay=0.01, max_delay=0.1),
+        )
+        provider = OpenAIProvider(config)
+
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(
+                    429, json={"error": {"message": "Rate limit"}}
+                )
+            )
+            from agent_bench.core.types import Message, Role
+
+            with pytest.raises(ProviderRateLimitError, match="Rate limited"):
+                async for _ in provider.stream_complete(
+                    [Message(role=Role.USER, content="test")]
+                ):
+                    pass  # pragma: no cover
+
+    @pytest.mark.asyncio
+    async def test_stream_timeout_raises(self, monkeypatch):
+        """stream_complete translates APITimeoutError to ProviderTimeoutError."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-fake")
+
+        from agent_bench.core.provider import OpenAIProvider, ProviderTimeoutError
+
+        config = AppConfig(
+            provider=ProviderConfig(default="openai"),
+            retry=RetryConfig(max_retries=1, base_delay=0.01, max_delay=0.1),
+        )
+        provider = OpenAIProvider(config)
+
+        from openai import APITimeoutError
+
+        async def mock_create(**kwargs):
+            raise APITimeoutError(request=None)
+
+        provider.client.chat.completions.create = mock_create  # type: ignore[assignment]
+
+        from agent_bench.core.types import Message, Role
+
+        with pytest.raises(ProviderTimeoutError, match="timed out"):
+            async for _ in provider.stream_complete(
+                [Message(role=Role.USER, content="test")]
+            ):
+                pass  # pragma: no cover

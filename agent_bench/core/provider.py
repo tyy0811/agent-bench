@@ -6,6 +6,7 @@ import asyncio
 import json
 import time
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 
 import structlog
 
@@ -87,6 +88,18 @@ class LLMProvider(ABC):
     ) -> CompletionResponse: ...
 
     @abstractmethod
+    async def stream_complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> AsyncIterator[str]:
+        """Yield content chunks as they arrive from the provider."""
+        ...
+        yield ""  # pragma: no cover
+
+    @abstractmethod
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]: ...
 
 
@@ -147,6 +160,23 @@ class MockProvider(LLMProvider):
             model="mock-1",
             latency_ms=2.0,
         )
+
+    async def stream_complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> AsyncIterator[str]:
+        """Yield mock response in exactly 3 deterministic chunks."""
+        chunks = [
+            "Based on the documentation, path parameters in FastAPI ",
+            "are defined using curly braces in the path string. ",
+            "[source: fastapi_path_params.md]",
+        ]
+        for chunk in chunks:
+            yield chunk
+            await asyncio.sleep(0.01)
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_openai(tools)
@@ -247,6 +277,56 @@ class OpenAIProvider(LLMProvider):
             latency_ms=latency_ms,
         )
 
+    async def stream_complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> AsyncIterator[str]:
+        """Yield content chunks from OpenAI streaming API.
+
+        Same retry/timeout handling as complete() — wraps the raw openai
+        call so 429s and timeouts are translated consistently.
+        """
+        from openai import APITimeoutError, RateLimitError
+
+        formatted_messages = format_messages_openai(messages)
+        kwargs: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        if tools:
+            kwargs["tools"] = self.format_tools(tools)
+            kwargs["tool_choice"] = "auto"
+
+        retry_cfg = self.config.retry
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                response = await self.client.chat.completions.create(**kwargs)
+                break
+            except RateLimitError as e:
+                if attempt == retry_cfg.max_retries:
+                    raise ProviderRateLimitError(
+                        f"Rate limited after {retry_cfg.max_retries} retries: {e}"
+                    ) from e
+                wait = min(
+                    retry_cfg.base_delay * (2 ** attempt),
+                    retry_cfg.max_delay,
+                )
+                log.warning("provider_stream_retry",
+                            attempt=attempt + 1, wait_seconds=wait)
+                await asyncio.sleep(wait)
+            except APITimeoutError as e:
+                raise ProviderTimeoutError(f"OpenAI timed out: {e}") from e
+
+        async for chunk in response:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_openai(tools)
 
@@ -262,6 +342,16 @@ class AnthropicProvider(LLMProvider):
         max_tokens: int = 1024,
     ) -> CompletionResponse:
         raise NotImplementedError("Anthropic provider planned for V2")
+
+    async def stream_complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> AsyncIterator[str]:
+        raise NotImplementedError("Anthropic provider planned for V2")
+        yield ""  # pragma: no cover
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         raise NotImplementedError("Anthropic provider planned for V2")
