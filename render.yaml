@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: agent-bench
+    runtime: docker
+    dockerfilePath: docker/Dockerfile
+    region: frankfurt
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AGENT_BENCH_ENV
+        value: production
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /health

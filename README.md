@@ -6,7 +6,7 @@ Agentic RAG system with a 27-question evaluation harness, hybrid retrieval (FAIS
 
 Built as a portfolio project demonstrating AI engineering depth: provider abstraction, evaluation infrastructure, production patterns (FastAPI, Docker, CI, structured logging).
 
-`97 tests` | `25 commits` | `27-question benchmark` | `$0.0004/query` | `Docker ready`
+`120 tests` | `27-question benchmark` | `$0.0004/query` | `Docker ready` | `CI green`
 
 ## Benchmark Results
 
@@ -25,7 +25,26 @@ Evaluated on 27 hand-crafted questions using **gpt-4o-mini** ($0.0004/query) ove
 
 [Full benchmark report with failure analysis](docs/benchmark_report.md) | [Design decisions](DECISIONS.md)
 
-## Quick Start
+## Live Demo
+
+**https://agent-bench.onrender.com** (Frankfurt, free tier — first request after idle may take ~30-60s for cold start)
+
+```bash
+# In-scope question (expect answer with sources)
+curl -X POST https://agent-bench.onrender.com/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How do I define a path parameter in FastAPI?"}'
+
+# Out-of-scope question (expect grounded refusal)
+curl -X POST https://agent-bench.onrender.com/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How do I cook pasta?"}'
+
+# Health check
+curl https://agent-bench.onrender.com/health
+```
+
+## Quick Start (Local)
 
 ```bash
 make install    # Install dependencies
@@ -65,7 +84,7 @@ flowchart LR
 - **RAG pipeline**: Hybrid retrieval via Reciprocal Rank Fusion (FAISS dense + BM25 sparse), two chunking strategies (recursive + fixed-size)
 - **Provider abstraction**: Swap LLM backend via config. OpenAI implemented, Anthropic stubbed, MockProvider for deterministic tests
 - **Evaluation infrastructure**: 27-question golden dataset with negative/out-of-scope cases, 8 deterministic metrics + 2 LLM-judge metrics, failure analysis
-- **Production patterns**: FastAPI, Docker, structlog structured logging, Pydantic v2 validation, CI with 97 deterministic tests, request-level metrics
+- **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), Fly.io deployment, rate limiting, provider retry with backoff, structlog structured logging, Pydantic v2 validation, 120 deterministic tests
 
 ## API Endpoints
 
@@ -119,7 +138,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 97 deterministic tests, no API keys needed
+make test    # 120 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -129,12 +148,23 @@ All tests use MockProvider + MockEmbeddingModel. No API keys. No model downloads
 
 See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF over score normalization, negative evaluation cases, deterministic eval + optional LLM judge, and more.
 
-## V2 Roadmap
+## V1 → V2 Improvements
 
-- [ ] Grounded refusal improvements (0/5 is the top priority)
-- [ ] Cross-encoder reranking (feature-flagged, config ready)
-- [ ] Second provider (Anthropic Claude)
-- [ ] Streaming responses
-- [ ] Conversation sessions with SQLite persistence
+| Feature | V1 | V2 | Skill Demonstrated |
+|---------|----|----|-------------------|
+| Grounded refusal | 0/5 | Threshold gate | Trust & safety |
+| Retrieval precision | RRF only | RRF + cross-encoder | Reranking |
+| Provider resilience | None | Retry + backoff | Error handling |
+| Rate limiting | None | 10 RPM per IP | API hardening |
+| Cloud deployment | None | Render (Frankfurt) | Docker → production |
+| CI/CD | None | GitHub Actions | Automated quality gates |
 
-*Scope: Docker-local, CPU-only, single-domain V1.*
+See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
+
+## Roadmap
+
+- [ ] Streaming responses (SSE for final synthesis)
+- [ ] SQLite conversation sessions
+- [ ] Anthropic provider (multi-provider comparison)
+
+*CPU-only, single-domain. Framework scales to larger corpora and additional providers.*
