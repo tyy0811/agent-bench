@@ -9,11 +9,10 @@ I know exactly where it plugs in — because I built every layer.
 
 ## Why one provider in V1?
 
-The interface supports multiple providers. Implementing one real (OpenAI)
-plus one mock proves the abstraction works without doubling edge-case
-work. The Anthropic stub raises `NotImplementedError("planned for V2")`
-— adding it is a matter of mapping tool formats. The orchestrator and
-tools don't change.
+The interface supports multiple providers. V1 shipped OpenAI + Mock to
+prove the abstraction. V2 added Anthropic (claude-haiku-4-5), confirming
+that switching providers is a one-line config change. The orchestrator
+and tools are completely unchanged between providers.
 
 ## Why one domain (technical docs)?
 
@@ -54,24 +53,18 @@ eliminates consistency bugs.
 ## Why async internals, sync user behavior?
 
 FastAPI and the OpenAI SDK are async-native. Using async for I/O
-avoids blocking the event loop. But the API is request-response —
-no streaming, no background jobs. Async is an implementation detail,
-not a user-facing feature.
+avoids blocking the event loop. V2 added SSE streaming (`/ask/stream`)
+for the final synthesis step — tool calls remain non-streamed since
+they complete in ~100ms.
 
-## Why no conversation_id in V1?
+## Why SQLite-backed conversation sessions
 
-No persistent memory means a session ID is a contract you can't
-honor. The orchestrator's message list is local to each request
-and dies with the response. An in-process memory buffer would be
-a half-measure — it resets on restart and can't distinguish users.
-V2 adds SQLite-backed sessions with a real conversation_id.
-
-## Why no memory.py in V1?
-
-Discussed during design review and cut. Without conversation_id,
-cross-request memory is state you can't persist or key. The
-orchestrator builds a `list[Message]` as a local variable during
-its 3-iteration loop — that's working context, not memory.
+V1 was stateless by design — no conversation_id, no cross-request
+memory. V2 adds optional SQLite-backed sessions: pass `session_id`
+on `/ask` to persist and load conversation history. When omitted,
+behavior is identical to V1 (stateless). See the dedicated
+DECISIONS.md entry under "Why SQLite for conversation persistence"
+for the full rationale.
 
 ## Why negative evaluation cases?
 
