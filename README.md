@@ -32,7 +32,7 @@ Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Prov
 | Grounded Refusal | 0/5 | **Active** | Score threshold gate |
 | Cost per query | $0.0004 | $0.0004 | gpt-4o-mini baseline |
 
-[Full benchmark report](docs/benchmark_report.md) | [Design decisions](DECISIONS.md)
+[Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
 ## Live Demo
 
