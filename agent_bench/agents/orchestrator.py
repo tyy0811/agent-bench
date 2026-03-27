@@ -200,7 +200,6 @@ class Orchestrator:
         total_cost = 0.0
 
         # Step 1: Run tool-use loop normally (non-streamed)
-        used_tools = False
         for _ in range(self.max_iterations):
             response = await self.provider.complete(
                 messages, tools=tools, temperature=self.temperature
@@ -209,7 +208,6 @@ class Orchestrator:
             if not response.tool_calls:
                 break
 
-            used_tools = True
             messages.append(
                 Message(
                     role=Role.ASSISTANT,
@@ -235,17 +233,10 @@ class Orchestrator:
             sources=[{"source": s} for s in dict.fromkeys(all_sources)],
         )
 
-        # Step 3: Stream the final synthesis
-        if used_tools:
-            # Tools were used — need a fresh streaming call to synthesize
-            async for chunk in self.provider.stream_complete(
-                messages, temperature=self.temperature
-            ):
-                yield StreamEvent(type="chunk", content=chunk)
-        else:
-            # No tools needed — response already has the answer, emit it
-            # without a redundant second LLM call
-            yield StreamEvent(type="chunk", content=response.content)
+        # Step 3: Emit the final answer as a single chunk.
+        # The loop's last complete() already produced the synthesis — reuse it
+        # instead of making a redundant stream_complete() call.
+        yield StreamEvent(type="chunk", content=response.content)
 
         yield StreamEvent(
             type="done",
