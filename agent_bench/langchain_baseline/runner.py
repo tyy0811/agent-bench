@@ -84,7 +84,18 @@ async def run_langchain_evaluation(
             )
             latency_ms = (time.perf_counter() - start) * 1000
 
-            answer = response.get("output", "")
+            raw_output = response.get("output", "")
+            # Anthropic's adapter may return a list of content blocks
+            # instead of a plain string. Coerce to str.
+            if isinstance(raw_output, list):
+                answer = " ".join(
+                    block.get("text", str(block))
+                    if isinstance(block, dict)
+                    else str(block)
+                    for block in raw_output
+                )
+            else:
+                answer = str(raw_output)
             steps = response.get("intermediate_steps", [])
             tools_used = extract_tools_used(steps)
 
