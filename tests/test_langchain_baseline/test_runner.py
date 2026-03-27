@@ -29,21 +29,26 @@ def test_extract_tools_used_empty_steps():
 
 
 async def test_runner_produces_eval_results():
-    # Mock agent executor
-    agent_executor = MagicMock()
-    agent_executor.ainvoke = AsyncMock(return_value={
-        "output": "Path params use curly braces. [source: fastapi_path_params.md]",
-        "intermediate_steps": [
-            (MagicMock(tool="search_documents"), "tool output"),
-        ],
-    })
-
-    # Mock search tool state
+    # The runner calls reset() before each question, so pre-populating state
+    # won't work. Instead, simulate what happens when the agent calls the
+    # search tool during execution: the ainvoke side-effect populates metadata.
     mock_lc_retriever = MagicMock()
     search_tool = LangChainSearchTool(mock_lc_retriever)
-    search_tool.last_ranked_sources = ["fastapi_path_params.md"]
-    search_tool.last_source_chunks = ["Path params use curly braces."]
-    search_tool.last_sources = ["fastapi_path_params.md"]
+
+    def _populate_search_state(*args, **kwargs):
+        """Simulate the search tool populating metadata during agent execution."""
+        search_tool.last_ranked_sources.append("fastapi_path_params.md")
+        search_tool.last_source_chunks.append("Path params use curly braces.")
+        search_tool.last_sources.append("fastapi_path_params.md")
+        return {
+            "output": "Path params use curly braces. [source: fastapi_path_params.md]",
+            "intermediate_steps": [
+                (MagicMock(tool="search_documents"), "tool output"),
+            ],
+        }
+
+    agent_executor = MagicMock()
+    agent_executor.ainvoke = AsyncMock(side_effect=_populate_search_state)
 
     golden_path = "agent_bench/evaluation/datasets/tech_docs_golden.json"
 
@@ -61,8 +66,10 @@ async def test_runner_produces_eval_results():
     assert r.question == "How do you define a path parameter in FastAPI?"
     assert r.category == "retrieval"
     assert r.answer != ""
-    assert r.retrieval_precision >= 0.0
-    assert r.retrieval_recall >= 0.0
+    # Verify metadata actually propagated (not zeroed by reset)
+    assert r.retrieval_precision > 0.0
+    assert r.retrieval_recall > 0.0
+    assert r.retrieved_sources == ["fastapi_path_params.md"]
 
 
 async def test_runner_handles_agent_error():
