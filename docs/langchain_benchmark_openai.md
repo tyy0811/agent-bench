@@ -49,21 +49,21 @@ _To generate a comparison, run `make ingest` with each strategy and `make evalua
 - Retrieval R@5: 0.00
 - Keyword Hit Rate: 0.75
 - Retrieved: []
-- Root cause: MockProvider returned canned answer — retrieval worked but answer text doesn't match expected sources
+- Root cause: Retrieved sources did not match expected sources
 
 **q021: "If the CORS max_age is 600 seconds, how many minutes does the browser cache preflight results?"**
 - Retrieval P@5: 0.00
 - Retrieval R@5: 0.00
 - Keyword Hit Rate: 1.00
 - Retrieved: []
-- Root cause: MockProvider returned canned answer — retrieval worked but answer text doesn't match expected sources
+- Root cause: Retrieved sources did not match expected sources
 
 **q014: "What testing tools does FastAPI use, and what class provides the test client?"**
 - Retrieval P@5: 0.20
 - Retrieval R@5: 1.00
 - Keyword Hit Rate: 0.33
 - Retrieved: ['fastapi_testing.md', 'fastapi_openapi.md', 'fastapi_intro.md']
-- Root cause: _(manual analysis needed for real provider runs)_
+- Root cause: _(manual analysis needed)_
 
 ## Per-Question Results
 
