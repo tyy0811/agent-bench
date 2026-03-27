@@ -137,6 +137,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
 
     async def event_generator():
         full_answer: list[str] = []
+        cost_usd = 0.0
         async for event in orchestrator.run_stream(
             question=body.question,
             system_prompt=system_prompt,
@@ -146,11 +147,13 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         ):
             if event.type == "chunk" and event.content:
                 full_answer.append(event.content)
+            if event.type == "done" and event.metadata:
+                cost_usd = event.metadata.get("estimated_cost_usd", 0.0)
             yield event.to_sse()
 
         # Record metrics and persist session after streaming completes
         latency_ms = (time.perf_counter() - start) * 1000
-        metrics.record(latency_ms=latency_ms, cost_usd=0.0)
+        metrics.record(latency_ms=latency_ms, cost_usd=cost_usd)
 
         if body.session_id and conversation_store:
             conversation_store.append(body.session_id, "user", body.question)
