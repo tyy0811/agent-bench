@@ -2,8 +2,6 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from agent_bench.langchain_baseline.retriever import AgentBenchRetriever
 
 
@@ -69,3 +67,14 @@ async def test_multiple_results_preserve_order():
     assert len(docs) == 2
     assert docs[0].page_content == "First"
     assert docs[1].page_content == "Second"
+
+
+async def test_sync_invoke_works_inside_running_event_loop():
+    """Sync fallback must not raise RuntimeError when an event loop is already running."""
+    mock_ret = _make_mock_retriever()
+    wrapper = AgentBenchRetriever(retriever=mock_ret, top_k=5)
+    # We're already inside asyncio.run() (via pytest-asyncio), so calling
+    # the sync path exercises the "loop already running" scenario.
+    docs = wrapper.invoke("path parameters")
+    assert len(docs) == 1
+    assert docs[0].page_content == "Path parameters use curly braces."

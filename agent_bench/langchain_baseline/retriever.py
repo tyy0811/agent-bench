@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, List
+import threading
+from typing import Any, List
 
 from langchain_core.callbacks import (
     AsyncCallbackManagerForRetrieverRun,
@@ -11,9 +12,6 @@ from langchain_core.callbacks import (
 )
 from langchain_core.documents import Document as LCDocument
 from langchain_core.retrievers import BaseRetriever
-
-if TYPE_CHECKING:
-    from agent_bench.rag.retriever import Retriever
 
 
 class AgentBenchRetriever(BaseRetriever):
@@ -53,14 +51,30 @@ class AgentBenchRetriever(BaseRetriever):
         *,
         run_manager: CallbackManagerForRetrieverRun,
     ) -> List[LCDocument]:
-        """Sync fallback: runs async implementation in a new event loop thread."""
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(
-                self._aget_relevant_documents(
-                    query,
-                    run_manager=AsyncCallbackManagerForRetrieverRun.get_noop_manager(),
-                )
-            )
-        finally:
-            loop.close()
+        """Sync fallback — safe even when called from inside a running event loop."""
+        coro = self._aget_relevant_documents(
+            query,
+            run_manager=AsyncCallbackManagerForRetrieverRun.get_noop_manager(),
+        )
+        # If there's already a running loop (e.g. inside asyncio.run), we can't
+        # call loop.run_until_complete in the same thread.  Spin up a dedicated
+        # thread with its own loop to avoid RuntimeError.
+        result: list[LCDocument] = []
+        exc: BaseException | None = None
+
+        def _run() -> None:
+            nonlocal result, exc
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(coro)
+            except BaseException as e:
+                exc = e
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        thread.join()
+        if exc is not None:
+            raise exc
+        return result

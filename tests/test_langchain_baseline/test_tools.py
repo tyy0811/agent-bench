@@ -6,7 +6,6 @@ from langchain_core.documents import Document as LCDocument
 
 from agent_bench.langchain_baseline.tools import LangChainSearchTool, create_calculator_tool
 
-
 # --- Search tool ---
 
 
@@ -125,6 +124,18 @@ async def test_search_tool_reset_clears_state():
     assert search.last_ranked_sources == []
     assert search.last_source_chunks == []
     assert search.last_sources == []
+
+
+async def test_search_tool_sync_invoke_inside_running_loop():
+    """Sync fallback must not raise RuntimeError when an event loop is already running."""
+    mock_ret = _make_mock_lc_retriever()
+    search = LangChainSearchTool(mock_ret)
+    tool = search.as_tool()
+
+    # We're inside asyncio.run() via pytest-asyncio — exercises the nested loop case
+    result = tool.invoke({"query": "test"})
+    assert "fastapi_path_params.md" in result
+    assert len(search.last_ranked_sources) == 2
 
 
 # --- Calculator tool ---
