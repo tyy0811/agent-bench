@@ -174,6 +174,7 @@ class Orchestrator:
         system_prompt: str,
         top_k: int = 5,
         strategy: str = "hybrid",
+        history: list[dict] | None = None,
     ) -> AsyncIterator[StreamEvent]:
         """Stream the final synthesis. Tool-use iterations are NOT streamed.
 
@@ -188,19 +189,23 @@ class Orchestrator:
 
         messages: list[Message] = [
             Message(role=Role.SYSTEM, content=system_prompt),
-            Message(role=Role.USER, content=question),
         ]
+        if history:
+            for turn in history:
+                role = Role.USER if turn["role"] == "user" else Role.ASSISTANT
+                messages.append(Message(role=role, content=turn["content"]))
+        messages.append(Message(role=Role.USER, content=question))
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
+        total_cost = 0.0
 
         # Step 1: Run tool-use loop normally (non-streamed)
         for _ in range(self.max_iterations):
             response = await self.provider.complete(
                 messages, tools=tools, temperature=self.temperature
             )
+            total_cost += response.usage.estimated_cost_usd
             if not response.tool_calls:
-                # No tools needed — but we still want to stream, so break
-                # and re-do with streaming below
                 break
 
             messages.append(
@@ -222,19 +227,28 @@ class Orchestrator:
                 if "sources" in result.metadata:
                     all_sources.extend(result.metadata["sources"])
 
+        # Handle max_iterations=0: loop never ran, no response yet
+        if self.max_iterations == 0:
+            response = await self.provider.complete(
+                messages, tools=None, temperature=self.temperature
+            )
+            total_cost += response.usage.estimated_cost_usd
+
         # Step 2: Emit sources
         yield StreamEvent(
             type="sources",
             sources=[{"source": s} for s in dict.fromkeys(all_sources)],
         )
 
-        # Step 3: Stream the final synthesis
-        async for chunk in self.provider.stream_complete(
-            messages, temperature=self.temperature
-        ):
-            yield StreamEvent(type="chunk", content=chunk)
+        # Step 3: Emit the final answer as a single chunk.
+        # The loop's last complete() already produced the synthesis — reuse it
+        # instead of making a redundant stream_complete() call.
+        yield StreamEvent(type="chunk", content=response.content)
 
-        yield StreamEvent(type="done")
+        yield StreamEvent(
+            type="done",
+            metadata={"estimated_cost_usd": total_cost},
+        )
 
 
 def _dedup_sources(sources: list[str]) -> list[SourceReference]:
