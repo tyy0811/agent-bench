@@ -227,6 +227,13 @@ class Orchestrator:
                 if "sources" in result.metadata:
                     all_sources.extend(result.metadata["sources"])
 
+        # Handle max_iterations=0: loop never ran, no response yet
+        if self.max_iterations == 0:
+            response = await self.provider.complete(
+                messages, tools=None, temperature=self.temperature
+            )
+            total_cost += response.usage.estimated_cost_usd
+
         # Step 2: Emit sources
         yield StreamEvent(
             type="sources",
