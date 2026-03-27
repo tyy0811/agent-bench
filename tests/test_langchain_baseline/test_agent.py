@@ -47,7 +47,7 @@ def test_creates_agent_executor_anthropic(mock_chat):
     assert isinstance(executor, AgentExecutor)
     mock_chat.assert_called_once()
     call_kwargs = mock_chat.call_args
-    assert call_kwargs.kwargs["model"] == "claude-haiku-4-5-20251001"
+    assert call_kwargs.kwargs["model_name"] == "claude-haiku-4-5-20251001"
 
 
 @patch("agent_bench.langchain_baseline.agent.ChatOpenAI")

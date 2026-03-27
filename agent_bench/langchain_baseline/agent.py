@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
@@ -44,11 +45,12 @@ def create_langchain_agent(
         system_prompt: System prompt. Defaults to the tech_docs task prompt.
         max_iterations: Max tool-use iterations before forcing a final answer.
     """
+    llm: BaseChatModel
     if provider == "openai":
         llm = ChatOpenAI(model=model or "gpt-4o-mini", temperature=temperature)
     elif provider == "anthropic":
-        llm = ChatAnthropic(
-            model=model or "claude-haiku-4-5-20251001", temperature=temperature
+        llm = ChatAnthropic(  # type: ignore[call-arg]
+            model_name=model or "claude-haiku-4-5-20251001", temperature=temperature
         )
     else:
         raise ValueError(f"Unknown provider: {provider}")
