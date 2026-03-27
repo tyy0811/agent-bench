@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from typing import TYPE_CHECKING
 
-from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.outputs import LLMResult
+from langchain_core.callbacks.usage import UsageMetadataCallbackHandler
 
 from agent_bench.core.types import TokenUsage
 from agent_bench.evaluation.harness import EvalResult, load_golden_dataset
@@ -24,30 +22,6 @@ if TYPE_CHECKING:
     from langchain.agents import AgentExecutor
 
     from agent_bench.langchain_baseline.tools import LangChainSearchTool
-
-
-class _TokenTracker(BaseCallbackHandler):
-    """Accumulates token counts from LLM responses within a single question."""
-
-    def __init__(self) -> None:
-        self.input_tokens = 0
-        self.output_tokens = 0
-
-    def reset(self) -> None:
-        self.input_tokens = 0
-        self.output_tokens = 0
-
-    def on_llm_end(
-        self,
-        response: LLMResult,
-        *,
-        run_id: UUID,
-        parent_run_id: UUID | None = None,
-        **kwargs: Any,
-    ) -> None:
-        usage = (response.llm_output or {}).get("token_usage", {})
-        self.input_tokens += usage.get("prompt_tokens", 0)
-        self.output_tokens += usage.get("completion_tokens", 0)
 
 
 def extract_tools_used(intermediate_steps: list) -> list[str]:
@@ -94,12 +68,13 @@ async def run_langchain_evaluation(
     if max_questions is not None:
         questions = questions[:max_questions]
 
-    token_tracker = _TokenTracker()
     results: list[EvalResult] = []
 
     for q in questions:
         search_tool_state.reset()
-        token_tracker.reset()
+        # Fresh handler per question — reads AIMessage.usage_metadata,
+        # which is populated by both OpenAI and Anthropic adapters.
+        token_tracker = UsageMetadataCallbackHandler()
         start = time.perf_counter()
 
         try:
@@ -115,6 +90,10 @@ async def run_langchain_evaluation(
 
             ranked_sources = list(search_tool_state.last_ranked_sources)
             deduped_sources = list(search_tool_state.last_sources)
+
+            usage = token_tracker.usage_metadata
+            input_toks = usage.get("input_tokens", 0)
+            output_toks = usage.get("output_tokens", 0)
 
             result = EvalResult(
                 question_id=q.id,
@@ -139,11 +118,11 @@ async def run_langchain_evaluation(
                 tool_calls_made=len(tools_used),
                 latency_ms=latency_ms,
                 tokens_used=TokenUsage(
-                    input_tokens=token_tracker.input_tokens,
-                    output_tokens=token_tracker.output_tokens,
+                    input_tokens=input_toks,
+                    output_tokens=output_toks,
                     estimated_cost_usd=_estimate_cost(
-                        token_tracker.input_tokens,
-                        token_tracker.output_tokens,
+                        input_toks,
+                        output_toks,
                         input_cost_per_mtok,
                         output_cost_per_mtok,
                     ),
