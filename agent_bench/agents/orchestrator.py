@@ -174,6 +174,7 @@ class Orchestrator:
         system_prompt: str,
         top_k: int = 5,
         strategy: str = "hybrid",
+        history: list[dict] | None = None,
     ) -> AsyncIterator[StreamEvent]:
         """Stream the final synthesis. Tool-use iterations are NOT streamed.
 
@@ -188,21 +189,25 @@ class Orchestrator:
 
         messages: list[Message] = [
             Message(role=Role.SYSTEM, content=system_prompt),
-            Message(role=Role.USER, content=question),
         ]
+        if history:
+            for turn in history:
+                role = Role.USER if turn["role"] == "user" else Role.ASSISTANT
+                messages.append(Message(role=role, content=turn["content"]))
+        messages.append(Message(role=Role.USER, content=question))
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
 
         # Step 1: Run tool-use loop normally (non-streamed)
+        used_tools = False
         for _ in range(self.max_iterations):
             response = await self.provider.complete(
                 messages, tools=tools, temperature=self.temperature
             )
             if not response.tool_calls:
-                # No tools needed — but we still want to stream, so break
-                # and re-do with streaming below
                 break
 
+            used_tools = True
             messages.append(
                 Message(
                     role=Role.ASSISTANT,
@@ -229,10 +234,16 @@ class Orchestrator:
         )
 
         # Step 3: Stream the final synthesis
-        async for chunk in self.provider.stream_complete(
-            messages, temperature=self.temperature
-        ):
-            yield StreamEvent(type="chunk", content=chunk)
+        if used_tools:
+            # Tools were used — need a fresh streaming call to synthesize
+            async for chunk in self.provider.stream_complete(
+                messages, temperature=self.temperature
+            ):
+                yield StreamEvent(type="chunk", content=chunk)
+        else:
+            # No tools needed — response already has the answer, emit it
+            # without a redundant second LLM call
+            yield StreamEvent(type="chunk", content=response.content)
 
         yield StreamEvent(type="done")
 

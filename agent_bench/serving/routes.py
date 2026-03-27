@@ -61,7 +61,7 @@ async def root() -> Response:
         "  -H 'Content-Type: application/json' \\\n"
         "  -d '{\"question\": "
         "\"How do I add auth to FastAPI?\"}'</pre>"
-        "<p><strong>145 tests</strong> &middot; "
+        "<p><strong>169 tests</strong> &middot; "
         "<strong>2 providers</strong> (OpenAI + Anthropic)"
         " &middot; <strong>27-question benchmark</strong></p>"
         "<p><a href='https://github.com/tyy0811/agent-bench'>"
@@ -124,15 +124,39 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     """Stream an answer via Server-Sent Events."""
     orchestrator: Orchestrator = request.app.state.orchestrator
     system_prompt: str = request.app.state.system_prompt
+    metrics: MetricsCollector = request.app.state.metrics
+
+    # Load conversation history if session_id provided
+    history: list[dict] | None = None
+    conversation_store = getattr(request.app.state, "conversation_store", None)
+    if body.session_id and conversation_store:
+        max_turns = request.app.state.config.memory.max_turns
+        history = conversation_store.get_history(body.session_id, max_turns=max_turns)
+
+    start = time.perf_counter()
 
     async def event_generator():
+        full_answer: list[str] = []
         async for event in orchestrator.run_stream(
             question=body.question,
             system_prompt=system_prompt,
             top_k=body.top_k,
             strategy=body.retrieval_strategy,
+            history=history,
         ):
+            if event.type == "chunk" and event.content:
+                full_answer.append(event.content)
             yield event.to_sse()
+
+        # Record metrics and persist session after streaming completes
+        latency_ms = (time.perf_counter() - start) * 1000
+        metrics.record(latency_ms=latency_ms, cost_usd=0.0)
+
+        if body.session_id and conversation_store:
+            conversation_store.append(body.session_id, "user", body.question)
+            conversation_store.append(
+                body.session_id, "assistant", "".join(full_answer)
+            )
 
     return StreamingResponse(
         event_generator(),
