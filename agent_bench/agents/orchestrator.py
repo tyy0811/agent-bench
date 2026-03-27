@@ -197,6 +197,7 @@ class Orchestrator:
         messages.append(Message(role=Role.USER, content=question))
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
+        total_cost = 0.0
 
         # Step 1: Run tool-use loop normally (non-streamed)
         used_tools = False
@@ -204,6 +205,7 @@ class Orchestrator:
             response = await self.provider.complete(
                 messages, tools=tools, temperature=self.temperature
             )
+            total_cost += response.usage.estimated_cost_usd
             if not response.tool_calls:
                 break
 
@@ -245,7 +247,10 @@ class Orchestrator:
             # without a redundant second LLM call
             yield StreamEvent(type="chunk", content=response.content)
 
-        yield StreamEvent(type="done")
+        yield StreamEvent(
+            type="done",
+            metadata={"estimated_cost_usd": total_cost},
+        )
 
 
 def _dedup_sources(sources: list[str]) -> list[SourceReference]:
