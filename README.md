@@ -6,7 +6,7 @@ Agentic RAG system with a 27-question evaluation harness, hybrid retrieval (FAIS
 
 Built as a portfolio project demonstrating AI engineering depth: provider abstraction, evaluation infrastructure, production patterns (FastAPI, Docker, CI, structured logging).
 
-`145 tests` | `27-question benchmark` | `2 providers` | `Docker ready` | `CI green`
+`169 tests` | `27-question benchmark` | `2 providers` | `Docker ready` | `CI green`
 
 ## Benchmark Results
 
@@ -33,6 +33,20 @@ Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Prov
 | Cost per query | $0.0004 | $0.0004 | gpt-4o-mini baseline |
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
+
+### Framework Comparison: Custom vs. LangChain
+
+To quantify what the custom orchestration layer buys over an off-the-shelf framework, the same retrieval stack is wired through a LangChain `AgentExecutor` baseline and evaluated on the identical 27-question golden dataset across both providers.
+
+| Metric | Custom OpenAI | Custom Anthropic | LC OpenAI | LC Anthropic |
+|--------|--------------|-----------------|-----------|-------------|
+| P@5 | 0.70 | 0.74 | 0.64 | **0.75** |
+| R@5 | 0.83 | **0.84** | **0.86** | **0.84** |
+| KHR | 0.89 | **0.92** | 0.85 | 0.91 |
+| Citation Acc | 1.00 | 1.00 | 1.00 | 1.00 |
+| Latency p50 | **4,690 ms** | **4,690 ms** | 10,118 ms | 7,165 ms |
+
+Retrieval quality is comparable across all four configurations (shared stack), but the custom pipeline runs at **~2x lower latency** by eliminating framework overhead. Zero hallucinated citations in all configurations. Full analysis: [comparison report](results/comparison_custom_vs_langchain.md).
 
 ## Live Demo
 
@@ -135,9 +149,10 @@ Response:
 ## Evaluation
 
 ```bash
-make evaluate-fast   # Deterministic metrics only (needs API key)
-make evaluate-full   # + LLM-judge metrics (costs more)
-make benchmark       # Generate markdown report from results
+make evaluate-fast        # Deterministic metrics only (needs API key)
+make evaluate-full        # + LLM-judge metrics (costs more)
+make benchmark            # Generate markdown report from results
+make evaluate-langchain   # Run LangChain baseline comparison
 ```
 
 The golden dataset contains 27 hand-crafted questions:
@@ -148,7 +163,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 145 deterministic tests, no API keys needed
+make test    # 169 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
