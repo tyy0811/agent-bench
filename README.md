@@ -6,7 +6,7 @@ Agentic RAG system with a 27-question evaluation harness, hybrid retrieval (FAIS
 
 Built as a portfolio project demonstrating AI engineering depth: provider abstraction, evaluation infrastructure, production patterns (FastAPI, Docker, CI, structured logging).
 
-`145 tests` | `27-question benchmark` | `2 providers` | `Docker ready` | `CI green`
+`169 tests` | `27-question benchmark` | `2 providers` | `Docker ready` | `CI green`
 
 ## Benchmark Results
 
@@ -33,6 +33,20 @@ Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Prov
 | Cost per query | $0.0004 | $0.0004 | gpt-4o-mini baseline |
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
+
+### Framework Comparison: Custom vs. LangChain
+
+To quantify what the custom orchestration layer buys over an off-the-shelf framework, the same retrieval stack (reranker enabled) is wired through a LangChain `AgentExecutor` baseline and evaluated on the identical 27-question golden dataset across both providers.
+
+| Metric | Custom OpenAI | Custom Anthropic | LC OpenAI | LC Anthropic |
+|--------|--------------|-----------------|-----------|-------------|
+| P@5 | 0.70 | 0.74 | 0.64 | **0.75** |
+| R@5 | 0.83 | **0.84** | **0.86** | **0.84** |
+| KHR | 0.89 | **0.92** | 0.85 | 0.91 |
+| Citation Acc | 1.00 | 1.00 | 1.00 | 1.00 |
+| Cost/query | **$0.0004** | $0.0007 | $0.0003 | $0.0046 |
+
+Retrieval quality is comparable across all four configurations (shared retrieval stack). Zero hallucinated citations in every configuration. Full analysis: [comparison report](results/comparison_custom_vs_langchain.md).
 
 ## Live Demo
 
@@ -89,11 +103,11 @@ flowchart LR
 
 ## What This Demonstrates
 
-- **Agentic architecture**: Iterative tool-use loop — max 3 iterations with toolless fallback, no LangChain or LlamaIndex
+- **Agentic architecture**: Iterative tool-use loop built from API primitives — max 3 iterations with toolless fallback, plus LangChain baseline for framework comparison
 - **RAG pipeline**: Hybrid retrieval via Reciprocal Rank Fusion (FAISS dense + BM25 sparse), two chunking strategies (recursive + fixed-size)
 - **Provider abstraction**: Swap LLM backend via config. OpenAI + Anthropic implemented, MockProvider for deterministic tests
 - **Evaluation infrastructure**: 27-question golden dataset with negative/out-of-scope cases, 8 deterministic metrics + 2 LLM-judge metrics, failure analysis
-- **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), HF Spaces deployment, rate limiting, provider retry with backoff, streaming (SSE), conversation sessions (SQLite), structlog, Pydantic v2, 145 deterministic tests
+- **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), HF Spaces deployment, rate limiting, provider retry with backoff, streaming (SSE), conversation sessions (SQLite), structlog, Pydantic v2, 169 deterministic tests
 
 ## API Endpoints
 
@@ -135,9 +149,10 @@ Response:
 ## Evaluation
 
 ```bash
-make evaluate-fast   # Deterministic metrics only (needs API key)
-make evaluate-full   # + LLM-judge metrics (costs more)
-make benchmark       # Generate markdown report from results
+make evaluate-fast        # Deterministic metrics only (needs API key)
+make evaluate-full        # + LLM-judge metrics (costs more)
+make benchmark            # Generate markdown report from results
+make evaluate-langchain   # Run LangChain baseline comparison
 ```
 
 The golden dataset contains 27 hand-crafted questions:
@@ -148,7 +163,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 145 deterministic tests, no API keys needed
+make test    # 169 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -171,6 +186,6 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Conversation memory | Stateless | SQLite sessions | State management |
 | Cloud deployment | None | HF Spaces (Docker) | Docker → production |
 | CI/CD | None | GitHub Actions | Automated quality gates |
-| Tests | 97 | 145 | Comprehensive coverage |
+| Tests | 97 | 169 | Comprehensive coverage |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.

@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest evaluate-fast evaluate-full benchmark docker
+.PHONY: install test lint serve ingest evaluate-fast evaluate-full benchmark evaluate-langchain docker
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -27,6 +27,9 @@ evaluate-full:
 
 benchmark:
 	$(PYTHON) scripts/benchmark.py --output docs/benchmark_report.md
+
+evaluate-langchain:
+	$(PYTHON) scripts/run_langchain_eval.py --provider openai
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build

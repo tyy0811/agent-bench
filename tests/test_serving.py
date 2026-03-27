@@ -400,8 +400,8 @@ class TestStreaming:
         assert "FastAPI" in full_text  # MockProvider mentions FastAPI
 
     @pytest.mark.asyncio
-    async def test_stream_mock_provider_3_chunks(self, test_app):
-        """MockProvider yields exactly 3 deterministic chunks."""
+    async def test_stream_emits_single_answer_chunk(self, test_app):
+        """Stream emits the complete answer as a single chunk (no redundant LLM call)."""
         import json as json_mod
 
         async with AsyncClient(
@@ -417,7 +417,8 @@ class TestStreaming:
             if line.startswith("data: ")
             and json_mod.loads(line[6:])["type"] == "chunk"
         ]
-        assert len(chunks) == 3
+        assert len(chunks) == 1
+        assert len(chunks[0]["content"]) > 0
 
     @pytest.mark.asyncio
     async def test_non_streaming_unchanged(self, test_app):
