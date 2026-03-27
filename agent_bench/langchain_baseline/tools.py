@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
@@ -60,14 +60,30 @@ class LangChainSearchTool:
         return "\n\n".join(lines)
 
     def _search_sync(self, query: str) -> str:
-        """Sync fallback — runs async search in a new event loop."""
+        """Sync fallback — safe even when called from inside a running event loop."""
         import asyncio
+        import threading
 
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self._search_async(query))
-        finally:
-            loop.close()
+        coro = self._search_async(query)
+        result: str = ""
+        exc: BaseException | None = None
+
+        def _run() -> None:
+            nonlocal result, exc
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(coro)
+            except BaseException as e:
+                exc = e
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        thread.join()
+        if exc is not None:
+            raise exc
+        return result
 
     def as_tool(self) -> StructuredTool:
         return StructuredTool.from_function(
