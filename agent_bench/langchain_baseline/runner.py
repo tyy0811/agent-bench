@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from uuid import UUID
+
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.outputs import LLMResult
 
 from agent_bench.core.types import TokenUsage
 from agent_bench.evaluation.harness import EvalResult, load_golden_dataset
@@ -22,6 +26,30 @@ if TYPE_CHECKING:
     from agent_bench.langchain_baseline.tools import LangChainSearchTool
 
 
+class _TokenTracker(BaseCallbackHandler):
+    """Accumulates token counts from LLM responses within a single question."""
+
+    def __init__(self) -> None:
+        self.input_tokens = 0
+        self.output_tokens = 0
+
+    def reset(self) -> None:
+        self.input_tokens = 0
+        self.output_tokens = 0
+
+    def on_llm_end(
+        self,
+        response: LLMResult,
+        *,
+        run_id: UUID,
+        parent_run_id: UUID | None = None,
+        **kwargs: Any,
+    ) -> None:
+        usage = (response.llm_output or {}).get("token_usage", {})
+        self.input_tokens += usage.get("prompt_tokens", 0)
+        self.output_tokens += usage.get("completion_tokens", 0)
+
+
 def extract_tools_used(intermediate_steps: list) -> list[str]:
     """Extract tool names from LangChain intermediate steps.
 
@@ -30,12 +58,23 @@ def extract_tools_used(intermediate_steps: list) -> list[str]:
     return [step[0].tool for step in intermediate_steps if hasattr(step[0], "tool")]
 
 
+def _estimate_cost(
+    input_tokens: int,
+    output_tokens: int,
+    input_cost_per_mtok: float,
+    output_cost_per_mtok: float,
+) -> float:
+    return (input_tokens * input_cost_per_mtok + output_tokens * output_cost_per_mtok) / 1_000_000
+
+
 async def run_langchain_evaluation(
     agent_executor: AgentExecutor,
     search_tool_state: LangChainSearchTool,
     golden_path: str | Path,
     provider_name: str,
     max_questions: int | None = None,
+    input_cost_per_mtok: float = 0.0,
+    output_cost_per_mtok: float = 0.0,
 ) -> list[EvalResult]:
     """Run golden dataset through LangChain agent, producing EvalResult objects.
 
@@ -48,19 +87,26 @@ async def run_langchain_evaluation(
         golden_path: Path to the golden dataset JSON.
         provider_name: Provider name for reporting (e.g. "openai").
         max_questions: Limit number of questions (for testing). None = all.
+        input_cost_per_mtok: Input token cost per million tokens (from config).
+        output_cost_per_mtok: Output token cost per million tokens (from config).
     """
     questions = load_golden_dataset(golden_path)
     if max_questions is not None:
         questions = questions[:max_questions]
 
+    token_tracker = _TokenTracker()
     results: list[EvalResult] = []
 
     for q in questions:
         search_tool_state.reset()
+        token_tracker.reset()
         start = time.perf_counter()
 
         try:
-            response = await agent_executor.ainvoke({"input": q.question})
+            response = await agent_executor.ainvoke(
+                {"input": q.question},
+                config={"callbacks": [token_tracker]},
+            )
             latency_ms = (time.perf_counter() - start) * 1000
 
             answer = response.get("output", "")
@@ -93,7 +139,14 @@ async def run_langchain_evaluation(
                 tool_calls_made=len(tools_used),
                 latency_ms=latency_ms,
                 tokens_used=TokenUsage(
-                    input_tokens=0, output_tokens=0, estimated_cost_usd=0.0
+                    input_tokens=token_tracker.input_tokens,
+                    output_tokens=token_tracker.output_tokens,
+                    estimated_cost_usd=_estimate_cost(
+                        token_tracker.input_tokens,
+                        token_tracker.output_tokens,
+                        input_cost_per_mtok,
+                        output_cost_per_mtok,
+                    ),
                 ),
                 answer=answer,
                 retrieved_sources=ranked_sources,

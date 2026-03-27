@@ -16,18 +16,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from agent_bench.core.config import load_config, load_task_config
-from agent_bench.evaluation.report import generate_report, save_report
-from agent_bench.langchain_baseline.agent import create_langchain_agent
-from agent_bench.langchain_baseline.retriever import AgentBenchRetriever
-from agent_bench.langchain_baseline.runner import run_langchain_evaluation
-from agent_bench.langchain_baseline.tools import LangChainSearchTool, create_calculator_tool
-from agent_bench.rag.embedder import Embedder
-from agent_bench.rag.retriever import Retriever
-from agent_bench.rag.store import HybridStore
-
 
 async def main_async(args: argparse.Namespace) -> None:
+    # Heavy imports deferred so --help works without loading torch/OpenMP/etc.
+    from agent_bench.core.config import load_config, load_task_config
+    from agent_bench.evaluation.report import generate_report, save_report
+    from agent_bench.langchain_baseline.agent import create_langchain_agent
+    from agent_bench.langchain_baseline.retriever import AgentBenchRetriever
+    from agent_bench.langchain_baseline.runner import run_langchain_evaluation
+    from agent_bench.langchain_baseline.tools import LangChainSearchTool, create_calculator_tool
+    from agent_bench.rag.embedder import Embedder
+    from agent_bench.rag.retriever import Retriever
+    from agent_bench.rag.store import HybridStore
+
     config = load_config(Path(args.config) if args.config else None)
     task = load_task_config("tech_docs")
 
@@ -59,12 +60,21 @@ async def main_async(args: argparse.Namespace) -> None:
         tools=[search_tool.as_tool(), calc_tool],
         provider=args.provider,
         system_prompt=task.system_prompt,
+        max_iterations=config.agent.max_iterations,
     )
+
+    # Resolve model name and pricing for token cost tracking
+    model_defaults = {"openai": "gpt-4o-mini", "anthropic": "claude-haiku-4-5-20251001"}
+    model_name = model_defaults[args.provider]
+    pricing = config.provider.models.get(model_name)
+    input_cost = pricing.input_cost_per_mtok if pricing else 0.0
+    output_cost = pricing.output_cost_per_mtok if pricing else 0.0
 
     # Run evaluation
     golden_path = config.evaluation.golden_dataset
     print("Running LangChain baseline evaluation...")
     print(f"  Provider:  {args.provider}")
+    print(f"  Model:     {model_name}")
     print(f"  Store:     {store.stats().total_chunks} chunks")
     print(f"  Golden:    {golden_path}")
     if args.max_questions:
@@ -77,6 +87,8 @@ async def main_async(args: argparse.Namespace) -> None:
         golden_path=golden_path,
         provider_name=args.provider,
         max_questions=args.max_questions,
+        input_cost_per_mtok=input_cost,
+        output_cost_per_mtok=output_cost,
     )
 
     # Save raw results JSON
