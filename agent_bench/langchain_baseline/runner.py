@@ -91,9 +91,17 @@ async def run_langchain_evaluation(
             ranked_sources = list(search_tool_state.last_ranked_sources)
             deduped_sources = list(search_tool_state.last_sources)
 
-            usage = token_tracker.usage_metadata
-            input_toks = usage.get("input_tokens", 0)
-            output_toks = usage.get("output_tokens", 0)
+            # usage_metadata is keyed by model name, e.g.
+            # {"gpt-4o-mini-2024-07-18": {"input_tokens": 8, ...}}
+            # Sum across all models (typically one) to get totals.
+            input_toks = sum(
+                v.get("input_tokens", 0)
+                for v in token_tracker.usage_metadata.values()
+            )
+            output_toks = sum(
+                v.get("output_tokens", 0)
+                for v in token_tracker.usage_metadata.values()
+            )
 
             result = EvalResult(
                 question_id=q.id,
