@@ -49,21 +49,21 @@ _To generate a comparison, run `make ingest` with each strategy and `make evalua
 - Retrieval R@5: 0.00
 - Keyword Hit Rate: 0.75
 - Retrieved: []
-- Root cause: MockProvider returned canned answer — retrieval worked but answer text doesn't match expected sources
+- Root cause: Retrieved sources did not match expected sources
 
 **q001: "How do you define a path parameter in FastAPI?"**
 - Retrieval P@5: 0.20
 - Retrieval R@5: 1.00
 - Keyword Hit Rate: 0.75
 - Retrieved: ['fastapi_path_params.md', 'fastapi_request_body.md', 'fastapi_query_params.md']
-- Root cause: _(manual analysis needed for real provider runs)_
+- Root cause: _(manual analysis needed)_
 
 **q015: "How does FastAPI manage application configuration and environment variables?"**
 - Retrieval P@5: 0.20
 - Retrieval R@5: 1.00
 - Keyword Hit Rate: 1.00
 - Retrieved: ['fastapi_configuration.md', 'fastapi_openapi.md', 'fastapi_intro.md']
-- Root cause: _(manual analysis needed for real provider runs)_
+- Root cause: _(manual analysis needed)_
 
 ## Per-Question Results
 

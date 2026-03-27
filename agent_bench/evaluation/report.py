@@ -150,18 +150,23 @@ def generate_report(
         lines.append(f"- Retrieval R@5: {r.retrieval_recall:.2f}")
         lines.append(f"- Keyword Hit Rate: {r.keyword_hit_rate:.2f}")
         lines.append(f"- Retrieved: {r.retrieved_sources[:3]}")
-        if r.retrieval_precision == 0.0 and r.keyword_hit_rate > 0.5:
+        is_mock = "mock" in provider_name.lower()
+        if is_mock and r.retrieval_precision == 0.0 and r.keyword_hit_rate > 0.5:
             lines.append(
                 "- Root cause: MockProvider returned canned answer — "
                 "retrieval worked but answer text doesn't match expected sources"
             )
-        elif r.retrieval_precision == 0.0:
+        elif is_mock and r.retrieval_precision == 0.0:
             lines.append(
                 "- Root cause: MockProvider canned response does not target "
                 "this question's expected sources"
             )
+        elif r.retrieval_precision == 0.0:
+            lines.append(
+                "- Root cause: Retrieved sources did not match expected sources"
+            )
         else:
-            lines.append("- Root cause: _(manual analysis needed for real provider runs)_")
+            lines.append("- Root cause: _(manual analysis needed)_")
         lines.append("")
 
     # --- Per-question detail ---
