@@ -2,41 +2,15 @@
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-Agentic RAG system with a 27-question evaluation harness, hybrid retrieval (FAISS + BM25 + RRF), tool use, and zero hallucinated citations — built from API primitives.
+Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 2 providers. Zero hallucinated citations in all four configurations.
 
-Built as a portfolio project demonstrating AI engineering depth: provider abstraction, evaluation infrastructure, production patterns (FastAPI, Docker, CI, structured logging).
-
-`169 tests` | `27-question benchmark` | `2 providers` | `Docker ready` | `CI green`
+`169 tests` | `2 providers` | `LangChain comparison` | `Docker` | `CI`
 
 ## Benchmark Results
 
-Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Provider is swappable via one config field.
-
-### Provider Comparison
-
-| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku |
-|--------|-------------------|----------------------|
-| Retrieval P@5 | 0.70 | **0.74** |
-| Retrieval R@5 | 0.83 | **0.84** |
-| Keyword Hit Rate | 0.89 | **0.92** |
-| Cost per query | **$0.0004** | $0.0007 |
-
-### Full Metrics (V1 → V2)
-
-| Metric | V1 (RRF only) | V2 (RRF + reranker) | Notes |
-|--------|--------------|---------------------|-------|
-| Retrieval P@5 | 0.70 | **0.74** | Cross-encoder reranking |
-| Retrieval R@5 | 0.83 | **0.84** | Maintained |
-| Keyword Hit Rate | 0.89 | **0.92** | Better answer coverage |
-| Citation Accuracy | 1.00 | **1.00** | Zero hallucinated citations |
-| Grounded Refusal | 0/5 | **Active** | Score threshold gate |
-| Cost per query | $0.0004 | $0.0004 | gpt-4o-mini baseline |
-
-[Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
+Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Both pipelines use identical retrieval (FAISS + BM25 + RRF + cross-encoder reranker).
 
 ### Framework Comparison: Custom vs. LangChain
-
-To quantify what the custom orchestration layer buys over an off-the-shelf framework, the same retrieval stack (reranker enabled) is wired through a LangChain `AgentExecutor` baseline and evaluated on the identical 27-question golden dataset across both providers.
 
 | Metric | Custom OpenAI | Custom Anthropic | LC OpenAI | LC Anthropic |
 |--------|--------------|-----------------|-----------|-------------|
@@ -46,7 +20,24 @@ To quantify what the custom orchestration layer buys over an off-the-shelf frame
 | Citation Acc | 1.00 | 1.00 | 1.00 | 1.00 |
 | Cost/query | **$0.0004** | $0.0007 | $0.0003 | $0.0046 |
 
-Retrieval quality is comparable across all four configurations (shared retrieval stack). Zero hallucinated citations in every configuration. Full analysis: [comparison report](results/comparison_custom_vs_langchain.md).
+#### Key Findings
+
+Retrieval quality is dominated by the shared retrieval stack, not the orchestration layer — P@5 and R@5 vary by less than 0.12 across all four configurations. Citation accuracy is 1.00 everywhere, confirming the retrieval-grounded approach prevents hallucination regardless of framework choice.
+
+The main cost of framework abstraction is visible in the Anthropic configuration: LangChain's AgentExecutor makes additional intermediate LLM calls, resulting in 6.6x higher per-query cost ($0.0046 vs $0.0007) with no retrieval quality improvement.
+
+Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
+
+### Provider Comparison (Custom Pipeline)
+
+| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku |
+|--------|-------------------|----------------------|
+| Retrieval P@5 | 0.70 | **0.74** |
+| Retrieval R@5 | 0.83 | **0.84** |
+| Keyword Hit Rate | 0.89 | **0.92** |
+| Cost per query | **$0.0004** | $0.0007 |
+
+[Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
 ## Live Demo
 
@@ -101,13 +92,13 @@ flowchart LR
     LLM -->|no tool_calls| Resp[AskResponse<br/>answer + sources + metadata]
 ```
 
-## What This Demonstrates
+## Skills Demonstrated
 
-- **Agentic architecture**: Iterative tool-use loop built from API primitives — max 3 iterations with toolless fallback, plus LangChain baseline for framework comparison
-- **RAG pipeline**: Hybrid retrieval via Reciprocal Rank Fusion (FAISS dense + BM25 sparse), two chunking strategies (recursive + fixed-size)
-- **Provider abstraction**: Swap LLM backend via config. OpenAI + Anthropic implemented, MockProvider for deterministic tests
-- **Evaluation infrastructure**: 27-question golden dataset with negative/out-of-scope cases, 8 deterministic metrics + 2 LLM-judge metrics, failure analysis
-- **Production patterns**: FastAPI, Docker, CI/CD (GitHub Actions), HF Spaces deployment, rate limiting, provider retry with backoff, streaming (SSE), conversation sessions (SQLite), structlog, Pydantic v2, 169 deterministic tests
+- **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
+- **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 169 deterministic tests with mock providers
+
+<details><summary>API Reference</summary>
 
 ## API Endpoints
 
@@ -146,6 +137,8 @@ Response:
 }
 ```
 
+</details>
+
 ## Evaluation
 
 ```bash
@@ -173,7 +166,7 @@ All tests use MockProvider + MockEmbeddingModel. No API keys. No model downloads
 
 See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF over score normalization, negative evaluation cases, deterministic eval + optional LLM judge, and more.
 
-## V1 → V2 Improvements
+<details><summary>V1 → V2 Evolution</summary>
 
 | Feature | V1 | V2 | Skill Demonstrated |
 |---------|----|----|-------------------|
@@ -189,3 +182,5 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Tests | 97 | 169 | Comprehensive coverage |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
+
+</details>
