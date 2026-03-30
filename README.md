@@ -197,7 +197,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 169 deterministic tests, no API keys needed
+make test    # 201 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -220,7 +220,7 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Conversation memory | Stateless | SQLite sessions | State management |
 | Cloud deployment | None | HF Spaces (Docker) | Docker → production |
 | CI/CD | None | GitHub Actions | Automated quality gates |
-| Tests | 97 | 169 | Comprehensive coverage |
+| Tests | 97 | 201 | Comprehensive coverage |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
 
