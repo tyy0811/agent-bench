@@ -121,10 +121,13 @@ def generate_report(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run provider comparison benchmark")
-    parser.add_argument("--base-url", required=True, help="Modal vLLM endpoint URL")
+    parser.add_argument(
+        "--base-url",
+        help="Modal vLLM endpoint URL (required when running selfhosted_modal)",
+    )
     parser.add_argument(
         "--only",
-        help="Run only this provider (e.g., selfhosted_modal)",
+        help="Run only this provider (e.g., selfhosted_modal, openai, anthropic)",
     )
     args = parser.parse_args()
 
@@ -139,11 +142,15 @@ def main() -> None:
         if not configs:
             parser.error(f"Unknown provider: {args.only}")
 
+    needs_base_url = any(n == "selfhosted_modal" for n, _ in configs)
+    if needs_base_url and not args.base_url:
+        parser.error("--base-url is required when running selfhosted_modal")
+
     all_results: dict[str, list[dict] | None] = {}
     for name, config_path in configs:
         print(f"\n--- Running: {name} ({config_path}) ---")
         env = os.environ.copy()
-        if name == "selfhosted_modal":
+        if name == "selfhosted_modal" and args.base_url:
             env["MODAL_VLLM_URL"] = args.base_url
         all_results[name] = run_eval(config_path, env)
 
