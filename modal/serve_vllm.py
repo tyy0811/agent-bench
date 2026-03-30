@@ -104,10 +104,19 @@ def serve():
             if k.lower() not in ("host", "content-length")
         }
 
-        if request.headers.get("accept") == "text/event-stream":
-            # Build a streaming request but do NOT enter the context manager
-            # here — the generator must own the stream lifetime so it stays
-            # open while FastAPI iterates it.
+        # Detect streaming: check body for "stream": true (httpx sends
+        # Accept: */*, not text/event-stream, so header check is unreliable)
+        is_streaming = False
+        if body:
+            try:
+                import json as _json
+                is_streaming = _json.loads(body).get("stream", False)
+            except (ValueError, AttributeError):
+                pass
+        if not is_streaming:
+            is_streaming = request.headers.get("accept") == "text/event-stream"
+
+        if is_streaming:
             req = client.build_request(
                 request.method, url, content=body, headers=headers
             )

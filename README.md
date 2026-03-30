@@ -30,12 +30,14 @@ Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
 ### Provider Comparison (Custom Pipeline)
 
-| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku |
-|--------|-------------------|----------------------|
-| Retrieval P@5 | 0.70 | **0.74** |
-| Retrieval R@5 | 0.83 | **0.84** |
-| Keyword Hit Rate | 0.89 | **0.92** |
-| Cost per query | **$0.0004** | $0.0007 |
+| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku | Self-hosted Mistral-7B |
+|--------|-------------------|----------------------|----------------------|
+| Retrieval P@5 | 0.70 | **0.74** | TBD |
+| Retrieval R@5 | 0.83 | **0.84** | TBD |
+| Keyword Hit Rate | 0.89 | **0.92** | TBD |
+| Cost per query | **$0.0004** | $0.0007 | TBD |
+
+> Self-hosted results pending Modal benchmark run. See [provider comparison](docs/provider_comparison.md) for instructions.
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
