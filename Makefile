@@ -48,11 +48,15 @@ vllm-up:  ## Start local vLLM via Docker Compose (requires NVIDIA GPU)
 benchmark-all:  ## Run provider comparison (requires Modal deployment + API keys)
 	$(PYTHON) modal/run_benchmark.py --base-url $(MODAL_VLLM_URL)
 
-k8s-dev:  ## Deploy to minikube (dev values)
-	helm install agent-bench k8s/helm/agent-bench/ -f k8s/helm/agent-bench/values-dev.yaml
+k8s-dev:  ## Deploy to minikube (dev values, set MODAL_VLLM_URL first)
+	@test -n "$(MODAL_VLLM_URL)" || (echo "Error: MODAL_VLLM_URL is not set" && exit 1)
+	helm install agent-bench k8s/helm/agent-bench/ -f k8s/helm/agent-bench/values-dev.yaml \
+		--set provider.selfhosted.modalEndpoint=$(MODAL_VLLM_URL)
 
-k8s-prod:  ## Deploy via Helm (prod values)
-	helm install agent-bench k8s/helm/agent-bench/ -f k8s/helm/agent-bench/values-prod.yaml
+k8s-prod:  ## Deploy via Helm (prod values, set MODAL_VLLM_URL first)
+	@test -n "$(MODAL_VLLM_URL)" || (echo "Error: MODAL_VLLM_URL is not set" && exit 1)
+	helm install agent-bench k8s/helm/agent-bench/ -f k8s/helm/agent-bench/values-prod.yaml \
+		--set provider.selfhosted.modalEndpoint=$(MODAL_VLLM_URL)
 
 tf-plan:  ## Run terraform plan (no apply)
 	cd terraform && terraform plan

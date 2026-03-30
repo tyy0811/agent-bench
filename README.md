@@ -84,7 +84,14 @@ OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
 make modal-deploy                                        # Deploy vLLM on Modal A10G
 export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
 AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider
-make benchmark-all                                       # Run provider comparison benchmark
+
+# Run provider comparison (requires all provider API keys)
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+make benchmark-all
+
+# Or run only the self-hosted provider
+python modal/run_benchmark.py --base-url $MODAL_VLLM_URL --only selfhosted_modal
 ```
 
 ### Self-Hosted LLM via Docker Compose (requires local NVIDIA GPU)

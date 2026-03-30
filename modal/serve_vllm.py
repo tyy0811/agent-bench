@@ -105,27 +105,35 @@ def serve():
         }
 
         if request.headers.get("accept") == "text/event-stream":
-            async with client.stream(
+            # Build a streaming request but do NOT enter the context manager
+            # here — the generator must own the stream lifetime so it stays
+            # open while FastAPI iterates it.
+            req = client.build_request(
                 request.method, url, content=body, headers=headers
-            ) as resp:
-                if resp.status_code != 200:
-                    # Upstream error — drain body and return as non-streaming
-                    error_body = await resp.aread()
-                    return Response(
-                        content=error_body,
-                        status_code=resp.status_code,
-                        media_type="application/json",
-                    )
+            )
+            upstream = await client.send(req, stream=True)
 
-                async def stream():
-                    async for chunk in resp.aiter_bytes():
-                        yield chunk
-
-                return StreamingResponse(
-                    stream(),
-                    status_code=resp.status_code,
-                    media_type="text/event-stream",
+            if upstream.status_code != 200:
+                error_body = await upstream.aread()
+                await upstream.aclose()
+                return Response(
+                    content=error_body,
+                    status_code=upstream.status_code,
+                    media_type="application/json",
                 )
+
+            async def stream():
+                try:
+                    async for chunk in upstream.aiter_bytes():
+                        yield chunk
+                finally:
+                    await upstream.aclose()
+
+            return StreamingResponse(
+                stream(),
+                status_code=upstream.status_code,
+                media_type="text/event-stream",
+            )
 
         resp = await client.request(
             request.method, url, content=body, headers=headers
