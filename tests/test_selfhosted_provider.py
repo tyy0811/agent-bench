@@ -154,6 +154,39 @@ class TestSelfHostedConfig:
         assert config.provider.selfhosted.api_key == "yaml-key"
         assert config.provider.selfhosted.timeout_seconds == 60.0
 
+    def test_loads_selfhosted_local_yaml_from_disk(self):
+        """selfhosted_local.yaml loads from disk with correct selfhosted settings."""
+        from pathlib import Path
+
+        from agent_bench.core.config import load_config
+
+        yaml_path = Path(__file__).resolve().parent.parent / "configs" / "selfhosted_local.yaml"
+        config = load_config(yaml_path)
+        assert config.provider.default == "selfhosted"
+        assert config.provider.selfhosted.base_url == "http://localhost:8001/v1"
+        assert config.provider.selfhosted.model_name == "mistralai/Mistral-7B-Instruct-v0.3"
+
+    def test_loads_selfhosted_modal_yaml_from_disk(self):
+        """selfhosted_modal.yaml loads from disk; base_url empty (env var fallback)."""
+        from pathlib import Path
+
+        from agent_bench.core.config import load_config
+
+        yaml_path = Path(__file__).resolve().parent.parent / "configs" / "selfhosted_modal.yaml"
+        config = load_config(yaml_path)
+        assert config.provider.default == "selfhosted"
+        assert config.provider.selfhosted.base_url == ""  # falls back to MODAL_VLLM_URL
+
+    def test_local_yaml_port_does_not_collide_with_app(self):
+        """selfhosted_local.yaml must NOT use port 8000 (app's serving port)."""
+        from pathlib import Path
+
+        from agent_bench.core.config import load_config
+
+        yaml_path = Path(__file__).resolve().parent.parent / "configs" / "selfhosted_local.yaml"
+        config = load_config(yaml_path)
+        assert ":8000" not in config.provider.selfhosted.base_url
+
 
 # --- complete() ---
 
@@ -302,6 +335,26 @@ class TestSelfHostedToolDetection:
         assert result is False
 
     @pytest.mark.asyncio
+    async def test_detect_transient_failure_returns_none(self, provider):
+        """Transient failure (timeout, 5xx) returns None, not False."""
+        with respx.mock:
+            respx.post(f"{FAKE_URL}/chat/completions").mock(
+                side_effect=httpx.ReadTimeout("cold start")
+            )
+            result = await provider._detect_tool_calling()
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_detect_5xx_returns_none(self, provider):
+        """Server error returns None (transient), not False (definitive)."""
+        with respx.mock:
+            respx.post(f"{FAKE_URL}/chat/completions").mock(
+                return_value=httpx.Response(503, json={"error": "unavailable"})
+            )
+            result = await provider._detect_tool_calling()
+        assert result is None
+
+    @pytest.mark.asyncio
     async def test_detection_runs_once_then_cached(self, provider):
         """Detection probe fires on first call with tools, cached thereafter."""
         call_count = 0
@@ -347,6 +400,50 @@ class TestSelfHostedToolDetection:
 
         assert call_count == 3  # 1 probe + 2 real
         assert provider._supports_tool_calling is True
+
+    @pytest.mark.asyncio
+    async def test_transient_failure_retries_on_next_call(self, provider):
+        """Transient detection failure leaves _supports_tool_calling as None, retries."""
+        call_count = 0
+
+        def side_effect(request):
+            nonlocal call_count
+            call_count += 1
+            body = json.loads(request.content)
+            is_probe = any(
+                t.get("function", {}).get("name") == "test_probe"
+                for t in body.get("tools", [])
+            )
+            if is_probe:
+                if call_count == 1:
+                    # First probe: transient failure
+                    return httpx.Response(503, json={"error": "cold start"})
+                # Second probe: success
+                return httpx.Response(
+                    200, json=_probe_response_with_tool_calls()
+                )
+            # Real request (fallback or native)
+            return httpx.Response(200, json=_ok_response())
+
+        with respx.mock:
+            respx.post(f"{FAKE_URL}/chat/completions").mock(
+                side_effect=side_effect
+            )
+            # First call: probe fails (transient) + real (fallback) = 2
+            await provider.complete(
+                [Message(role=Role.USER, content="test")],
+                tools=[SEARCH_TOOL],
+            )
+            assert provider._supports_tool_calling is None  # NOT cached
+
+            # Second call: probe succeeds + real (native) = 2
+            await provider.complete(
+                [Message(role=Role.USER, content="test2")],
+                tools=[SEARCH_TOOL],
+            )
+            assert provider._supports_tool_calling is True  # NOW cached
+
+        assert call_count == 4  # 2 probes + 2 real
 
 
 # --- Prompt-based fallback ---

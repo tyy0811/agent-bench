@@ -606,12 +606,13 @@ class SelfHostedProvider(LLMProvider):
             headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
         )
 
-    async def _detect_tool_calling(self) -> bool:
+    async def _detect_tool_calling(self) -> bool | None:
         """Probe the endpoint for OpenAI-format tool-calling support.
 
-        Sends a minimal request with a dummy tool. Returns True if the model
-        responds with tool_calls, False if the endpoint 400s or the model
-        ignores the tools parameter.
+        Returns:
+            True  — model responded with tool_calls (definitive: cache it)
+            False — endpoint returned 400 (definitive: cache it)
+            None  — transient failure (timeout, 5xx, connection error); do NOT cache
         """
         test_tool = {
             "type": "function",
@@ -640,6 +641,9 @@ class SelfHostedProvider(LLMProvider):
             if resp.status_code == 400:
                 log.info("selfhosted_tool_detect", result="unsupported (400)")
                 return False
+            if resp.status_code >= 500:
+                log.warning("selfhosted_tool_detect", result="transient (5xx)")
+                return None
             resp.raise_for_status()
             data = resp.json()
             has_tools = bool(
@@ -648,8 +652,8 @@ class SelfHostedProvider(LLMProvider):
             log.info("selfhosted_tool_detect", result="supported" if has_tools else "unsupported")
             return has_tools
         except Exception:
-            log.info("selfhosted_tool_detect", result="unsupported (error)")
-            return False
+            log.warning("selfhosted_tool_detect", result="transient (error)")
+            return None
 
     @staticmethod
     def _tools_as_prompt(tools: list[ToolDefinition]) -> str:
@@ -700,13 +704,18 @@ class SelfHostedProvider(LLMProvider):
 
         # Lazy tool-calling detection on first call with tools
         if tools and self._supports_tool_calling is None:
-            self._supports_tool_calling = await self._detect_tool_calling()
+            result = await self._detect_tool_calling()
+            if result is not None:
+                self._supports_tool_calling = result
+            # If None (transient), leave as None so next call retries
 
         formatted_messages = format_messages_openai(messages)
 
-        # Prompt-based fallback: inject tool descriptions into system prompt
-        use_native_tools = tools and self._supports_tool_calling
-        if tools and not self._supports_tool_calling:
+        # Use native tools only when detection confirmed support.
+        # When detection is None (transient failure), fall back to prompt-based
+        # rather than risk a 400 with native tools on an unsupported endpoint.
+        use_native_tools = tools and self._supports_tool_calling is True
+        if tools and not use_native_tools:
             tool_prompt = self._tools_as_prompt(tools)
             # Prepend tool instructions as system message
             formatted_messages = [
@@ -806,7 +815,21 @@ class SelfHostedProvider(LLMProvider):
     ) -> AsyncIterator[str]:
         import httpx as _httpx
 
+        # Same tool-calling detection/fallback as complete()
+        if tools and self._supports_tool_calling is None:
+            result = await self._detect_tool_calling()
+            if result is not None:
+                self._supports_tool_calling = result
+
         formatted_messages = format_messages_openai(messages)
+        use_native_tools = tools and self._supports_tool_calling is True
+        if tools and not use_native_tools:
+            tool_prompt = self._tools_as_prompt(tools)
+            formatted_messages = [
+                {"role": "system", "content": tool_prompt},
+                *formatted_messages,
+            ]
+
         payload: dict = {
             "model": self.model,
             "messages": formatted_messages,
@@ -814,7 +837,7 @@ class SelfHostedProvider(LLMProvider):
             "max_tokens": max_tokens,
             "stream": True,
         }
-        if tools:
+        if use_native_tools and tools:
             payload["tools"] = self.format_tools(tools)
             payload["tool_choice"] = "auto"
 
