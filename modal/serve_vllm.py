@@ -6,6 +6,10 @@ Usage:
 
 The printed URL is the MODAL_VLLM_URL for SelfHostedProvider:
     export MODAL_VLLM_URL=https://<your-workspace>--agent-bench-vllm-serve.modal.run/v1
+
+Note: The vLLM server integration pattern changes between vLLM releases.
+      If deployment fails, check Modal's vLLM example for the current API:
+      https://modal.com/docs/examples/vllm_inference
 """
 
 import modal
@@ -29,7 +33,7 @@ app = modal.App("agent-bench-vllm")
 model_volume = modal.Volume.from_name("vllm-model-cache", create_if_missing=True)
 
 
-@app.cls(
+@app.function(
     image=vllm_image,
     gpu=modal.gpu.A10G(),
     container_idle_timeout=300,
@@ -37,33 +41,61 @@ model_volume = modal.Volume.from_name("vllm-model-cache", create_if_missing=True
     volumes={MODELS_DIR: model_volume},
     allow_concurrent_inputs=10,
 )
-class VLLMServer:
-    @modal.enter()
-    def start_engine(self):
-        from vllm.engine.arg_utils import AsyncEngineArgs
-        from vllm.engine.async_llm_engine import AsyncLLMEngine
+@modal.asgi_app()
+def serve():
+    """Serve vLLM with OpenAI-compatible API.
 
-        args = AsyncEngineArgs(
-            model=MODEL_NAME,
-            download_dir=MODELS_DIR,
-            dtype=VLLM_DTYPE,
-            max_model_len=VLLM_MAX_MODEL_LEN,
-            gpu_memory_utilization=VLLM_GPU_MEMORY_UTILIZATION,
-        )
-        self.engine = AsyncLLMEngine.from_engine_args(args)
+    Exposes /v1/chat/completions and /health.
+    """
+    import subprocess
 
-    @modal.asgi_app()
-    def serve(self):
-        from vllm.entrypoints.openai.api_server import (
-            build_async_engine_client_and_server,
-        )
+    # vLLM's built-in OpenAI server is the most stable interface.
+    # We launch it as a subprocess and proxy via a simple ASGI wrapper,
+    # matching Modal's recommended pattern for long-running GPU services.
+    from fastapi import FastAPI
+    from fastapi.responses import StreamingResponse
+    import httpx
 
-        # vLLM's OpenAI-compatible server exposes /v1/chat/completions and /health
-        _, _, app = build_async_engine_client_and_server(
-            model=MODEL_NAME,
-            download_dir=MODELS_DIR,
-            dtype=VLLM_DTYPE,
-            max_model_len=VLLM_MAX_MODEL_LEN,
-            gpu_memory_utilization=VLLM_GPU_MEMORY_UTILIZATION,
+    vllm_process = subprocess.Popen(
+        [
+            "python", "-m", "vllm.entrypoints.openai.api_server",
+            "--model", MODEL_NAME,
+            "--download-dir", MODELS_DIR,
+            "--dtype", VLLM_DTYPE,
+            "--max-model-len", str(VLLM_MAX_MODEL_LEN),
+            "--gpu-memory-utilization", str(VLLM_GPU_MEMORY_UTILIZATION),
+            "--host", "0.0.0.0",
+            "--port", "8000",
+        ],
+    )
+
+    proxy_app = FastAPI()
+    client = httpx.AsyncClient(base_url="http://localhost:8000", timeout=120.0)
+
+    @proxy_app.api_route("/{path:path}", methods=["GET", "POST"])
+    async def proxy(path: str, request):
+        """Proxy all requests to the vLLM subprocess."""
+        url = f"/{path}"
+        body = await request.body()
+        headers = dict(request.headers)
+        headers.pop("host", None)
+
+        if request.headers.get("accept") == "text/event-stream":
+            async def stream():
+                async with client.stream(
+                    request.method, url, content=body, headers=headers
+                ) as resp:
+                    async for chunk in resp.aiter_bytes():
+                        yield chunk
+            return StreamingResponse(stream(), media_type="text/event-stream")
+
+        resp = await client.request(
+            request.method, url, content=body, headers=headers
         )
-        return app
+        return resp.json()
+
+    @proxy_app.on_event("shutdown")
+    def shutdown():
+        vllm_process.terminate()
+
+    return proxy_app

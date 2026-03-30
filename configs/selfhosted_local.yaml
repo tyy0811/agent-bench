@@ -5,7 +5,9 @@ agent:
 provider:
   default: selfhosted
   selfhosted:
-    base_url: "http://localhost:8001/v1"
+    # base_url left empty: falls back to MODAL_VLLM_URL env var,
+    # then to http://localhost:8001/v1 (default for local vLLM via docker-compose.vllm.yml).
+    # In Docker Compose, MODAL_VLLM_URL is set to http://vllm:8000/v1.
     model_name: mistralai/Mistral-7B-Instruct-v0.3
     timeout_seconds: 120
   models:

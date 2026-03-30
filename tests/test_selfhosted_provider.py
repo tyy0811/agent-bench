@@ -163,7 +163,7 @@ class TestSelfHostedConfig:
         yaml_path = Path(__file__).resolve().parent.parent / "configs" / "selfhosted_local.yaml"
         config = load_config(yaml_path)
         assert config.provider.default == "selfhosted"
-        assert config.provider.selfhosted.base_url == "http://localhost:8001/v1"
+        assert config.provider.selfhosted.base_url == ""  # env var fallback
         assert config.provider.selfhosted.model_name == "mistralai/Mistral-7B-Instruct-v0.3"
 
     def test_loads_selfhosted_modal_yaml_from_disk(self):
@@ -177,15 +177,12 @@ class TestSelfHostedConfig:
         assert config.provider.default == "selfhosted"
         assert config.provider.selfhosted.base_url == ""  # falls back to MODAL_VLLM_URL
 
-    def test_local_yaml_port_does_not_collide_with_app(self):
-        """selfhosted_local.yaml must NOT use port 8000 (app's serving port)."""
-        from pathlib import Path
-
-        from agent_bench.core.config import load_config
-
-        yaml_path = Path(__file__).resolve().parent.parent / "configs" / "selfhosted_local.yaml"
-        config = load_config(yaml_path)
-        assert ":8000" not in config.provider.selfhosted.base_url
+    def test_default_fallback_port_does_not_collide_with_app(self, monkeypatch):
+        """Default vLLM fallback URL must NOT use port 8000 (app's serving port)."""
+        monkeypatch.delenv("MODAL_VLLM_URL", raising=False)
+        config = AppConfig(provider=ProviderConfig(default="selfhosted"))
+        provider = SelfHostedProvider(config)
+        assert ":8000" not in provider.base_url
 
 
 # --- complete() ---
@@ -503,6 +500,27 @@ class TestSelfHostedPromptFallback:
         assert system_msg["role"] == "system"
         assert "search_documents" in system_msg["content"]
         assert "tool_calls" in system_msg["content"]
+
+    @pytest.mark.asyncio
+    async def test_fallback_handles_non_dict_arguments(self, provider):
+        """Non-dict arguments in prompt-based JSON degrades to empty dict, not crash."""
+        tool_json = json.dumps(
+            {"tool_calls": [{"name": "search_documents", "arguments": "oops"}]}
+        )
+        mock_response = _ok_response(content=tool_json)
+
+        with respx.mock:
+            respx.post(f"{FAKE_URL}/chat/completions").mock(
+                return_value=httpx.Response(200, json=mock_response)
+            )
+            response = await provider.complete(
+                [Message(role=Role.USER, content="test")],
+                tools=[SEARCH_TOOL],
+            )
+
+        assert len(response.tool_calls) == 1
+        assert response.tool_calls[0].name == "search_documents"
+        assert response.tool_calls[0].arguments == {}
 
     @pytest.mark.asyncio
     async def test_fallback_returns_text_when_no_tool_json(self, provider):

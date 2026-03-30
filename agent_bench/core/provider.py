@@ -586,7 +586,7 @@ class SelfHostedProvider(LLMProvider):
         sh = self.config.provider.selfhosted
         self.base_url = (
             sh.base_url
-            or os.environ.get("MODAL_VLLM_URL", "http://localhost:8000/v1")
+            or os.environ.get("MODAL_VLLM_URL", "http://localhost:8001/v1")
         )
         self.model = (
             sh.model_name
@@ -681,11 +681,14 @@ class SelfHostedProvider(LLMProvider):
             if isinstance(data, dict) and "tool_calls" in data:
                 calls = []
                 for tc in data["tool_calls"]:
+                    raw_args = tc.get("arguments", {})
+                    if not isinstance(raw_args, dict):
+                        raw_args = {}
                     calls.append(
                         ToolCall(
                             id=f"call_{uuid.uuid4().hex[:8]}",
                             name=tc["name"],
-                            arguments=tc.get("arguments", {}),
+                            arguments=raw_args,
                         )
                     )
                 return calls
