@@ -55,11 +55,30 @@ def run_eval(config_path: str, env: dict[str, str]) -> list[dict] | None:
     return data
 
 
-def aggregate(results: list[dict]) -> dict:
-    """Compute aggregate metrics from a list of EvalResult dicts."""
+def aggregate(results: list[dict], provider_name: str = "") -> dict:
+    """Compute aggregate metrics from a list of EvalResult dicts.
+
+    For selfhosted providers, cost is computed from GPU-seconds (latency *
+    MODAL_A10G_COST_PER_SEC) rather than token pricing, which is zero.
+    """
+    from common import MODAL_A10G_COST_PER_SEC
+
     positive = [r for r in results if r.get("category") != "out_of_scope"]
     if not positive:
         return {}
+
+    # For self-hosted, derive cost from GPU time; for API providers, use token cost
+    is_selfhosted = "selfhosted" in provider_name
+    if is_selfhosted:
+        avg_cost = statistics.mean(
+            (r["latency_ms"] / 1000.0) * MODAL_A10G_COST_PER_SEC
+            for r in positive
+        )
+    else:
+        avg_cost = statistics.mean(
+            r.get("tokens_used", {}).get("estimated_cost_usd", 0.0)
+            for r in positive
+        )
 
     return {
         "retrieval_precision": statistics.mean(
@@ -74,10 +93,7 @@ def aggregate(results: list[dict]) -> dict:
         "latency_p50_ms": statistics.median(
             r["latency_ms"] for r in positive
         ),
-        "avg_cost_usd": statistics.mean(
-            r.get("tokens_used", {}).get("estimated_cost_usd", 0.0)
-            for r in positive
-        ),
+        "avg_cost_usd": avg_cost,
     }
 
 
@@ -98,7 +114,7 @@ def generate_report(
         if results is None:
             lines.append(f"| {name} | ERROR | - | - | - | - |")
             continue
-        agg = aggregate(results)
+        agg = aggregate(results, provider_name=name)
         if not agg:
             lines.append(f"| {name} | NO DATA | - | - | - | - |")
             continue

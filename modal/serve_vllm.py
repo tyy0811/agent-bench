@@ -12,8 +12,6 @@ Note: The vLLM server integration pattern changes between vLLM releases.
       https://modal.com/docs/examples/vllm_inference
 """
 
-import modal
-
 from common import (
     MODEL_NAME,
     VLLM_DTYPE,
@@ -21,7 +19,11 @@ from common import (
     VLLM_MAX_MODEL_LEN,
 )
 
+import modal
+
 MODELS_DIR = "/models"
+VLLM_PORT = 8000
+VLLM_READY_TIMEOUT = 180  # seconds to wait for vLLM to become ready
 
 vllm_image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -46,12 +48,14 @@ def serve():
     """Serve vLLM with OpenAI-compatible API.
 
     Exposes /v1/chat/completions and /health.
+    Waits for the vLLM subprocess to be ready before accepting requests.
     """
     import subprocess
+    import time
 
-    from fastapi import FastAPI, Request
-    from fastapi.responses import JSONResponse, StreamingResponse
     import httpx
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse, Response, StreamingResponse
 
     vllm_process = subprocess.Popen(
         [
@@ -62,12 +66,33 @@ def serve():
             "--max-model-len", str(VLLM_MAX_MODEL_LEN),
             "--gpu-memory-utilization", str(VLLM_GPU_MEMORY_UTILIZATION),
             "--host", "0.0.0.0",
-            "--port", "8000",
+            "--port", str(VLLM_PORT),
         ],
     )
 
+    # Wait for vLLM to be ready before accepting proxied requests
+    base = f"http://localhost:{VLLM_PORT}"
+    deadline = time.monotonic() + VLLM_READY_TIMEOUT
+    while time.monotonic() < deadline:
+        try:
+            r = httpx.get(f"{base}/health", timeout=2.0)
+            if r.status_code == 200:
+                break
+        except httpx.HTTPError:
+            pass
+        if vllm_process.poll() is not None:
+            raise RuntimeError(
+                f"vLLM process exited with code {vllm_process.returncode}"
+            )
+        time.sleep(2)
+    else:
+        vllm_process.terminate()
+        raise TimeoutError(
+            f"vLLM did not become ready within {VLLM_READY_TIMEOUT}s"
+        )
+
     proxy_app = FastAPI()
-    client = httpx.AsyncClient(base_url="http://localhost:8000", timeout=120.0)
+    client = httpx.AsyncClient(base_url=base, timeout=120.0)
 
     @proxy_app.api_route("/{path:path}", methods=["GET", "POST"])
     async def proxy(path: str, request: Request):
@@ -80,15 +105,27 @@ def serve():
         }
 
         if request.headers.get("accept") == "text/event-stream":
-            async def stream():
-                async with client.stream(
-                    request.method, url, content=body, headers=headers
-                ) as resp:
+            async with client.stream(
+                request.method, url, content=body, headers=headers
+            ) as resp:
+                if resp.status_code != 200:
+                    # Upstream error — drain body and return as non-streaming
+                    error_body = await resp.aread()
+                    return Response(
+                        content=error_body,
+                        status_code=resp.status_code,
+                        media_type="application/json",
+                    )
+
+                async def stream():
                     async for chunk in resp.aiter_bytes():
                         yield chunk
-            # For streaming, status is always 200 if the connection opened;
-            # vLLM errors surface as SSE error events in the stream body.
-            return StreamingResponse(stream(), media_type="text/event-stream")
+
+                return StreamingResponse(
+                    stream(),
+                    status_code=resp.status_code,
+                    media_type="text/event-stream",
+                )
 
         resp = await client.request(
             request.method, url, content=body, headers=headers
