@@ -564,6 +564,306 @@ class AnthropicProvider(LLMProvider):
         return format_tools_anthropic(tools)
 
 
+class SelfHostedProvider(LLMProvider):
+    """Provider targeting any OpenAI-compatible endpoint (vLLM, TGI, Ollama).
+
+    Reads settings from config (provider.selfhosted.*) with env var fallback:
+        MODAL_VLLM_URL   -> base_url
+        SELFHOSTED_MODEL -> model_name
+        MODAL_AUTH_TOKEN  -> api_key
+
+    Tool-calling support is detected lazily on the first complete() call
+    with tools. If the endpoint returns a 400 or the model ignores tools,
+    subsequent calls fall back to prompt-based tool selection.
+    """
+
+    def __init__(self, config: AppConfig | None = None) -> None:
+        import os
+
+        import httpx as _httpx
+
+        self.config = config or load_config()
+        sh = self.config.provider.selfhosted
+        self.base_url = (
+            sh.base_url
+            or os.environ.get("MODAL_VLLM_URL", "http://localhost:8000/v1")
+        )
+        self.model = (
+            sh.model_name
+            if sh.model_name != "mistralai/Mistral-7B-Instruct-v0.3"
+            else os.environ.get("SELFHOSTED_MODEL", sh.model_name)
+        )
+        api_key = sh.api_key or os.environ.get("MODAL_AUTH_TOKEN", "")
+        self._supports_tool_calling: bool | None = None  # detected lazily
+
+        model_pricing = self.config.provider.models.get(self.model)
+        self._input_cost = model_pricing.input_cost_per_mtok if model_pricing else 0.0
+        self._output_cost = model_pricing.output_cost_per_mtok if model_pricing else 0.0
+
+        self.client = _httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=sh.timeout_seconds,
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
+        )
+
+    async def _detect_tool_calling(self) -> bool:
+        """Probe the endpoint for OpenAI-format tool-calling support.
+
+        Sends a minimal request with a dummy tool. Returns True if the model
+        responds with tool_calls, False if the endpoint 400s or the model
+        ignores the tools parameter.
+        """
+        test_tool = {
+            "type": "function",
+            "function": {
+                "name": "test_probe",
+                "description": "Probe for tool support",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"x": {"type": "string"}},
+                },
+            },
+        }
+        try:
+            resp = await self.client.post(
+                "/chat/completions",
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "user", "content": "Call the test_probe tool with x='hello'"}
+                    ],
+                    "tools": [test_tool],
+                    "tool_choice": "auto",
+                    "max_tokens": 50,
+                },
+            )
+            if resp.status_code == 400:
+                log.info("selfhosted_tool_detect", result="unsupported (400)")
+                return False
+            resp.raise_for_status()
+            data = resp.json()
+            has_tools = bool(
+                data["choices"][0]["message"].get("tool_calls")
+            )
+            log.info("selfhosted_tool_detect", result="supported" if has_tools else "unsupported")
+            return has_tools
+        except Exception:
+            log.info("selfhosted_tool_detect", result="unsupported (error)")
+            return False
+
+    @staticmethod
+    def _tools_as_prompt(tools: list[ToolDefinition]) -> str:
+        """Format tools as system prompt text for prompt-based fallback."""
+        lines = ["You have access to the following tools:", ""]
+        for t in tools:
+            lines.append(f"- {t.name}: {t.description}")
+            lines.append(f"  Parameters: {json.dumps(t.parameters)}")
+        lines.extend([
+            "",
+            "To use a tool, respond with ONLY this JSON (no other text):",
+            '{"tool_calls": [{"name": "tool_name", "arguments": {"param": "value"}}]}',
+            "",
+            "If you don't need a tool, respond normally with text.",
+        ])
+        return "\n".join(lines)
+
+    @staticmethod
+    def _parse_tool_calls_from_text(text: str) -> list[ToolCall]:
+        """Parse tool calls from model text output (prompt-based fallback)."""
+        import uuid
+
+        try:
+            data = json.loads(text.strip())
+            if isinstance(data, dict) and "tool_calls" in data:
+                calls = []
+                for tc in data["tool_calls"]:
+                    calls.append(
+                        ToolCall(
+                            id=f"call_{uuid.uuid4().hex[:8]}",
+                            name=tc["name"],
+                            arguments=tc.get("arguments", {}),
+                        )
+                    )
+                return calls
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+        return []
+
+    async def complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> CompletionResponse:
+        import httpx as _httpx
+
+        # Lazy tool-calling detection on first call with tools
+        if tools and self._supports_tool_calling is None:
+            self._supports_tool_calling = await self._detect_tool_calling()
+
+        formatted_messages = format_messages_openai(messages)
+
+        # Prompt-based fallback: inject tool descriptions into system prompt
+        use_native_tools = tools and self._supports_tool_calling
+        if tools and not self._supports_tool_calling:
+            tool_prompt = self._tools_as_prompt(tools)
+            # Prepend tool instructions as system message
+            formatted_messages = [
+                {"role": "system", "content": tool_prompt},
+                *formatted_messages,
+            ]
+
+        payload: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if use_native_tools and tools:
+            payload["tools"] = self.format_tools(tools)
+            payload["tool_choice"] = "auto"
+
+        retry_cfg = self.config.retry
+        start = time.perf_counter()
+
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                resp = await self.client.post("/chat/completions", json=payload)
+                if resp.status_code == 429:
+                    if attempt == retry_cfg.max_retries:
+                        raise ProviderRateLimitError(
+                            f"Rate limited after {retry_cfg.max_retries} retries"
+                        )
+                    wait = min(
+                        retry_cfg.base_delay * (2 ** attempt), retry_cfg.max_delay
+                    )
+                    log.warning(
+                        "selfhosted_retry",
+                        attempt=attempt + 1,
+                        wait_seconds=wait,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                break
+            except _httpx.TimeoutException as e:
+                raise ProviderTimeoutError(f"Self-hosted timed out: {e}") from e
+
+        latency_ms = (time.perf_counter() - start) * 1000
+        data = resp.json()
+
+        choice = data["choices"][0]
+        content = choice["message"].get("content") or ""
+        tool_calls: list[ToolCall] = []
+
+        if choice["message"].get("tool_calls"):
+            # Native tool calling response
+            for tc in choice["message"]["tool_calls"]:
+                try:
+                    args = json.loads(tc["function"]["arguments"])
+                except (json.JSONDecodeError, KeyError):
+                    args = {}
+                tool_calls.append(
+                    ToolCall(
+                        id=tc["id"],
+                        name=tc["function"]["name"],
+                        arguments=args,
+                    )
+                )
+        elif tools and not self._supports_tool_calling and content:
+            # Prompt-based fallback: parse tool calls from text
+            tool_calls = self._parse_tool_calls_from_text(content)
+            if tool_calls:
+                content = ""  # tool call replaces text content
+
+        usage_data = data.get("usage", {})
+        input_tokens = usage_data.get("prompt_tokens", 0)
+        output_tokens = usage_data.get("completion_tokens", 0)
+        cost = (
+            input_tokens * self._input_cost + output_tokens * self._output_cost
+        ) / 1_000_000
+
+        return CompletionResponse(
+            content=content,
+            tool_calls=tool_calls,
+            usage=TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                estimated_cost_usd=cost,
+            ),
+            provider="selfhosted",
+            model=self.model,
+            latency_ms=latency_ms,
+        )
+
+    async def stream_complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> AsyncIterator[str]:
+        import httpx as _httpx
+
+        formatted_messages = format_messages_openai(messages)
+        payload: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        if tools:
+            payload["tools"] = self.format_tools(tools)
+            payload["tool_choice"] = "auto"
+
+        retry_cfg = self.config.retry
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                async with self.client.stream(
+                    "POST", "/chat/completions", json=payload
+                ) as resp:
+                    if resp.status_code == 429:
+                        if attempt == retry_cfg.max_retries:
+                            raise ProviderRateLimitError(
+                                f"Rate limited after {retry_cfg.max_retries} retries"
+                            )
+                        wait = min(
+                            retry_cfg.base_delay * (2 ** attempt),
+                            retry_cfg.max_delay,
+                        )
+                        log.warning(
+                            "selfhosted_stream_retry",
+                            attempt=attempt + 1,
+                            wait_seconds=wait,
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data_str = line[len("data: "):]
+                        if data_str == "[DONE]":
+                            return
+                        try:
+                            chunk_data = json.loads(data_str)
+                            delta = chunk_data["choices"][0].get("delta", {})
+                            if delta.get("content"):
+                                yield delta["content"]
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+                return  # success — exit retry loop
+            except _httpx.TimeoutException as e:
+                raise ProviderTimeoutError(f"Self-hosted timed out: {e}") from e
+
+    def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
+        return format_tools_openai(tools)
+
+
 def create_provider(config: AppConfig | None = None) -> LLMProvider:
     """Factory: create provider based on config."""
     if config is None:
@@ -573,6 +873,8 @@ def create_provider(config: AppConfig | None = None) -> LLMProvider:
         return OpenAIProvider(config)
     elif name == "anthropic":
         return AnthropicProvider(config)
+    elif name == "selfhosted":
+        return SelfHostedProvider(config)
     elif name == "mock":
         return MockProvider()
     else:
