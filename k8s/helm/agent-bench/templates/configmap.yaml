@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agent-bench.fullname" . }}-config
+  labels:
+    {{- include "agent-bench.labels" . | nindent 4 }}
+data:
+  AGENT_BENCH_ENV: "selfhosted_modal"
+  SELFHOSTED_MODEL: {{ .Values.provider.selfhosted.model | quote }}
