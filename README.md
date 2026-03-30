@@ -4,7 +4,7 @@
 
 Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 2 providers. Zero hallucinated citations in all four configurations.
 
-`169 tests` | `2 providers` | `LangChain comparison` | `Docker` | `CI`
+`201 tests` | `3 providers` | `LangChain comparison` | `K8s + Terraform` | `CI`
 
 ## Benchmark Results
 
@@ -78,6 +78,30 @@ curl -X POST http://localhost:8000/ask \
 OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
 ```
 
+### Self-Hosted LLM via Modal (no local GPU needed)
+
+```bash
+make modal-deploy                                        # Deploy vLLM on Modal A10G
+export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
+AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider
+make benchmark-all                                       # Run provider comparison benchmark
+```
+
+### Self-Hosted LLM via Docker Compose (requires local NVIDIA GPU)
+
+```bash
+docker compose -f docker/docker-compose.vllm.yml up --build
+```
+
+### Kubernetes (Helm)
+
+```bash
+make k8s-dev     # Dev: 1 replica, no HPA
+make k8s-prod    # Prod: 3 replicas, HPA 2-8 pods
+```
+
+See [docs/k8s-local-setup.md](docs/k8s-local-setup.md) for minikube walkthrough.
+
 ## Architecture
 
 ```mermaid
@@ -90,13 +114,21 @@ flowchart LR
     Reg --> Calc[calculator]
     Search --> Store[Hybrid Store<br/>FAISS + BM25 + RRF]
     LLM -->|no tool_calls| Resp[AskResponse<br/>answer + sources + metadata]
+
+    subgraph Providers
+        LLM --- OpenAI[OpenAI<br/>gpt-4o-mini]
+        LLM --- Anthropic[Anthropic<br/>claude-haiku]
+        LLM --- SelfHosted[SelfHosted<br/>vLLM / TGI / Ollama]
+    end
 ```
 
 ## Skills Demonstrated
 
 - **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 169 deterministic tests with mock providers
+- **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
+- **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 201 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
 
