@@ -147,8 +147,17 @@ def serve():
         resp = await client.request(
             request.method, url, content=body, headers=headers
         )
+        # Not all endpoints return JSON (e.g. /health returns empty 200)
+        try:
+            content = resp.json()
+        except Exception:
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                media_type=resp.headers.get("content-type", "text/plain"),
+            )
         return JSONResponse(
-            content=resp.json(),
+            content=content,
             status_code=resp.status_code,
             headers={
                 k: v for k, v in resp.headers.items()

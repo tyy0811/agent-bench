@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 2 providers. Zero hallucinated citations in all four configurations.
+Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM). Zero hallucinated citations in all API configurations.
 
 `201 tests` | `3 providers` | `LangChain comparison` | `K8s + Terraform` | `CI`
 

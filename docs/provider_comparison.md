@@ -2,14 +2,14 @@
 
 Benchmark: 27-question golden dataset (19 retrieval, 3 calculation, 5 out-of-scope).
 
-| Provider | Model | P@5 | R@5 | Citation Acc | Latency p50 (ms) | Cost/query |
-|----------|-------|-----|-----|--------------|-------------------|------------|
-| openai | gpt-4o-mini | 0.70 | 0.83 | 1.00 | 4,690 | $0.0004 |
-| anthropic | claude-haiku | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
-| selfhosted_modal | Mistral-7B | TBD | TBD | TBD | TBD | TBD |
+| Provider | P@5 | R@5 | Citation Acc | Latency p50 (ms) | Cost/query |
+|----------|-----|-----|--------------|-------------------|------------|
+| openai | 0.70 | 0.83 | 1.00 | 4,690 | $0.0004 |
+| anthropic | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
+| selfhosted_modal | TBD | TBD | TBD | TBD | TBD |
 
 > Self-hosted results pending: run `make benchmark-all` with a deployed Modal endpoint
-> to fill in the self-hosted row. See the README for instructions.
+> to regenerate this file with real measured data across all three providers.
 
 ## How to Regenerate
 
@@ -19,8 +19,6 @@ export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 make benchmark-all
 ```
-
-This overwrites `docs/provider_comparison.md` with real measured data from all three providers.
 
 ---
 
