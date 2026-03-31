@@ -98,6 +98,34 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
         conversation_store = ConversationStore(db_path=config.memory.db_path)
 
+    # Security components
+    from agent_bench.security.audit_logger import AuditLogger
+    from agent_bench.security.injection_detector import InjectionDetector
+    from agent_bench.security.output_validator import OutputValidator
+    from agent_bench.security.pii_redactor import PIIRedactor
+
+    sec = config.security
+    injection_detector = InjectionDetector(
+        tiers=sec.injection.tiers,
+        classifier_url=sec.injection.classifier_url,
+        enabled=sec.injection.enabled,
+    )
+    pii_redactor = PIIRedactor(
+        redact_patterns=sec.pii.redact_patterns,
+        mode=sec.pii.mode,
+        use_ner=sec.pii.use_ner,
+    )
+    output_validator = OutputValidator(
+        pii_check=sec.output.pii_check,
+        url_check=sec.output.url_check,
+        blocklist=sec.output.blocklist,
+    )
+    audit_logger = AuditLogger(
+        path=sec.audit.path,
+        max_size_bytes=sec.audit.max_size_mb * 1024 * 1024,
+        rotate=sec.audit.rotate,
+    )
+
     # Attach to app state
     app.state.orchestrator = orchestrator
     app.state.store = store
@@ -106,6 +134,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.state.system_prompt = task.system_prompt
     app.state.start_time = time.time()
     app.state.metrics = metrics
+    app.state.injection_detector = injection_detector
+    app.state.pii_redactor = pii_redactor
+    app.state.output_validator = output_validator
+    app.state.audit_logger = audit_logger
 
     # Middleware and routes (order matters: rate limit checked first)
     app.add_middleware(RequestMiddleware)
