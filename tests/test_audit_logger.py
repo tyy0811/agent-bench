@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -101,3 +102,26 @@ class TestAuditLogger:
         logger_a = AuditLogger(path="/dev/null", hmac_key="stable-key")
         logger_b = AuditLogger(path="/dev/null", hmac_key="stable-key")
         assert logger_a.hash_ip("10.0.0.1") == logger_b.hash_ip("10.0.0.1")
+
+    def test_multi_instance_rotation_no_data_loss(self, tmp_path):
+        """Two logger instances rotating the same file must not overwrite each other."""
+        log_path = tmp_path / "audit.jsonl"
+        logger_a = AuditLogger(path=str(log_path), max_size_bytes=1, rotate=True)
+        logger_b = AuditLogger(path=str(log_path), max_size_bytes=1, rotate=True)
+        logger_a.log({"request_id": "r1"})
+        logger_b.log({"request_id": "r2"})
+        logger_a.log({"request_id": "r3"})
+        # All 3 records must survive across rotated files + active log
+        all_records = []
+        for f in tmp_path.glob("audit.jsonl*"):
+            for line in f.read_text().strip().split("\n"):
+                if line:
+                    all_records.append(json.loads(line)["request_id"])
+        assert sorted(all_records) == ["r1", "r2", "r3"]
+
+    def test_no_hmac_key_logs_warning(self, tmp_path, capsys):
+        """Default-constructed logger warns about non-stable IP hashing."""
+        os.environ.pop("AUDIT_HMAC_KEY", None)
+        AuditLogger(path=str(tmp_path / "audit.jsonl"))
+        captured = capsys.readouterr()
+        assert "audit_hmac_key_missing" in captured.out
