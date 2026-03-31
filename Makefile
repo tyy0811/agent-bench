@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest evaluate-fast evaluate-full benchmark evaluate-langchain docker
+.PHONY: install test lint serve ingest evaluate-fast evaluate-full benchmark evaluate-langchain docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -33,3 +33,35 @@ evaluate-langchain:
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build
+
+## --- Infrastructure ---
+
+modal-deploy:  ## Deploy vLLM on Modal (prints endpoint URL)
+	@command -v modal >/dev/null 2>&1 || { echo "Error: modal CLI not found. Run: pip install -e '.[modal]' && modal setup"; exit 1; }
+	modal deploy modal/serve_vllm.py
+
+modal-stop:  ## Stop Modal deployment
+	@command -v modal >/dev/null 2>&1 || { echo "Error: modal CLI not found. Run: pip install -e '.[modal]' && modal setup"; exit 1; }
+	modal app stop agent-bench-vllm
+
+vllm-up:  ## Start local vLLM via Docker Compose (requires NVIDIA GPU)
+	docker compose -f docker/docker-compose.vllm.yml up --build
+
+benchmark-all:  ## Run provider comparison (requires Modal deployment + API keys)
+	$(PYTHON) modal/run_benchmark.py --base-url $(MODAL_VLLM_URL)
+
+k8s-dev:  ## Deploy to minikube (dev values, set MODAL_VLLM_URL first)
+	@test -n "$(MODAL_VLLM_URL)" || (echo "Error: MODAL_VLLM_URL is not set" && exit 1)
+	helm install agent-bench k8s/helm/agent-bench/ -f k8s/helm/agent-bench/values-dev.yaml \
+		--set provider.selfhosted.modalEndpoint=$(MODAL_VLLM_URL)
+
+k8s-prod:  ## Deploy via Helm (prod values, set MODAL_VLLM_URL first)
+	@test -n "$(MODAL_VLLM_URL)" || (echo "Error: MODAL_VLLM_URL is not set" && exit 1)
+	helm install agent-bench k8s/helm/agent-bench/ -f k8s/helm/agent-bench/values-prod.yaml \
+		--set provider.selfhosted.modalEndpoint=$(MODAL_VLLM_URL)
+
+tf-plan:  ## Run terraform plan (no apply)
+	cd terraform && terraform plan
+
+tf-validate:  ## Validate terraform syntax
+	cd terraform && terraform validate

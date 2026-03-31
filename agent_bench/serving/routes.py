@@ -1,4 +1,4 @@
-"""API routes: /ask, /ask/stream, /health, /metrics."""
+"""API routes: /ask, /ask/stream, /health, /metrics, /metrics/prometheus."""
 
 from __future__ import annotations
 
@@ -178,10 +178,10 @@ async def health(request: Request) -> HealthResponse:
     store = request.app.state.store
     start_time: float = request.app.state.start_time
 
-    provider_available = True
+    provider_available = False
     try:
-        # Just check the provider is constructed — don't make an API call
-        _ = request.app.state.orchestrator.provider
+        provider = request.app.state.orchestrator.provider
+        provider_available = await provider.health_check()
     except Exception:
         provider_available = False
 
@@ -204,4 +204,32 @@ async def metrics(request: Request) -> MetricsResponse:
         latency_p95_ms=m.percentile(95),
         errors_total=m.errors_total,
         avg_cost_per_query_usd=m.avg_cost,
+    )
+
+
+@router.get("/metrics/prometheus")
+async def metrics_prometheus(request: Request) -> Response:
+    """Prometheus text exposition format for K8s HPA custom metrics."""
+    m: MetricsCollector = request.app.state.metrics
+    lines = [
+        "# HELP agent_bench_requests_total Total requests served.",
+        "# TYPE agent_bench_requests_total counter",
+        f"agent_bench_requests_total {m.requests_total}",
+        "# HELP agent_bench_errors_total Total error responses.",
+        "# TYPE agent_bench_errors_total counter",
+        f"agent_bench_errors_total {m.errors_total}",
+        "# HELP agent_bench_latency_p50_ms 50th percentile latency in ms.",
+        "# TYPE agent_bench_latency_p50_ms gauge",
+        f"agent_bench_latency_p50_ms {m.percentile(50):.1f}",
+        "# HELP agent_bench_latency_p95_ms 95th percentile latency in ms.",
+        "# TYPE agent_bench_latency_p95_ms gauge",
+        f"agent_bench_latency_p95_ms {m.percentile(95):.1f}",
+        "# HELP agent_bench_avg_cost_usd Average cost per query in USD.",
+        "# TYPE agent_bench_avg_cost_usd gauge",
+        f"agent_bench_avg_cost_usd {m.avg_cost:.6f}",
+        "",
+    ]
+    return Response(
+        content="\n".join(lines),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
     )

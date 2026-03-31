@@ -21,9 +21,17 @@ class ModelPricing(BaseModel):
     output_cost_per_mtok: float
 
 
+class SelfHostedConfig(BaseModel):
+    base_url: str = ""
+    model_name: str = "mistralai/Mistral-7B-Instruct-v0.3"
+    api_key: str = ""
+    timeout_seconds: float = 120.0
+
+
 class ProviderConfig(BaseModel):
     default: str = "openai"
     models: dict[str, ModelPricing] = {}
+    selfhosted: SelfHostedConfig = SelfHostedConfig()
 
 
 class ChunkingConfig(BaseModel):

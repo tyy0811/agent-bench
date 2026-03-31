@@ -2,9 +2,9 @@
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 2 providers. Zero hallucinated citations in all four configurations.
+Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations in all API configurations.
 
-`169 tests` | `2 providers` | `LangChain comparison` | `Docker` | `CI`
+`205 tests` · `3 providers` · `LangChain comparison` · `K8s + Terraform` · `CI`
 
 ## Benchmark Results
 
@@ -30,12 +30,16 @@ Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
 ### Provider Comparison (Custom Pipeline)
 
-| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku |
-|--------|-------------------|----------------------|
-| Retrieval P@5 | 0.70 | **0.74** |
-| Retrieval R@5 | 0.83 | **0.84** |
-| Keyword Hit Rate | 0.89 | **0.92** |
-| Cost per query | **$0.0004** | $0.0007 |
+| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku | Self-hosted Mistral-7B |
+|--------|-------------------|----------------------|----------------------|
+| Retrieval P@5 | 0.70 | **0.74** | 0.05 |
+| Retrieval R@5 | 0.83 | **0.84** | 0.05 |
+| Keyword Hit Rate | 0.89 | **0.92** | 0.61 |
+| Citation Acc | **1.00** | **1.00** | 0.14 |
+| Latency p50 | 4,690 ms | 5,120 ms | 6,709 ms |
+| Cost per query | **$0.0004** | $0.0007 | $0.0031 |
+
+API providers are directly comparable (same config). The self-hosted row uses `max_iterations=1` and `top_k=3` (vs 3/5 for API) to fit Mistral-7B's 8K context window — not an apples-to-apples comparison, but reflects realistic 7B operating constraints. See [provider comparison](docs/provider_comparison.md) for full analysis.
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
@@ -78,6 +82,40 @@ curl -X POST http://localhost:8000/ask \
 OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
 ```
 
+### Self-Hosted LLM via Modal (no local GPU needed)
+
+```bash
+pip install -e ".[modal]"                                # Install Modal SDK
+modal setup                                              # Authenticate with Modal
+modal secret create huggingface-secret HF_TOKEN=hf_...   # HF token for model download
+make modal-deploy                                        # Deploy vLLM on Modal A10G
+export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
+AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider
+
+# Run provider comparison (requires all provider API keys)
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+make benchmark-all
+
+# Or run only the self-hosted provider
+python modal/run_benchmark.py --base-url $MODAL_VLLM_URL --only selfhosted_modal
+```
+
+### Self-Hosted LLM via Docker Compose (requires local NVIDIA GPU)
+
+```bash
+docker compose -f docker/docker-compose.vllm.yml up --build
+```
+
+### Kubernetes (Helm)
+
+```bash
+make k8s-dev     # Dev: 1 replica, no HPA
+make k8s-prod    # Prod: 3 replicas, HPA 2-8 pods
+```
+
+See [docs/k8s-local-setup.md](docs/k8s-local-setup.md) for minikube walkthrough.
+
 ## Architecture
 
 ```mermaid
@@ -90,13 +128,21 @@ flowchart LR
     Reg --> Calc[calculator]
     Search --> Store[Hybrid Store<br/>FAISS + BM25 + RRF]
     LLM -->|no tool_calls| Resp[AskResponse<br/>answer + sources + metadata]
+
+    subgraph Providers
+        LLM --- OpenAI[OpenAI<br/>gpt-4o-mini]
+        LLM --- Anthropic[Anthropic<br/>claude-haiku]
+        LLM --- SelfHosted[SelfHosted<br/>vLLM / TGI / Ollama]
+    end
 ```
 
 ## Skills Demonstrated
 
 - **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 169 deterministic tests with mock providers
+- **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
+- **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 205 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
 
@@ -107,7 +153,8 @@ flowchart LR
 | `/ask` | POST | Ask a question, get answer with sources |
 | `/ask/stream` | POST | SSE streaming (sources → chunks → done) |
 | `/health` | GET | Store stats, provider status, uptime |
-| `/metrics` | GET | Request count, latency p50/p95, cost |
+| `/metrics` | GET | Request count, latency p50/p95, cost (JSON) |
+| `/metrics/prometheus` | GET | Prometheus text exposition format |
 
 ### POST /ask
 
@@ -156,7 +203,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 169 deterministic tests, no API keys needed
+make test    # 205 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -179,7 +226,7 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Conversation memory | Stateless | SQLite sessions | State management |
 | Cloud deployment | None | HF Spaces (Docker) | Docker → production |
 | CI/CD | None | GitHub Actions | Automated quality gates |
-| Tests | 97 | 169 | Comprehensive coverage |
+| Tests | 97 | 205 | Comprehensive coverage |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
 

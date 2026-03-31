@@ -1,64 +1,85 @@
-# Provider Comparison — OpenAI vs Anthropic
+# Provider Comparison: API vs Self-Hosted
 
 Evaluated on the same 27-question golden dataset over 16 FastAPI documentation files.
-Both providers use the same RAG pipeline: hybrid retrieval (FAISS + BM25 + RRF),
-cross-encoder reranking, grounded refusal threshold, and identical system prompt.
+All providers use hybrid retrieval (FAISS + BM25 + RRF), cross-encoder reranking,
+grounded refusal threshold, and identical system prompt.
 
-**The only difference is the LLM provider.** Everything else is controlled.
+**Note:** The self-hosted config differs from API configs in two ways to accommodate
+the 7B model's smaller context window (8192 tokens) and weaker instruction following:
+`max_iterations=1` (vs 3) and `top_k=3` (vs 5). This means the self-hosted row is
+**not a controlled comparison** — it reflects realistic operating constraints for a
+7B model, not an apples-to-apples provider swap. The API providers are directly
+comparable to each other.
 
-## Models
+## Results
 
-| Provider | Model | Context | Pricing (input/output per 1M tokens) |
-|----------|-------|---------|--------------------------------------|
-| OpenAI | gpt-4o-mini | 128K | $0.15 / $0.60 |
-| Anthropic | claude-haiku-4-5 | 200K | $0.80 / $4.00 |
+| Provider | Model | Iterations | top_k | P@5 | R@5 | Citation Acc | Latency p50 (ms) | Cost/query |
+|----------|-------|-----------|-------|-----|-----|--------------|-------------------|------------|
+| OpenAI (API) | gpt-4o-mini | 3 | 5 | 0.70 | 0.83 | 1.00 | 4,690 | $0.0004 |
+| Anthropic (API) | claude-haiku-4-5 | 3 | 5 | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
+| Self-hosted (Modal) | Mistral-7B-Instruct-v0.3 | 1 | 3 | 0.05 | 0.05 | 0.14 | 6,709 | $0.0031 |
 
-## Retrieval Metrics
+## Analysis
 
-| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku | Delta |
-|--------|-------------------|----------------------|-------|
-| Retrieval P@5 | 0.70 | **0.74** | +0.04 |
-| Retrieval R@5 | 0.83 | **0.84** | +0.01 |
-| Keyword Hit Rate | 0.89 | **0.92** | +0.03 |
+**Retrieval quality:** API models (gpt-4o-mini, claude-haiku) generate substantially better
+search queries than Mistral-7B, reflected in P@5 (0.70-0.74 vs 0.05). The 7B model struggles
+with prompt-based tool calling — it often produces malformed JSON or calls tools with
+poor queries, degrading retrieval quality.
 
-Haiku outperforms gpt-4o-mini on all retrieval metrics. The improvement
-in P@5 (0.70 → 0.74) suggests Haiku generates more precise search queries,
-which the cross-encoder reranker then amplifies.
+**Citation accuracy:** Both API providers achieve 1.00 citation accuracy (zero hallucinated
+citations). Mistral-7B manages 0.14, frequently omitting or fabricating source references.
+This is a known limitation of smaller models on instruction-following tasks.
 
-## Cost
+**Latency:** Self-hosted latency (6,709ms p50) is higher than API providers due to the
+proxy overhead and smaller model generating more tokens before reaching a final answer.
+Cold start adds ~90s on first request (model download + GPU load).
 
-| Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku |
-|--------|-------------------|----------------------|
-| Cost per query | **$0.0004** | $0.0007 |
-| Full eval (27 questions) | **~$0.01** | ~$0.02 |
+**Cost:** Self-hosted cost ($0.0031/query) is computed from GPU-seconds
+(latency x Modal A10G rate of $0.000361/sec). This is higher per-query than API providers
+at low volume, but the cost model is fundamentally different — GPU cost scales with
+compute time, not token count.
 
-OpenAI is ~1.75x cheaper per query. Both are negligible for a demo.
+**Tool calling:** Mistral-7B does not support native OpenAI-format tool calling in vLLM
+0.6.6. The provider falls back to prompt-based tool selection (injecting tool descriptions
+into the system prompt and parsing JSON from the model's text output). This works but is
+unreliable — a legitimate benchmark finding, not a failure.
 
-## Qualitative Observations
+## Infrastructure
 
-- **Tool use**: Both providers correctly use the `search_documents` tool on retrieval
-  questions and the `calculator` tool on calculation questions.
-- **Refusal**: Both providers follow the system prompt instruction to refuse when the
-  search tool returns "No relevant documents found." The refusal threshold gate fires
-  identically since it operates on retrieval scores before the LLM is invoked.
-- **Citation format**: Both providers follow the `[source: filename.md]` citation format
-  specified in the system prompt.
-- **Answer quality**: Haiku tends to produce more structured answers (numbered lists,
-  code examples) while gpt-4o-mini is more concise. Both are accurate.
+| Config | Cold start | Warm latency p50 | GPU | Infra |
+|--------|-----------|-------------------|-----|-------|
+| OpenAI | N/A | 4,690 ms | N/A | Managed API |
+| Anthropic | N/A | 5,120 ms | N/A | Managed API |
+| Self-hosted (Modal) | ~90s | 6,709 ms | A10G (24GB) | Serverless GPU |
 
 ## How to Reproduce
 
 ```bash
-# OpenAI evaluation (default config)
+# OpenAI evaluation
 OPENAI_API_KEY=sk-... python scripts/evaluate.py --mode deterministic
 
 # Anthropic evaluation
 ANTHROPIC_API_KEY=sk-ant-... python scripts/evaluate.py --config configs/anthropic.yaml --mode deterministic
+
+# Self-hosted evaluation (requires Modal deployment + HF secret)
+pip install -e ".[modal]"
+modal secret create huggingface-secret HF_TOKEN=hf_...
+modal deploy modal/serve_vllm.py
+export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
+python scripts/evaluate.py --config configs/selfhosted_modal.yaml --mode deterministic
+
+# All providers at once
+make benchmark-all
 ```
 
 ## Takeaway
 
-The provider abstraction works as designed — switching from OpenAI to Anthropic is a
-single config change (`provider.default: anthropic`). The orchestrator, tools, evaluation
-harness, and serving layer are completely unchanged. Both providers produce competitive
-results on the same benchmark.
+The provider abstraction works as designed — switching providers is a single config change.
+API models dominate on quality metrics, but the self-hosted path demonstrates end-to-end
+inference serving: vLLM on Modal (serverless A10G), OpenAI-compatible endpoint, identical
+evaluation harness. The quality gap is expected for a 7B model on RAG tasks and would
+narrow with larger self-hosted models (e.g., Mixtral-8x7B, Llama-3-70B).
+
+---
+
+Generated by `modal/run_benchmark.py`

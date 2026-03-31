@@ -232,3 +232,52 @@ The deduplicated `sources` list in `AgentResponse` is for the API
 response. The `ranked_sources` list preserves rank order with
 duplicates for evaluation metrics. P@5 and R@5 need the raw
 retrieval ranking, not the post-processed answer metadata.
+
+## Why vLLM over TGI / llama.cpp
+
+vLLM has the widest model support, best throughput via PagedAttention, and a native
+OpenAI-compatible server (`/v1/chat/completions`). TGI is a valid alternative; llama.cpp
+targets different use cases (edge/CPU inference). This is a deliberate choice, not
+ignorance of alternatives.
+
+## Why Modal for GPU inference
+
+Serverless GPU eliminates idle cost and GPU node management. A10G at ~$1.30/hr costs
+~$0.50 per full 27-question benchmark run. The Docker Compose path (`docker-compose.vllm.yml`)
+is retained for users who have local GPUs or prefer persistent serving.
+
+## Why split topology (K8s API + Modal GPU)
+
+The API layer (retrieval, orchestration, tool routing) is CPU-bound and benefits from
+horizontal scaling via K8s HPA. The LLM inference layer is GPU-bound and benefits from
+serverless elasticity — Modal scales to zero when idle, scales up on demand with no node
+provisioning. Co-locating both in K8s would require GPU node pools with idle cost,
+node autoscaler latency, and NVIDIA device plugin management. This mirrors a common
+production pattern.
+
+## Why Helm only, not Kustomize + Helm
+
+Showing two K8s deployment methods for the same app adds complexity without demonstrating
+distinct skills. Helm with `values-dev.yaml` / `values-prod.yaml` covers
+environment-specific configuration cleanly.
+
+## Why CPU-based HPA, not custom metrics
+
+CPU utilization works without a Prometheus adapter or custom metrics server. A production
+improvement would use the Prometheus adapter to scale on p95 latency from the `/metrics`
+endpoint — this requires bridging the JSON metrics to Prometheus exposition format.
+Documented as a follow-up.
+
+## Why env var fallback in SelfHostedProvider
+
+Follows the same pattern as OpenAIProvider reading `OPENAI_API_KEY`. The YAML config
+provides defaults; env vars override at runtime. No config loader changes needed.
+
+## Why lazy tool-call detection, not metadata check
+
+Checking `/v1/models` metadata for tool-calling support is unreliable — model metadata
+doesn't consistently report this capability. Instead, the provider sends one tool-calling
+request on first `complete()` call with tools and checks if the response contains
+`tool_calls`. The result is cached as `self._supports_tool_calling`. Transient failures
+(timeout, 5xx) return `None` and retry on the next call rather than permanently
+downgrading to prompt-based fallback.
