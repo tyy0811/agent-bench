@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.config import AppConfig, ProviderConfig, SecurityConfig
 from agent_bench.core.provider import MockProvider
-from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.rag.store import HybridStore
 from agent_bench.serving.middleware import MetricsCollector, RequestMiddleware
 from agent_bench.tools.calculator import CalculatorTool
@@ -49,10 +48,10 @@ def _make_security_app(tmp_path, security_config=None):
     app.state.metrics = MetricsCollector()
 
     # Security components
-    from agent_bench.security.injection_detector import InjectionDetector
-    from agent_bench.security.pii_redactor import PIIRedactor
-    from agent_bench.security.output_validator import OutputValidator
     from agent_bench.security.audit_logger import AuditLogger
+    from agent_bench.security.injection_detector import InjectionDetector
+    from agent_bench.security.output_validator import OutputValidator
+    from agent_bench.security.pii_redactor import PIIRedactor
 
     sec = config.security
     app.state.injection_detector = InjectionDetector(
@@ -163,8 +162,6 @@ class TestStreamInjectionBlocking:
     @pytest.mark.asyncio
     async def test_stream_output_validation_runs(self, tmp_path):
         """Output containing PII should trigger output validation on stream."""
-        from unittest.mock import AsyncMock, patch
-        from agent_bench.core.types import TokenUsage
         from agent_bench.serving.schemas import StreamEvent
 
         app = _make_security_app(tmp_path)

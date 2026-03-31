@@ -65,9 +65,13 @@ class PIIRedactor:
                 self._nlp = spacy.load("en_core_web_sm")
                 self.use_ner = True
             except ImportError:
-                logger.warning("pii.use_ner=true but spaCy not installed, falling back to regex-only")
+                logger.warning(
+                    "pii.use_ner=true but spaCy not installed, falling back to regex-only"
+                )
             except OSError:
-                logger.warning("pii.use_ner=true but en_core_web_sm not found, falling back to regex-only")
+                logger.warning(
+                    "pii.use_ner=true but en_core_web_sm not found, falling back to regex-only"
+                )
 
     def redact(self, text: str) -> RedactionResult:
         """Detect and optionally redact PII in the given text."""
