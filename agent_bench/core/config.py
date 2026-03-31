@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel
@@ -92,14 +92,14 @@ class EvaluationConfig(BaseModel):
 
 class InjectionConfig(BaseModel):
     enabled: bool = True
-    action: str = "block"  # block | warn | flag
+    action: Literal["block", "warn", "flag"] = "block"
     tiers: list[str] = ["heuristic", "classifier"]
     classifier_url: str = ""
 
 
 class PIIConfig(BaseModel):
     enabled: bool = True
-    mode: str = "redact"  # redact | detect_only | passthrough
+    mode: Literal["redact", "detect_only", "passthrough"] = "redact"
     redact_patterns: list[str] = [
         "EMAIL", "PHONE", "SSN", "CREDIT_CARD", "IP_ADDRESS",
     ]

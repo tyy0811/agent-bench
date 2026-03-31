@@ -1,5 +1,8 @@
 """Tests for security configuration models."""
 
+import pytest
+from pydantic import ValidationError
+
 from agent_bench.core.config import AppConfig
 
 
@@ -56,3 +59,26 @@ class TestSecurityConfig:
         for mode in ("redact", "detect_only", "passthrough"):
             cfg = PIIConfig(mode=mode)
             assert cfg.mode == mode
+
+    def test_injection_action_rejects_invalid(self):
+        """Invalid injection action raises ValidationError."""
+        from agent_bench.core.config import InjectionConfig
+        with pytest.raises(ValidationError):
+            InjectionConfig(action="drop")
+
+    def test_pii_mode_rejects_invalid(self):
+        """Invalid PII mode raises ValidationError."""
+        from agent_bench.core.config import PIIConfig
+        with pytest.raises(ValidationError):
+            PIIConfig(mode="whatever")
+
+    def test_invalid_action_in_yaml_rejected(self, tmp_path):
+        """A YAML typo in injection.action must not silently pass."""
+        import yaml
+        config_data = {"security": {"injection": {"action": "yolo"}}}
+        yaml_path = tmp_path / "bad.yaml"
+        yaml_path.write_text(yaml.dump(config_data))
+
+        from agent_bench.core.config import load_config
+        with pytest.raises(ValidationError):
+            load_config(path=yaml_path)

@@ -73,3 +73,31 @@ class TestAuditLogger:
         logger = AuditLogger(path=str(log_path))
         logger.log({"request_id": "r1"})
         assert log_path.exists()
+
+    def test_multiple_rotations_no_data_loss(self, tmp_path):
+        """Multiple rotations in the same second must not overwrite each other."""
+        log_path = tmp_path / "audit.jsonl"
+        logger = AuditLogger(path=str(log_path), max_size_bytes=1, rotate=True)
+        logger.log({"request_id": "r1"})
+        logger.log({"request_id": "r2"})
+        logger.log({"request_id": "r3"})
+        # All 3 records must survive: 2 in rotated files, 1 in active log
+        rotated = list(tmp_path.glob("audit.jsonl.*"))
+        assert len(rotated) == 2
+        all_records = []
+        for f in [log_path, *rotated]:
+            for line in f.read_text().strip().split("\n"):
+                all_records.append(json.loads(line)["request_id"])
+        assert sorted(all_records) == ["r1", "r2", "r3"]
+
+    def test_hash_ip_different_keys_produce_different_hashes(self):
+        """Different HMAC keys produce different hashes for the same IP."""
+        logger_a = AuditLogger(path="/dev/null", hmac_key="key-a")
+        logger_b = AuditLogger(path="/dev/null", hmac_key="key-b")
+        assert logger_a.hash_ip("192.168.1.1") != logger_b.hash_ip("192.168.1.1")
+
+    def test_hash_ip_stable_with_same_key(self):
+        """Same HMAC key produces consistent hashes across instances."""
+        logger_a = AuditLogger(path="/dev/null", hmac_key="stable-key")
+        logger_b = AuditLogger(path="/dev/null", hmac_key="stable-key")
+        assert logger_a.hash_ip("10.0.0.1") == logger_b.hash_ip("10.0.0.1")
