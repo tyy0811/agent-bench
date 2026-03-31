@@ -62,8 +62,8 @@ class OutputValidator:
 
     @staticmethod
     def _normalize_url(url: str) -> str:
-        """Strip trailing slashes and punctuation for comparison."""
-        return url.rstrip("/").rstrip(".,;:")
+        """Strip trailing punctuation then trailing slashes for comparison."""
+        return url.rstrip(".,;:").rstrip("/")
 
     def _check_urls(self, output: str, retrieved_chunks: list[str]) -> list[str]:
         url_pattern = re.compile(r"https?://[^\s\)\"'>]+")

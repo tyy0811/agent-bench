@@ -73,6 +73,15 @@ class TestURLValidation:
         assert verdict.passed is True
         assert verdict.violations == []
 
+    def test_trailing_slash_with_sentence_punctuation(self, validator):
+        """Chunk URL followed by period: 'https://x.com/.' must match 'https://x.com/'."""
+        chunks = ["Visit https://fastapi.tiangolo.com/."]
+        verdict = validator.validate(
+            output="See https://fastapi.tiangolo.com/ for details.",
+            retrieved_chunks=chunks,
+        )
+        assert verdict.passed is True
+
     def test_trailing_slash_normalization_reverse(self, validator):
         """Chunk without slash, output with slash."""
         chunks = ["Visit https://fastapi.tiangolo.com for docs."]
