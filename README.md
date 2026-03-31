@@ -4,7 +4,7 @@
 
 Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations in all API configurations.
 
-`201 tests` | `3 providers` | `LangChain comparison` | `K8s + Terraform` | `CI`
+`205 tests` · `3 providers` · `LangChain comparison` · `K8s + Terraform` · `CI`
 
 ## Benchmark Results
 
@@ -142,7 +142,7 @@ flowchart LR
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
 - **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 201 deterministic tests with mock providers
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 205 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
 
@@ -153,7 +153,8 @@ flowchart LR
 | `/ask` | POST | Ask a question, get answer with sources |
 | `/ask/stream` | POST | SSE streaming (sources → chunks → done) |
 | `/health` | GET | Store stats, provider status, uptime |
-| `/metrics` | GET | Request count, latency p50/p95, cost |
+| `/metrics` | GET | Request count, latency p50/p95, cost (JSON) |
+| `/metrics/prometheus` | GET | Prometheus text exposition format |
 
 ### POST /ask
 
@@ -202,7 +203,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 201 deterministic tests, no API keys needed
+make test    # 205 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -225,7 +226,7 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Conversation memory | Stateless | SQLite sessions | State management |
 | Cloud deployment | None | HF Spaces (Docker) | Docker → production |
 | CI/CD | None | GitHub Actions | Automated quality gates |
-| Tests | 97 | 201 | Comprehensive coverage |
+| Tests | 97 | 205 | Comprehensive coverage |
 
 See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
 
