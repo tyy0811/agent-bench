@@ -19,30 +19,38 @@ comparable to each other.
 | Anthropic (API) | claude-haiku-4-5 | 3 | 5 | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
 | Self-hosted (Modal) | Mistral-7B-Instruct-v0.3 | 1 | 3 | 0.05 | 0.05 | 0.14 | 6,709 | $0.0031 |
 
-## Analysis
+## Why Mistral-7B Scores So Differently
 
-**Retrieval quality:** API models (gpt-4o-mini, claude-haiku) generate substantially better
-search queries than Mistral-7B, reflected in P@5 (0.70-0.74 vs 0.05). The 7B model struggles
-with prompt-based tool calling — it often produces malformed JSON or calls tools with
-poor queries, degrading retrieval quality.
+The gap between API providers and self-hosted Mistral-7B compounds from three factors,
+ordered by causal priority:
 
-**Citation accuracy:** Both API providers achieve 1.00 citation accuracy (zero hallucinated
-citations). Mistral-7B manages 0.14, frequently omitting or fabricating source references.
-This is a known limitation of smaller models on instruction-following tasks.
+**1. No native tool calling (upstream of everything else).** vLLM 0.6.6 with Mistral-7B
+doesn't support OpenAI-format `tool_calls`. The provider falls back to injecting tool
+descriptions into the system prompt and parsing JSON from the model's text output.
+Mistral-7B frequently produces malformed JSON or calls tools with vague queries like
+`"search"` instead of `"FastAPI dependency injection"` — so the retrieval stage gets
+garbage queries, and P@5 collapses to 0.05.
 
-**Latency:** Self-hosted latency (6,709ms p50) is higher than API providers due to the
-proxy overhead and smaller model generating more tokens before reaching a final answer.
-Cold start adds ~90s on first request (model download + GPU load).
+**2. Forced single iteration (context window constraint).** API providers get 3 iterations
+(call tool, read result, refine, repeat). Mistral-7B is limited to 1 because each iteration
+adds ~2K tokens of tool results, and the 8K context window fills up. One shot at picking the
+right tool and query, no opportunity to refine.
 
-**Cost:** Self-hosted cost ($0.0031/query) is computed from GPU-seconds
-(latency x Modal A10G rate of $0.000361/sec). This is higher per-query than API providers
-at low volume, but the cost model is fundamentally different — GPU cost scales with
-compute time, not token count.
+**3. Weak instruction following (residual even when 1 and 2 don't bite).** Even when
+Mistral-7B calls the right tool with a reasonable query, it struggles to follow the citation
+format (`[source: filename.md]`) specified in the system prompt. Citation accuracy is 0.14 —
+it's not hallucinating sources, it's mostly omitting them.
 
-**Tool calling:** Mistral-7B does not support native OpenAI-format tool calling in vLLM
-0.6.6. The provider falls back to prompt-based tool selection (injecting tool descriptions
-into the system prompt and parsing JSON from the model's text output). This works but is
-unreliable — a legitimate benchmark finding, not a failure.
+**Keyword hit rate (0.61) is the interesting signal.** The model *sometimes* generates queries
+with relevant keywords, meaning it has semantic understanding of the questions but can't
+translate that into well-formed tool calls. This is exactly the gap between "understands
+language" and "can operate as an agent."
+
+**Cost is counterintuitively higher.** Self-hosted Mistral-7B costs $0.0031/query vs
+$0.0004 for OpenAI gpt-4o-mini — despite being self-hosted. Modal A10G time is billed
+per GPU-second, and Mistral-7B takes longer per query while producing worse results.
+The cost advantage of self-hosted only materializes at high throughput with batched
+requests and sustained GPU utilization, not at single-query evaluation scale.
 
 ## Infrastructure
 
