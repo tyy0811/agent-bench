@@ -39,7 +39,7 @@ Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 | Latency p50 | 4,690 ms | 5,120 ms | 6,709 ms |
 | Cost per query | **$0.0004** | $0.0007 | $0.0031 |
 
-The 7B self-hosted model shows the expected quality gap vs API models — weaker query generation and citation following with prompt-based tool fallback. The value is demonstrating end-to-end self-hosted inference: vLLM on Modal (serverless A10G), OpenAI-compatible endpoint, same evaluation harness.
+API providers are directly comparable (same config). The self-hosted row uses `max_iterations=1` and `top_k=3` (vs 3/5 for API) to fit Mistral-7B's 8K context window — not an apples-to-apples comparison, but reflects realistic 7B operating constraints. See [provider comparison](docs/provider_comparison.md) for full analysis.
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
@@ -87,6 +87,7 @@ OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
 ```bash
 pip install -e ".[modal]"                                # Install Modal SDK
 modal setup                                              # Authenticate with Modal
+modal secret create huggingface-secret HF_TOKEN=hf_...   # HF token for model download
 make modal-deploy                                        # Deploy vLLM on Modal A10G
 export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
 AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider

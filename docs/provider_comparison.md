@@ -1,18 +1,23 @@
 # Provider Comparison: API vs Self-Hosted
 
 Evaluated on the same 27-question golden dataset over 16 FastAPI documentation files.
-All providers use the same RAG pipeline: hybrid retrieval (FAISS + BM25 + RRF),
-cross-encoder reranking, grounded refusal threshold, and identical system prompt.
+All providers use hybrid retrieval (FAISS + BM25 + RRF), cross-encoder reranking,
+grounded refusal threshold, and identical system prompt.
 
-**The only difference is the LLM provider.** Everything else is controlled.
+**Note:** The self-hosted config differs from API configs in two ways to accommodate
+the 7B model's smaller context window (8192 tokens) and weaker instruction following:
+`max_iterations=1` (vs 3) and `top_k=3` (vs 5). This means the self-hosted row is
+**not a controlled comparison** — it reflects realistic operating constraints for a
+7B model, not an apples-to-apples provider swap. The API providers are directly
+comparable to each other.
 
 ## Results
 
-| Provider | Model | P@5 | R@5 | Citation Acc | Latency p50 (ms) | Cost/query |
-|----------|-------|-----|-----|--------------|-------------------|------------|
-| OpenAI (API) | gpt-4o-mini | 0.70 | 0.83 | 1.00 | 4,690 | $0.0004 |
-| Anthropic (API) | claude-haiku-4-5 | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
-| Self-hosted (Modal) | Mistral-7B-Instruct-v0.3 | 0.05 | 0.05 | 0.14 | 6,709 | $0.0031 |
+| Provider | Model | Iterations | top_k | P@5 | R@5 | Citation Acc | Latency p50 (ms) | Cost/query |
+|----------|-------|-----------|-------|-----|-----|--------------|-------------------|------------|
+| OpenAI (API) | gpt-4o-mini | 3 | 5 | 0.70 | 0.83 | 1.00 | 4,690 | $0.0004 |
+| Anthropic (API) | claude-haiku-4-5 | 3 | 5 | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
+| Self-hosted (Modal) | Mistral-7B-Instruct-v0.3 | 1 | 3 | 0.05 | 0.05 | 0.14 | 6,709 | $0.0031 |
 
 ## Analysis
 
@@ -56,7 +61,9 @@ OPENAI_API_KEY=sk-... python scripts/evaluate.py --mode deterministic
 # Anthropic evaluation
 ANTHROPIC_API_KEY=sk-ant-... python scripts/evaluate.py --config configs/anthropic.yaml --mode deterministic
 
-# Self-hosted evaluation (requires Modal deployment)
+# Self-hosted evaluation (requires Modal deployment + HF secret)
+pip install -e ".[modal]"
+modal secret create huggingface-secret HF_TOKEN=hf_...
 modal deploy modal/serve_vllm.py
 export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
 python scripts/evaluate.py --config configs/selfhosted_modal.yaml --mode deterministic
