@@ -174,6 +174,31 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     orchestrator: Orchestrator = request.app.state.orchestrator
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
+    request_id: str = getattr(request.state, "request_id", "unknown")
+
+    # --- Security: injection detection (pre-retrieval) ---
+    injection_detector = getattr(request.app.state, "injection_detector", None)
+    injection_verdict_data = {"safe": True, "tier": "none", "confidence": 1.0}
+    if injection_detector:
+        verdict = await injection_detector.detect_async(body.question)
+        injection_verdict_data = {
+            "safe": verdict.safe,
+            "tier": verdict.tier,
+            "confidence": verdict.confidence,
+            "matched_pattern": verdict.matched_pattern,
+        }
+        sec_config = getattr(request.app.state.config, "security", None)
+        action = sec_config.injection.action if sec_config else "block"
+        if not verdict.safe and action == "block":
+            _write_audit(request, body, request_id, injection_verdict_data, blocked=True)
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "Request blocked: potential prompt injection detected",
+                    "request_id": request_id,
+                },
+            )
 
     # Load conversation history if session_id provided
     history: list[dict] | None = None
@@ -209,6 +234,9 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             conversation_store.append(
                 body.session_id, "assistant", "".join(full_answer)
             )
+
+        # --- Security: audit log for streaming ---
+        _write_audit(request, body, request_id, injection_verdict_data)
 
     return StreamingResponse(
         event_generator(),
