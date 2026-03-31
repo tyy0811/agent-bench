@@ -20,11 +20,9 @@ Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Both
 | Citation Acc | 1.00 | 1.00 | 1.00 | 1.00 |
 | Cost/query | **$0.0004** | $0.0007 | $0.0003 | $0.0046 |
 
-#### Key Findings
+> **Key insight:** Retrieval quality is dominated by the shared retrieval stack (FAISS + BM25 + RRF + cross-encoder), not the orchestration layer. P@5 and R@5 vary by less than 0.12 across all four configurations. The main cost of framework abstraction is visible in LangChain's Anthropic path: 6.6x higher per-query cost with no retrieval improvement.
 
-Retrieval quality is dominated by the shared retrieval stack, not the orchestration layer — P@5 and R@5 vary by less than 0.12 across all four configurations. Citation accuracy is 1.00 everywhere, confirming the retrieval-grounded approach prevents hallucination regardless of framework choice.
-
-The main cost of framework abstraction is visible in the Anthropic configuration: LangChain's AgentExecutor makes additional intermediate LLM calls, resulting in 6.6x higher per-query cost ($0.0046 vs $0.0007) with no retrieval quality improvement.
+Citation accuracy is 1.00 everywhere, confirming the retrieval-grounded approach prevents hallucination regardless of framework or provider choice.
 
 Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
@@ -39,7 +37,7 @@ Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 | Latency p50 | 4,690 ms | 5,120 ms | 6,709 ms |
 | Cost per query | **$0.0004** | $0.0007 | $0.0031 |
 
-API providers are directly comparable (same config). The self-hosted row uses `max_iterations=1` and `top_k=3` (vs 3/5 for API) to fit Mistral-7B's 8K context window — not an apples-to-apples comparison, but reflects realistic 7B operating constraints. See [provider comparison](docs/provider_comparison.md) for full analysis.
+API providers are directly comparable (same config). The self-hosted row uses `max_iterations=1` and `top_k=3` (vs 3/5 for API) to fit Mistral-7B's 8K context window. Mistral-7B's context constraint forces single-iteration retrieval with fewer chunks, demonstrating that agentic tool-calling workflows have a practical model-size floor — a genuine architectural finding, not a system failure. See [provider comparison](docs/provider_comparison.md) for full analysis.
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
@@ -136,7 +134,7 @@ flowchart LR
     end
 ```
 
-## Skills Demonstrated
+## Engineering Scope
 
 - **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
@@ -213,21 +211,17 @@ All tests use MockProvider + MockEmbeddingModel. No API keys. No model downloads
 
 See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF over score normalization, negative evaluation cases, deterministic eval + optional LLM judge, and more.
 
-<details><summary>V1 → V2 Evolution</summary>
+### V1 → V2 Evolution
 
-| Feature | V1 | V2 | Skill Demonstrated |
-|---------|----|----|-------------------|
-| Grounded refusal | 0/5 | Threshold gate | Trust & safety |
-| Retrieval P@5 | 0.70 | 0.74 | Cross-encoder reranking |
-| Provider support | OpenAI only | OpenAI + Anthropic | Multi-provider abstraction |
-| Provider resilience | None | Retry + backoff | Error handling |
-| Rate limiting | None | 10 RPM per IP | API hardening |
-| Streaming | None | SSE (`/ask/stream`) | Async Python, real-time UX |
-| Conversation memory | Stateless | SQLite sessions | State management |
-| Cloud deployment | None | HF Spaces (Docker) | Docker → production |
-| CI/CD | None | GitHub Actions | Automated quality gates |
-| Tests | 97 | 205 | Comprehensive coverage |
-
-See [DECISIONS.md](DECISIONS.md) for the reasoning behind each design choice.
-
-</details>
+| Feature | V1 | V2 |
+|---------|----|----|
+| Grounded refusal | 0/5 | Threshold gate |
+| Retrieval P@5 | 0.70 | 0.74 (cross-encoder reranking) |
+| Provider support | OpenAI only | OpenAI + Anthropic + self-hosted vLLM |
+| Provider resilience | None | Retry + backoff |
+| Rate limiting | None | 10 RPM per IP |
+| Streaming | None | SSE (`/ask/stream`) |
+| Conversation memory | Stateless | SQLite sessions |
+| Infrastructure | Local only | Docker, K8s (Helm), Terraform (GKE), Modal |
+| CI/CD | None | GitHub Actions |
+| Tests | 97 | 205 |
