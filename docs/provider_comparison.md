@@ -80,13 +80,33 @@ python scripts/evaluate.py --config configs/selfhosted_modal.yaml --mode determi
 make benchmark-all
 ```
 
+## Known Limitations & Future Work
+
+The self-hosted benchmark is not a controlled comparison. Three specific constraints
+disadvantage Mistral-7B beyond its inherent model quality:
+
+1. **Prompt-based tool calling (fixable).** vLLM 0.6.6 was pinned to work around
+   `huggingface_hub` and `transformers` dependency conflicts. Newer vLLM versions (0.8+)
+   support native Mistral tool calling via `--enable-auto-tool-choice --tool-call-parser mistral`.
+   This would eliminate the malformed-JSON failure mode that drives P@5 to 0.05.
+
+2. **Artificially low context window (fixable).** Mistral-7B supports 32K context natively,
+   but `max_model_len` is set to 8K to fit A10G memory at `gpu_memory_utilization=0.85`.
+   Bumping to 16K (with `0.90` utilization) would likely allow restoring `max_iterations=3`
+   and `top_k=5` to match the API configs — making the comparison controlled.
+
+3. **Model scale (architectural).** Even with fixes 1 and 2, a 7B model will underperform
+   gpt-4o-mini and claude-haiku on multi-step agentic tasks. A fairer model-size comparison
+   would use Mixtral-8x7B or Llama-3-70B (requiring A100 80GB). This would refine the
+   model-size floor estimate but not change the architectural conclusion.
+
 ## Takeaway
 
 The provider abstraction works as designed — switching providers is a single config change.
 API models dominate on quality metrics, but the self-hosted path demonstrates end-to-end
 inference serving: vLLM on Modal (serverless A10G), OpenAI-compatible endpoint, identical
-evaluation harness. The quality gap is expected for a 7B model on RAG tasks and would
-narrow with larger self-hosted models (e.g., Mixtral-8x7B, Llama-3-70B).
+evaluation harness. The quality gap is a combination of model scale and infrastructure
+constraints, both of which are documented and addressable.
 
 ---
 
