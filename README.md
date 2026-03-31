@@ -4,7 +4,7 @@
 
 Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations in all API configurations.
 
-`205 tests` · `3 providers` · `LangChain comparison` · `K8s + Terraform` · `CI`
+`288 tests` · `3 providers` · `LangChain comparison` · `K8s + Terraform` · `CI`
 
 ## Benchmark Results
 
@@ -136,7 +136,7 @@ flowchart LR
 
 ## Security Architecture
 
-Defense-in-depth pipeline with four guardrails. Each stage is independently configurable and degrades gracefully.
+Injection detection → PII redaction → output validation → audit logging. Four guardrails, each independently configurable, each degrades gracefully.
 
 ```
 User Input
@@ -173,7 +173,7 @@ User Input
            │
            ▼
 ┌──────────────────────┐
-│  Audit Log            │  JSONL, IP-hashed, rotated
+│  Audit Log            │  JSONL, HMAC-hashed IPs, rotated
 │  (every request)      │
 └──────────┬───────────┘
            │
@@ -187,7 +187,7 @@ User Input
 
 **Output validation** catches PII leakage (LLM reconstructing redacted data), URL hallucination (URLs not in retrieved chunks), and blocklisted patterns (system prompt fragments, API keys).
 
-**Audit logging** writes one structured JSON record per request to an append-only JSONL file with HMAC-SHA256 hashed IPs, injection verdicts, PII redaction counts, and output validation results.
+**Audit logging** writes one structured JSON record per request to an append-only JSONL file. Client IPs are HMAC-SHA256 hashed with a server secret (`AUDIT_HMAC_KEY` env var) so they are irreversible even against offline enumeration of the IPv4 address space. Logs include injection verdicts, output validation results, and response metadata.
 
 ```bash
 # Query the audit log with jq
@@ -195,14 +195,50 @@ jq 'select(.injection_verdict.safe == false)' logs/audit.jsonl
 jq 'select(.session_id == "abc123")' logs/audit.jsonl
 ```
 
+This is an application-layer security pipeline — it does not replace network-level security, authentication, or infrastructure hardening.
+
+See [DECISIONS.md](DECISIONS.md) for why we chose two-tier detection over three, regex-only PII by default, JSONL over SQLite for audit, and HMAC over plain SHA-256 for IP hashing.
+
+<details><summary>Security configuration</summary>
+
+All security settings live in `configs/default.yaml` under the `security` key and map to Pydantic models with Literal-constrained enums:
+
+```yaml
+security:
+  injection:
+    enabled: true
+    action: block          # block | warn | flag
+    tiers: [heuristic, classifier]
+    classifier_url: ""     # Modal endpoint URL when using Tier 2
+  pii:
+    enabled: true
+    mode: redact           # redact | detect_only | passthrough
+    redact_patterns: [EMAIL, PHONE, SSN, CREDIT_CARD, IP_ADDRESS]
+    use_ner: false         # requires: pip install -e ".[ner]"
+    ner_entities: [PERSON]
+  output:
+    enabled: true
+    pii_check: true
+    url_check: true
+    blocklist: []          # regex patterns to block in output
+  audit:
+    enabled: true
+    path: logs/audit.jsonl
+    max_size_mb: 100
+    rotate: true
+```
+
+</details>
+
 ## Engineering Scope
 
 - **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
 - **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
-- **Security engineering**: Prompt injection detection (heuristic + ML classifier), PII redaction, output validation, structured audit logging with GDPR-compliant IP hashing
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 205 deterministic tests with mock providers
+- **Security — detection & redaction**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
+- **Security — audit & compliance**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 288 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
 
@@ -271,7 +307,7 @@ All tests use MockProvider + MockEmbeddingModel. No API keys. No model downloads
 
 ## Design Decisions
 
-See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF over score normalization, negative evaluation cases, deterministic eval + optional LLM judge, and more.
+See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF over score normalization, negative evaluation cases, deterministic eval + optional LLM judge, security architecture tradeoffs, and more.
 
 ### V1 → V2 → V3 Evolution
 
@@ -286,4 +322,4 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | **PII redaction** | None | None | Regex + optional NER |
 | **Output validation** | None | None | PII leakage + URL + blocklist |
 | **Audit logging** | None | None | JSONL, HMAC-hashed IPs |
-| Tests | 97 | 205 | 288+ |
+| Tests | 97 | 205 | 288 |
