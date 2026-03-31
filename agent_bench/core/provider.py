@@ -102,6 +102,15 @@ class LLMProvider(ABC):
     @abstractmethod
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]: ...
 
+    async def health_check(self) -> bool:
+        """Check if the upstream provider is reachable.
+
+        Returns True if the provider can serve requests, False otherwise.
+        Default implementation returns True (assume healthy). Providers
+        should override this to perform a real connectivity check.
+        """
+        return True
+
 
 # --- Implementations ---
 
@@ -326,6 +335,13 @@ class OpenAIProvider(LLMProvider):
         async for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+
+    async def health_check(self) -> bool:
+        try:
+            await self.client.models.retrieve(self.model)
+            return True
+        except Exception:
+            return False
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_openai(tools)
@@ -559,6 +575,16 @@ class AnthropicProvider(LLMProvider):
                 raise ProviderTimeoutError(
                     f"Anthropic timed out: {e}"
                 ) from e
+
+    async def health_check(self) -> bool:
+        try:
+            await self.client.messages.create(
+                model=self.model, max_tokens=1,
+                messages=[{"role": "user", "content": "ping"}],
+            )
+            return True
+        except Exception:
+            return False
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_anthropic(tools)
@@ -940,6 +966,13 @@ class SelfHostedProvider(LLMProvider):
                 return  # success — exit retry loop
             except _httpx.TimeoutException as e:
                 raise ProviderTimeoutError(f"Self-hosted timed out: {e}") from e
+
+    async def health_check(self) -> bool:
+        try:
+            resp = await self.client.get("/models", timeout=5.0)
+            return resp.status_code == 200
+        except Exception:
+            return False
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_openai(tools)
