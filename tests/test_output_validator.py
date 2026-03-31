@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from agent_bench.security.output_validator import OutputValidator
-from agent_bench.security.types import OutputVerdict
 
 
 class TestPIILeakage:

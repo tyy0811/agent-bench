@@ -133,7 +133,10 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
             "violations": out_verdict.violations,
         }
         if not out_verdict.passed and out_verdict.action == "block":
-            answer = "I'm unable to provide a response to this query. The output was filtered for safety."
+            answer = (
+                "I'm unable to provide a response to this query. "
+                "The output was filtered for safety."
+            )
 
     # Store Q+A if session_id provided
     if body.session_id and conversation_store:
@@ -215,7 +218,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     output_validator = getattr(request.app.state, "output_validator", None)
 
     async def event_generator():
-        from agent_bench.serving.schemas import StreamEvent as SE
+        from agent_bench.serving.schemas import StreamEvent
 
         # Buffer all events so we can validate before sending to client.
         # The orchestrator emits the final answer as a single chunk (not
@@ -260,7 +263,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         # Now yield events to the client — safe content only
         for event in buffered_events:
             if output_blocked and event.type == "chunk":
-                yield SE(type="chunk", content=filtered_answer).to_sse()
+                yield StreamEvent(type="chunk", content=filtered_answer).to_sse()
             else:
                 yield event.to_sse()
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from agent_bench.security.pii_redactor import PIIRedactor, RedactionResult
+from agent_bench.security.pii_redactor import PIIRedactor
 
 
 class TestRegexPatterns:
