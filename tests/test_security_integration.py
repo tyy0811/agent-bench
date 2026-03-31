@@ -143,7 +143,7 @@ class TestStreamInjectionBlocking:
         assert resp.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_stream_audit_written(self, tmp_path):
+    async def test_stream_audit_written_with_correct_endpoint(self, tmp_path):
         app = _make_security_app(tmp_path)
         audit_path = tmp_path / "audit.jsonl"
         transport = ASGITransport(app=app)
@@ -157,6 +157,33 @@ class TestStreamInjectionBlocking:
         record = json.loads(audit_path.read_text().strip().split("\n")[0])
         assert "request_id" in record
         assert "injection_verdict" in record
+        assert record["endpoint"] == "/ask/stream"
+        assert "output_validation" in record
+
+    @pytest.mark.asyncio
+    async def test_stream_output_validation_runs(self, tmp_path):
+        """Output containing PII should trigger output validation on stream."""
+        from unittest.mock import AsyncMock, patch
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.serving.schemas import StreamEvent
+
+        app = _make_security_app(tmp_path)
+
+        # Mock the orchestrator to return PII in the streamed answer
+        async def fake_run_stream(**kwargs):
+            yield StreamEvent(type="sources", sources=[])
+            yield StreamEvent(type="chunk", content="Contact john@example.com for help.")
+            yield StreamEvent(type="done", metadata={"estimated_cost_usd": 0.0})
+
+        app.state.orchestrator.run_stream = fake_run_stream
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/ask/stream", json={
+                "question": "How do I contact support?",
+            })
+        # The response should contain the safety filter message
+        assert "[Output filtered for safety]" in resp.text
 
 
 class TestAuditLogging:
