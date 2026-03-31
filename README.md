@@ -134,12 +134,74 @@ flowchart LR
     end
 ```
 
+## Security Architecture
+
+Defense-in-depth pipeline with four guardrails. Each stage is independently configurable and degrades gracefully.
+
+```
+User Input
+    │
+    ▼
+┌──────────────────────┐
+│  Injection Detection  │  Tier 1: heuristic regex (local, <1ms)
+│  (pre-retrieval)      │  Tier 2: DeBERTa classifier (Modal GPU)
+└──────────┬───────────┘
+           │ safe
+           ▼
+┌──────────────────────┐
+│  Retrieval            │  FAISS + BM25 + RRF + cross-encoder
+│  (existing pipeline)  │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  PII Redaction        │  regex (always) + spaCy NER (optional)
+│  (post-retrieval)     │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  LLM Generation       │  OpenAI / Anthropic / vLLM (Modal)
+│  (existing pipeline)  │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Output Validation    │  PII leakage + URL check + blocklist
+│  (post-generation)    │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Audit Log            │  JSONL, IP-hashed, rotated
+│  (every request)      │
+└──────────┬───────────┘
+           │
+           ▼
+       Response
+```
+
+**Injection detection** uses a two-tier architecture: heuristic regex rules catch common patterns (<1ms), and an optional DeBERTa classifier on Modal GPU provides high-confidence classification. Without GPU, the system runs heuristic-only — honest degradation, not silent failure.
+
+**PII redaction** runs regex patterns for high-risk types (SSN, credit card, email, phone, IP address) on every retrieved chunk before it enters the LLM context window. Optional spaCy NER adds PERSON/ORG detection for deployments that need it.
+
+**Output validation** catches PII leakage (LLM reconstructing redacted data), URL hallucination (URLs not in retrieved chunks), and blocklisted patterns (system prompt fragments, API keys).
+
+**Audit logging** writes one structured JSON record per request to an append-only JSONL file with HMAC-SHA256 hashed IPs, injection verdicts, PII redaction counts, and output validation results.
+
+```bash
+# Query the audit log with jq
+jq 'select(.injection_verdict.safe == false)' logs/audit.jsonl
+jq 'select(.session_id == "abc123")' logs/audit.jsonl
+```
+
 ## Engineering Scope
 
 - **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
 - **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
+- **Security engineering**: Prompt injection detection (heuristic + ML classifier), PII redaction, output validation, structured audit logging with GDPR-compliant IP hashing
 - **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 205 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
@@ -211,17 +273,17 @@ All tests use MockProvider + MockEmbeddingModel. No API keys. No model downloads
 
 See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF over score normalization, negative evaluation cases, deterministic eval + optional LLM judge, and more.
 
-### V1 → V2 Evolution
+### V1 → V2 → V3 Evolution
 
-| Feature | V1 | V2 |
-|---------|----|----|
-| Grounded refusal | 0/5 | Threshold gate |
-| Retrieval P@5 | 0.70 | 0.74 (cross-encoder reranking) |
-| Provider support | OpenAI only | OpenAI + Anthropic + self-hosted vLLM |
-| Provider resilience | None | Retry + backoff |
-| Rate limiting | None | 10 RPM per IP |
-| Streaming | None | SSE (`/ask/stream`) |
-| Conversation memory | Stateless | SQLite sessions |
-| Infrastructure | Local only | Docker, K8s (Helm), Terraform (GKE), Modal |
-| CI/CD | None | GitHub Actions |
-| Tests | 97 | 205 |
+| Feature | V1 | V2 | V3 |
+|---------|----|----|-----|
+| Grounded refusal | 0/5 | Threshold gate | Threshold gate |
+| Retrieval P@5 | 0.70 | 0.74 (cross-encoder) | 0.74 |
+| Provider support | OpenAI only | OpenAI + Anthropic + vLLM | Same |
+| Streaming | None | SSE (`/ask/stream`) | SSE |
+| Infrastructure | Local only | Docker, K8s, Terraform, Modal | Same |
+| **Injection detection** | None | None | Two-tier (heuristic + DeBERTa) |
+| **PII redaction** | None | None | Regex + optional NER |
+| **Output validation** | None | None | PII leakage + URL + blocklist |
+| **Audit logging** | None | None | JSONL, HMAC-hashed IPs |
+| Tests | 97 | 205 | 288+ |
