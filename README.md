@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM). Zero hallucinated citations in all API configurations.
+Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations in all API configurations.
 
 `201 tests` | `3 providers` | `LangChain comparison` | `K8s + Terraform` | `CI`
 
@@ -32,12 +32,14 @@ Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
 | Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku | Self-hosted Mistral-7B |
 |--------|-------------------|----------------------|----------------------|
-| Retrieval P@5 | 0.70 | **0.74** | TBD |
-| Retrieval R@5 | 0.83 | **0.84** | TBD |
-| Keyword Hit Rate | 0.89 | **0.92** | TBD |
-| Cost per query | **$0.0004** | $0.0007 | TBD |
+| Retrieval P@5 | 0.70 | **0.74** | 0.05 |
+| Retrieval R@5 | 0.83 | **0.84** | 0.05 |
+| Keyword Hit Rate | 0.89 | **0.92** | 0.61 |
+| Citation Acc | **1.00** | **1.00** | 0.14 |
+| Latency p50 | 4,690 ms | 5,120 ms | 6,709 ms |
+| Cost per query | **$0.0004** | $0.0007 | $0.0031 |
 
-> Self-hosted results pending Modal benchmark run. See [provider comparison](docs/provider_comparison.md) for instructions.
+The 7B self-hosted model shows the expected quality gap vs API models — weaker query generation and citation following with prompt-based tool fallback. The value is demonstrating end-to-end self-hosted inference: vLLM on Modal (serverless A10G), OpenAI-compatible endpoint, same evaluation harness.
 
 [Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Design decisions](DECISIONS.md)
 
