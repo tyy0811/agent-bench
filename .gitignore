@@ -17,3 +17,7 @@ venv/
 .worktrees/
 *.db
 docs/DESIGN.md
+terraform.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup

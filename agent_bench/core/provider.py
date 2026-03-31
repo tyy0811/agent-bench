@@ -102,6 +102,15 @@ class LLMProvider(ABC):
     @abstractmethod
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]: ...
 
+    async def health_check(self) -> bool:
+        """Check if the upstream provider is reachable.
+
+        Returns True if the provider can serve requests, False otherwise.
+        Default implementation returns True (assume healthy). Providers
+        should override this to perform a real connectivity check.
+        """
+        return True
+
 
 # --- Implementations ---
 
@@ -326,6 +335,13 @@ class OpenAIProvider(LLMProvider):
         async for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+
+    async def health_check(self) -> bool:
+        try:
+            await self.client.models.retrieve(self.model)
+            return True
+        except Exception:
+            return False
 
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_openai(tools)
@@ -560,8 +576,403 @@ class AnthropicProvider(LLMProvider):
                     f"Anthropic timed out: {e}"
                 ) from e
 
+    async def health_check(self) -> bool:
+        try:
+            await self.client.models.retrieve(model_id=self.model)
+            return True
+        except Exception:
+            return False
+
     def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
         return format_tools_anthropic(tools)
+
+
+class SelfHostedProvider(LLMProvider):
+    """Provider targeting any OpenAI-compatible endpoint (vLLM, TGI, Ollama).
+
+    Reads settings from config (provider.selfhosted.*) with env var fallback:
+        MODAL_VLLM_URL   -> base_url
+        SELFHOSTED_MODEL -> model_name
+        MODAL_AUTH_TOKEN  -> api_key
+
+    Tool-calling support is detected lazily on the first complete() call
+    with tools. If the endpoint returns a 400 or the model ignores tools,
+    subsequent calls fall back to prompt-based tool selection.
+    """
+
+    def __init__(self, config: AppConfig | None = None) -> None:
+        import os
+
+        import httpx as _httpx
+
+        self.config = config or load_config()
+        sh = self.config.provider.selfhosted
+        self.base_url = (
+            sh.base_url
+            or os.environ.get("MODAL_VLLM_URL", "http://localhost:8001/v1")
+        )
+        self.model = (
+            sh.model_name
+            if sh.model_name != "mistralai/Mistral-7B-Instruct-v0.3"
+            else os.environ.get("SELFHOSTED_MODEL", sh.model_name)
+        )
+        api_key = sh.api_key or os.environ.get("MODAL_AUTH_TOKEN", "")
+        self._supports_tool_calling: bool | None = None  # detected lazily
+
+        model_pricing = self.config.provider.models.get(self.model)
+        self._input_cost = model_pricing.input_cost_per_mtok if model_pricing else 0.0
+        self._output_cost = model_pricing.output_cost_per_mtok if model_pricing else 0.0
+
+        self.client = _httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=sh.timeout_seconds,
+            follow_redirects=True,
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
+        )
+
+    async def _detect_tool_calling(self) -> bool | None:
+        """Probe the endpoint for OpenAI-format tool-calling support.
+
+        Returns:
+            True  — model responded with tool_calls (definitive: cache it)
+            False — endpoint returned 400 (definitive: cache it)
+            None  — transient failure (timeout, 5xx, connection error); do NOT cache
+        """
+        test_tool = {
+            "type": "function",
+            "function": {
+                "name": "test_probe",
+                "description": "Probe for tool support",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"x": {"type": "string"}},
+                },
+            },
+        }
+        try:
+            resp = await self.client.post(
+                "/chat/completions",
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "user", "content": "Call the test_probe tool with x='hello'"}
+                    ],
+                    "tools": [test_tool],
+                    "tool_choice": "auto",
+                    "max_tokens": 50,
+                },
+            )
+            if resp.status_code == 400:
+                log.info("selfhosted_tool_detect", result="unsupported (400)")
+                return False
+            if resp.status_code >= 500:
+                log.warning("selfhosted_tool_detect", result="transient (5xx)")
+                return None
+            resp.raise_for_status()
+            data = resp.json()
+            has_tools = bool(
+                data["choices"][0]["message"].get("tool_calls")
+            )
+            log.info("selfhosted_tool_detect", result="supported" if has_tools else "unsupported")
+            return has_tools
+        except Exception:
+            log.warning("selfhosted_tool_detect", result="transient (error)")
+            return None
+
+    @staticmethod
+    def _sanitize_messages(messages: list[dict]) -> list[dict]:
+        """Convert tool-role messages and merge consecutive same-role messages.
+
+        Many models (e.g. Mistral) require strictly alternating user/assistant
+        messages. Tool results are converted to user messages and consecutive
+        same-role messages are merged.
+        """
+        sanitized: list[dict] = []
+        for m in messages:
+            if m["role"] == "tool":
+                role = "user"
+                content = f"[Tool result]: {m['content']}"
+            elif m["role"] == "assistant" and "tool_calls" in m:
+                role = "assistant"
+                content = m.get("content") or ""
+            else:
+                role = m["role"]
+                content = m.get("content") or ""
+
+            # Merge consecutive same-role messages
+            if sanitized and sanitized[-1]["role"] == role and role != "system":
+                sanitized[-1]["content"] += "\n\n" + content
+            else:
+                sanitized.append({"role": role, "content": content})
+
+        # Merge consecutive same-role messages that resulted from dropping empty ones
+        merged: list[dict] = []
+        for m in sanitized:
+            if not m["content"].strip() and m["role"] != "system":
+                continue  # drop empty messages
+            if merged and merged[-1]["role"] == m["role"] and m["role"] != "system":
+                merged[-1]["content"] += "\n\n" + m["content"]
+            else:
+                merged.append(m)
+        return merged
+
+    @staticmethod
+    def _tools_as_prompt(tools: list[ToolDefinition]) -> str:
+        """Format tools as system prompt text for prompt-based fallback."""
+        lines = ["You have access to the following tools:", ""]
+        for t in tools:
+            lines.append(f"- {t.name}: {t.description}")
+            lines.append(f"  Parameters: {json.dumps(t.parameters)}")
+        lines.extend([
+            "",
+            "To use a tool, respond with ONLY this JSON (no other text):",
+            '{"tool_calls": [{"name": "tool_name", "arguments": {"param": "value"}}]}',
+            "",
+            "If you don't need a tool, respond normally with text.",
+        ])
+        return "\n".join(lines)
+
+    @staticmethod
+    def _parse_tool_calls_from_text(text: str) -> list[ToolCall]:
+        """Parse tool calls from model text output (prompt-based fallback)."""
+        import uuid
+
+        try:
+            data = json.loads(text.strip())
+            if isinstance(data, dict) and "tool_calls" in data:
+                calls = []
+                for tc in data["tool_calls"]:
+                    raw_args = tc.get("arguments", {})
+                    if not isinstance(raw_args, dict):
+                        raw_args = {}
+                    calls.append(
+                        ToolCall(
+                            id=f"call_{uuid.uuid4().hex[:8]}",
+                            name=tc["name"],
+                            arguments=raw_args,
+                        )
+                    )
+                return calls
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+        return []
+
+    async def complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> CompletionResponse:
+        import httpx as _httpx
+
+        # Lazy tool-calling detection on first call with tools
+        if tools and self._supports_tool_calling is None:
+            result = await self._detect_tool_calling()
+            if result is not None:
+                self._supports_tool_calling = result
+            # If None (transient), leave as None so next call retries
+
+        formatted_messages = format_messages_openai(messages)
+
+        # Use native tools only when detection confirmed support.
+        # When detection is None (transient failure), fall back to prompt-based
+        # rather than risk a 400 with native tools on an unsupported endpoint.
+        use_native_tools = tools and self._supports_tool_calling is True
+        if tools and not use_native_tools:
+            tool_prompt = self._tools_as_prompt(tools)
+            # Merge tool instructions into existing system message (some models
+            # like Mistral reject multiple system messages in their chat template)
+            if formatted_messages and formatted_messages[0]["role"] == "system":
+                formatted_messages[0]["content"] = (
+                    tool_prompt + "\n\n" + formatted_messages[0]["content"]
+                )
+            else:
+                formatted_messages = [
+                    {"role": "system", "content": tool_prompt},
+                    *formatted_messages,
+                ]
+        # Always sanitize for self-hosted: messages may contain tool/tool_calls
+        # from earlier iterations even when current call has tools=None
+        formatted_messages = self._sanitize_messages(formatted_messages)
+
+        payload: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if use_native_tools and tools:
+            payload["tools"] = self.format_tools(tools)
+            payload["tool_choice"] = "auto"
+
+        retry_cfg = self.config.retry
+        start = time.perf_counter()
+
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                resp = await self.client.post("/chat/completions", json=payload)
+                if resp.status_code == 429:
+                    if attempt == retry_cfg.max_retries:
+                        raise ProviderRateLimitError(
+                            f"Rate limited after {retry_cfg.max_retries} retries"
+                        )
+                    wait = min(
+                        retry_cfg.base_delay * (2 ** attempt), retry_cfg.max_delay
+                    )
+                    log.warning(
+                        "selfhosted_retry",
+                        attempt=attempt + 1,
+                        wait_seconds=wait,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                if resp.status_code >= 400:
+                    log.error("selfhosted_error", status=resp.status_code, body=resp.text[:500])
+                resp.raise_for_status()
+                break
+            except _httpx.TimeoutException as e:
+                raise ProviderTimeoutError(f"Self-hosted timed out: {e}") from e
+
+        latency_ms = (time.perf_counter() - start) * 1000
+        data = resp.json()
+
+        choice = data["choices"][0]
+        content = choice["message"].get("content") or ""
+        tool_calls: list[ToolCall] = []
+
+        if choice["message"].get("tool_calls"):
+            # Native tool calling response
+            for tc in choice["message"]["tool_calls"]:
+                try:
+                    args = json.loads(tc["function"]["arguments"])
+                except (json.JSONDecodeError, KeyError):
+                    args = {}
+                tool_calls.append(
+                    ToolCall(
+                        id=tc["id"],
+                        name=tc["function"]["name"],
+                        arguments=args,
+                    )
+                )
+        elif tools and not self._supports_tool_calling and content:
+            # Prompt-based fallback: parse tool calls from text
+            tool_calls = self._parse_tool_calls_from_text(content)
+            if tool_calls:
+                content = ""  # tool call replaces text content
+
+        usage_data = data.get("usage", {})
+        input_tokens = usage_data.get("prompt_tokens", 0)
+        output_tokens = usage_data.get("completion_tokens", 0)
+        cost = (
+            input_tokens * self._input_cost + output_tokens * self._output_cost
+        ) / 1_000_000
+
+        return CompletionResponse(
+            content=content,
+            tool_calls=tool_calls,
+            usage=TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                estimated_cost_usd=cost,
+            ),
+            provider="selfhosted",
+            model=self.model,
+            latency_ms=latency_ms,
+        )
+
+    async def stream_complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
+    ) -> AsyncIterator[str]:
+        import httpx as _httpx
+
+        # Same tool-calling detection/fallback as complete()
+        if tools and self._supports_tool_calling is None:
+            result = await self._detect_tool_calling()
+            if result is not None:
+                self._supports_tool_calling = result
+
+        formatted_messages = format_messages_openai(messages)
+        use_native_tools = tools and self._supports_tool_calling is True
+        if tools and not use_native_tools:
+            tool_prompt = self._tools_as_prompt(tools)
+            if formatted_messages and formatted_messages[0]["role"] == "system":
+                formatted_messages[0]["content"] = (
+                    tool_prompt + "\n\n" + formatted_messages[0]["content"]
+                )
+            else:
+                formatted_messages = [
+                    {"role": "system", "content": tool_prompt},
+                    *formatted_messages,
+                ]
+        formatted_messages = self._sanitize_messages(formatted_messages)
+
+        payload: dict = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        if use_native_tools and tools:
+            payload["tools"] = self.format_tools(tools)
+            payload["tool_choice"] = "auto"
+
+        retry_cfg = self.config.retry
+        for attempt in range(retry_cfg.max_retries + 1):
+            try:
+                async with self.client.stream(
+                    "POST", "/chat/completions", json=payload
+                ) as resp:
+                    if resp.status_code == 429:
+                        if attempt == retry_cfg.max_retries:
+                            raise ProviderRateLimitError(
+                                f"Rate limited after {retry_cfg.max_retries} retries"
+                            )
+                        wait = min(
+                            retry_cfg.base_delay * (2 ** attempt),
+                            retry_cfg.max_delay,
+                        )
+                        log.warning(
+                            "selfhosted_stream_retry",
+                            attempt=attempt + 1,
+                            wait_seconds=wait,
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data_str = line[len("data: "):]
+                        if data_str == "[DONE]":
+                            return
+                        try:
+                            chunk_data = json.loads(data_str)
+                            delta = chunk_data["choices"][0].get("delta", {})
+                            if delta.get("content"):
+                                yield delta["content"]
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+                return  # success — exit retry loop
+            except _httpx.TimeoutException as e:
+                raise ProviderTimeoutError(f"Self-hosted timed out: {e}") from e
+
+    async def health_check(self) -> bool:
+        try:
+            resp = await self.client.get("/models", timeout=5.0)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
+    def format_tools(self, tools: list[ToolDefinition]) -> list[dict]:
+        return format_tools_openai(tools)
 
 
 def create_provider(config: AppConfig | None = None) -> LLMProvider:
@@ -573,6 +984,8 @@ def create_provider(config: AppConfig | None = None) -> LLMProvider:
         return OpenAIProvider(config)
     elif name == "anthropic":
         return AnthropicProvider(config)
+    elif name == "selfhosted":
+        return SelfHostedProvider(config)
     elif name == "mock":
         return MockProvider()
     else:

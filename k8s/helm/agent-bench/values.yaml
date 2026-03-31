@@ -1,0 +1,43 @@
+replicaCount: 2
+
+image:
+  repository: agent-bench
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+provider:
+  type: selfhosted
+  selfhosted:
+    model: mistralai/Mistral-7B-Instruct-v0.3
+    modalEndpoint: ""
+    modalAuthToken: ""
+  openaiApiKey: ""
+  anthropicApiKey: ""
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilization: 70
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 30
+  readiness:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agent-bench.fullname" . }}-config
+  labels:
+    {{- include "agent-bench.labels" . | nindent 4 }}
+data:
+  {{- if eq .Values.provider.type "selfhosted" }}
+  AGENT_BENCH_ENV: "selfhosted_modal"
+  SELFHOSTED_MODEL: {{ .Values.provider.selfhosted.model | quote }}
+  {{- else if eq .Values.provider.type "openai" }}
+  AGENT_BENCH_ENV: "default"
+  {{- else if eq .Values.provider.type "anthropic" }}
+  AGENT_BENCH_ENV: "anthropic"
+  {{- end }}

@@ -1,0 +1,50 @@
+# Local GPU serving via vLLM + agent-bench API.
+# Requires: nvidia-container-toolkit
+# See modal/serve_vllm.py for serverless alternative.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.vllm.yml up --build
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    command:
+      - --model=mistralai/Mistral-7B-Instruct-v0.3
+      - --max-model-len=4096
+      - --dtype=half
+      - --gpu-memory-utilization=0.85
+      - --host=0.0.0.0
+      - --port=8000
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - vllm-cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      - MODAL_VLLM_URL=http://vllm:8000/v1
+      - AGENT_BENCH_ENV=selfhosted_local
+    depends_on:
+      vllm:
+        condition: service_healthy
+    ports:
+      - "8080:7860"
+
+volumes:
+  vllm-cache:

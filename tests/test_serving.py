@@ -151,6 +151,101 @@ class TestMetricsEndpoint:
         assert "errors_total" in data
         assert "avg_cost_per_query_usd" in data
 
+    @pytest.mark.asyncio
+    async def test_prometheus_endpoint_returns_text_exposition(self, test_app):
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.get("/metrics/prometheus")
+        assert response.status_code == 200
+        assert "text/plain" in response.headers["content-type"]
+        body = response.text
+        assert "# TYPE agent_bench_requests_total counter" in body
+        assert "agent_bench_requests_total " in body
+        assert "# TYPE agent_bench_latency_p95_ms gauge" in body
+        assert "agent_bench_latency_p95_ms " in body
+        assert "# TYPE agent_bench_errors_total counter" in body
+
+
+class TestHealthCheckProbesProvider:
+    @pytest.mark.asyncio
+    async def test_healthy_when_provider_health_check_passes(self, test_app):
+        """MockProvider.health_check() returns True (default), so status=healthy."""
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:
+            response = await client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert data["provider_available"] is True
+
+    @pytest.mark.asyncio
+    async def test_degraded_when_provider_health_check_fails(self):
+        """Provider whose health_check() returns False -> status=degraded."""
+        from fastapi import FastAPI
+
+        class UnhealthyProvider(MockProvider):
+            async def health_check(self) -> bool:
+                return False
+
+        app = FastAPI()
+        registry = ToolRegistry()
+        registry.register(FakeSearchTool())
+        provider = UnhealthyProvider()
+        orchestrator = Orchestrator(provider=provider, registry=registry, max_iterations=1)
+        app.state.orchestrator = orchestrator
+        app.state.store = HybridStore(dimension=384)
+        app.state.config = AppConfig(provider=ProviderConfig(default="mock"))
+        app.state.system_prompt = "test"
+        app.state.start_time = time.time()
+        app.state.metrics = MetricsCollector()
+        app.add_middleware(RequestMiddleware)
+        from agent_bench.serving.routes import router
+        app.include_router(router)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["provider_available"] is False
+
+    @pytest.mark.asyncio
+    async def test_degraded_when_provider_health_check_raises(self):
+        """Provider whose health_check() raises -> status=degraded."""
+        from fastapi import FastAPI
+
+        class CrashingProvider(MockProvider):
+            async def health_check(self) -> bool:
+                raise ConnectionError("upstream unreachable")
+
+        app = FastAPI()
+        registry = ToolRegistry()
+        registry.register(FakeSearchTool())
+        provider = CrashingProvider()
+        orchestrator = Orchestrator(provider=provider, registry=registry, max_iterations=1)
+        app.state.orchestrator = orchestrator
+        app.state.store = HybridStore(dimension=384)
+        app.state.config = AppConfig(provider=ProviderConfig(default="mock"))
+        app.state.system_prompt = "test"
+        app.state.start_time = time.time()
+        app.state.metrics = MetricsCollector()
+        app.add_middleware(RequestMiddleware)
+        from agent_bench.serving.routes import router
+        app.include_router(router)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["provider_available"] is False
+
 
 class TestMiddleware:
     @pytest.mark.asyncio
