@@ -55,3 +55,28 @@ serving:
 evaluation:
   judge_provider: openai
   golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json
+
+security:
+  injection:
+    enabled: true
+    action: block
+    tiers:
+      - heuristic
+      - classifier
+    classifier_url: ""
+  pii:
+    enabled: true
+    mode: redact
+    redact_patterns: [EMAIL, PHONE, SSN, CREDIT_CARD, IP_ADDRESS]
+    use_ner: false
+    ner_entities: [PERSON]
+  output:
+    enabled: true
+    pii_check: true
+    url_check: true
+    blocklist: []
+  audit:
+    enabled: true
+    path: logs/audit.jsonl
+    max_size_mb: 100
+    rotate: true

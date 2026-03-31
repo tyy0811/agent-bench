@@ -90,6 +90,44 @@ class EvaluationConfig(BaseModel):
     golden_dataset: str = "agent_bench/evaluation/datasets/tech_docs_golden.json"
 
 
+class InjectionConfig(BaseModel):
+    enabled: bool = True
+    action: str = "block"  # block | warn | flag
+    tiers: list[str] = ["heuristic", "classifier"]
+    classifier_url: str = ""
+
+
+class PIIConfig(BaseModel):
+    enabled: bool = True
+    mode: str = "redact"  # redact | detect_only | passthrough
+    redact_patterns: list[str] = [
+        "EMAIL", "PHONE", "SSN", "CREDIT_CARD", "IP_ADDRESS",
+    ]
+    use_ner: bool = False
+    ner_entities: list[str] = ["PERSON"]
+
+
+class OutputConfig(BaseModel):
+    enabled: bool = True
+    pii_check: bool = True
+    url_check: bool = True
+    blocklist: list[str] = []
+
+
+class AuditConfig(BaseModel):
+    enabled: bool = True
+    path: str = "logs/audit.jsonl"
+    max_size_mb: int = 100
+    rotate: bool = True
+
+
+class SecurityConfig(BaseModel):
+    injection: InjectionConfig = InjectionConfig()
+    pii: PIIConfig = PIIConfig()
+    output: OutputConfig = OutputConfig()
+    audit: AuditConfig = AuditConfig()
+
+
 class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig = ProviderConfig()
@@ -99,6 +137,7 @@ class AppConfig(BaseModel):
     embedding: EmbeddingConfig = EmbeddingConfig()
     serving: ServingConfig = ServingConfig()
     evaluation: EvaluationConfig = EvaluationConfig()
+    security: SecurityConfig = SecurityConfig()
 
 
 # --- Task config ---
