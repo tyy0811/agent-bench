@@ -12,8 +12,13 @@ import json
 import os
 import shutil
 import threading
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+import structlog
+
+logger = structlog.get_logger()
 
 
 class AuditLogger:
@@ -30,13 +35,18 @@ class AuditLogger:
         self.max_size_bytes = max_size_bytes
         self.rotate = rotate
         self._lock = threading.Lock()
-        self._rotate_seq = 0
         # HMAC key: explicit arg > env var > random per-process key
         key_str = hmac_key or os.environ.get("AUDIT_HMAC_KEY", "")
         if key_str:
             self._hmac_key = key_str.encode()
         else:
             self._hmac_key = os.urandom(32)
+            logger.warning(
+                "audit_hmac_key_missing",
+                msg="No HMAC key provided; using random per-process key. "
+                "IP hashes will not be stable across restarts or instances. "
+                "Set AUDIT_HMAC_KEY env var or pass hmac_key for stable audit correlation.",
+            )
 
     def log(self, record: dict) -> None:
         """Append a record to the audit log.
@@ -61,8 +71,8 @@ class AuditLogger:
         return hmac.new(self._hmac_key, ip.encode(), hashlib.sha256).hexdigest()
 
     def _do_rotate(self) -> None:
-        """Rotate the current log file with a unique suffix."""
+        """Rotate the current log file with a globally unique suffix."""
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-        self._rotate_seq += 1
-        rotated = self.path.with_name(f"{self.path.name}.{ts}.{self._rotate_seq}")
+        uid = uuid.uuid4().hex[:8]
+        rotated = self.path.with_name(f"{self.path.name}.{ts}.{uid}")
         shutil.move(str(self.path), str(rotated))
