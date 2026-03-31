@@ -313,3 +313,11 @@ The original design included a "length/format sanity check" (reject suspiciously
 ## Why buffer-then-validate for streaming output
 
 The `/ask/stream` endpoint buffers all events from the orchestrator before sending to the client, then validates the assembled answer. This means the client waits for the full answer before receiving any content chunks. The orchestrator emits the final synthesis as a single chunk (tool-use iterations are not streamed), so the buffering adds no perceptible latency. The alternative — streaming chunks immediately and appending a safety marker — leaks unsafe content to any client that stops reading after the `done` event.
+
+## Why no authentication on API endpoints
+
+The HF Spaces demo is public by design — the `curl` examples in the README work without credentials, which is the point. Adding API key authentication would gate access but break the zero-friction demo experience that makes the project evaluable.
+
+The security pipeline protects *content* (injection detection, PII redaction, output validation), not *access*. This is a deliberate scope boundary: application-layer guardrails ensure the system behaves safely regardless of who calls it, rather than assuming trusted callers. Rate limiting (10 RPM per IP) provides basic abuse protection.
+
+A production deployment would add authentication (API keys or OAuth) at the infrastructure layer — reverse proxy, API gateway, or middleware. The security pipeline's `getattr(..., None)` pattern means auth can be layered on without modifying the existing security components.

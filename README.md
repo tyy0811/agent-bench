@@ -299,7 +299,7 @@ The golden dataset contains 27 hand-crafted questions:
 ## Testing
 
 ```bash
-make test    # 205 deterministic tests, no API keys needed
+make test    # 288 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
