@@ -12,22 +12,26 @@ Note: The vLLM server integration pattern changes between vLLM releases.
       https://modal.com/docs/examples/vllm_inference
 """
 
-from common import (
-    MODEL_NAME,
-    VLLM_DTYPE,
-    VLLM_GPU_MEMORY_UTILIZATION,
-    VLLM_MAX_MODEL_LEN,
-)
-
 import modal
+
+# Inlined from common.py — Modal containers don't auto-include sibling modules
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.3"
+VLLM_MAX_MODEL_LEN = 8192
+VLLM_DTYPE = "half"
+VLLM_GPU_MEMORY_UTILIZATION = 0.85
 
 MODELS_DIR = "/models"
 VLLM_PORT = 8000
-VLLM_READY_TIMEOUT = 180  # seconds to wait for vLLM to become ready
+VLLM_READY_TIMEOUT = 600  # seconds to wait for vLLM to become ready (download + load)
 
 vllm_image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("vllm>=0.6.0", "huggingface_hub[hf_transfer]", "httpx")
+    .pip_install(
+        "vllm==0.6.6.post1",
+        "transformers==4.47.0",
+        "huggingface_hub[hf_transfer]<1.0",
+        "httpx",
+    )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
 )
 
@@ -37,11 +41,11 @@ model_volume = modal.Volume.from_name("vllm-model-cache", create_if_missing=True
 
 @app.function(
     image=vllm_image,
-    gpu=modal.gpu.A10G(),
-    container_idle_timeout=300,
-    timeout=600,
+    gpu="a10g",
+    scaledown_window=600,
+    timeout=900,
     volumes={MODELS_DIR: model_volume},
-    allow_concurrent_inputs=10,
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 @modal.asgi_app()
 def serve():
@@ -97,6 +101,17 @@ def serve():
     @proxy_app.api_route("/{path:path}", methods=["GET", "POST"])
     async def proxy(path: str, request: Request):
         """Proxy all requests to the vLLM subprocess."""
+        import traceback as _tb
+        try:
+            return await _proxy_inner(path, request)
+        except Exception as exc:
+            _tb.print_exc()
+            return JSONResponse(
+                content={"error": str(exc), "type": type(exc).__name__},
+                status_code=502,
+            )
+
+    async def _proxy_inner(path: str, request: Request):
         url = f"/{path}"
         body = await request.body()
         headers = {

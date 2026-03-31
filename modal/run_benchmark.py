@@ -168,7 +168,12 @@ def main() -> None:
         env = os.environ.copy()
         if name == "selfhosted_modal" and args.base_url:
             env["MODAL_VLLM_URL"] = args.base_url
-        all_results[name] = run_eval(config_path, env)
+        results = run_eval(config_path, env)
+        if results is None:
+            print(f"\nABORTING: {name} failed, stopping benchmark run.",
+                  file=sys.stderr)
+            sys.exit(1)
+        all_results[name] = results
 
     generate_report(all_results, "docs/provider_comparison.md")
 

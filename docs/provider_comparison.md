@@ -4,21 +4,7 @@ Benchmark: 27-question golden dataset (19 retrieval, 3 calculation, 5 out-of-sco
 
 | Provider | P@5 | R@5 | Citation Acc | Latency p50 (ms) | Cost/query |
 |----------|-----|-----|--------------|-------------------|------------|
-| openai | 0.70 | 0.83 | 1.00 | 4,690 | $0.0004 |
-| anthropic | 0.74 | 0.84 | 1.00 | 5,120 | $0.0007 |
-| selfhosted_modal | TBD | TBD | TBD | TBD | TBD |
-
-> Self-hosted results pending: run `make benchmark-all` with a deployed Modal endpoint
-> to regenerate this file with real measured data across all three providers.
-
-## How to Regenerate
-
-```bash
-export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
-make benchmark-all
-```
+| selfhosted_modal | 0.05 | 0.05 | 0.14 | 6709 | $0.0031 |
 
 ---
 

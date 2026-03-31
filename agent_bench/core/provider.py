@@ -603,6 +603,7 @@ class SelfHostedProvider(LLMProvider):
         self.client = _httpx.AsyncClient(
             base_url=self.base_url,
             timeout=sh.timeout_seconds,
+            follow_redirects=True,
             headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
         )
 
@@ -654,6 +655,43 @@ class SelfHostedProvider(LLMProvider):
         except Exception:
             log.warning("selfhosted_tool_detect", result="transient (error)")
             return None
+
+    @staticmethod
+    def _sanitize_messages(messages: list[dict]) -> list[dict]:
+        """Convert tool-role messages and merge consecutive same-role messages.
+
+        Many models (e.g. Mistral) require strictly alternating user/assistant
+        messages. Tool results are converted to user messages and consecutive
+        same-role messages are merged.
+        """
+        sanitized = []
+        for m in messages:
+            if m["role"] == "tool":
+                role = "user"
+                content = f"[Tool result]: {m['content']}"
+            elif m["role"] == "assistant" and "tool_calls" in m:
+                role = "assistant"
+                content = m.get("content") or ""
+            else:
+                role = m["role"]
+                content = m.get("content") or ""
+
+            # Merge consecutive same-role messages
+            if sanitized and sanitized[-1]["role"] == role and role != "system":
+                sanitized[-1]["content"] += "\n\n" + content
+            else:
+                sanitized.append({"role": role, "content": content})
+
+        # Merge consecutive same-role messages that resulted from dropping empty ones
+        merged = []
+        for m in sanitized:
+            if not m["content"].strip() and m["role"] != "system":
+                continue  # drop empty messages
+            if merged and merged[-1]["role"] == m["role"] and m["role"] != "system":
+                merged[-1]["content"] += "\n\n" + m["content"]
+            else:
+                merged.append(m)
+        return merged
 
     @staticmethod
     def _tools_as_prompt(tools: list[ToolDefinition]) -> str:
@@ -720,11 +758,20 @@ class SelfHostedProvider(LLMProvider):
         use_native_tools = tools and self._supports_tool_calling is True
         if tools and not use_native_tools:
             tool_prompt = self._tools_as_prompt(tools)
-            # Prepend tool instructions as system message
-            formatted_messages = [
-                {"role": "system", "content": tool_prompt},
-                *formatted_messages,
-            ]
+            # Merge tool instructions into existing system message (some models
+            # like Mistral reject multiple system messages in their chat template)
+            if formatted_messages and formatted_messages[0]["role"] == "system":
+                formatted_messages[0]["content"] = (
+                    tool_prompt + "\n\n" + formatted_messages[0]["content"]
+                )
+            else:
+                formatted_messages = [
+                    {"role": "system", "content": tool_prompt},
+                    *formatted_messages,
+                ]
+        # Always sanitize for self-hosted: messages may contain tool/tool_calls
+        # from earlier iterations even when current call has tools=None
+        formatted_messages = self._sanitize_messages(formatted_messages)
 
         payload: dict = {
             "model": self.model,
@@ -757,6 +804,8 @@ class SelfHostedProvider(LLMProvider):
                     )
                     await asyncio.sleep(wait)
                     continue
+                if resp.status_code >= 400:
+                    log.error("selfhosted_error", status=resp.status_code, body=resp.text[:500])
                 resp.raise_for_status()
                 break
             except _httpx.TimeoutException as e:
@@ -828,10 +877,16 @@ class SelfHostedProvider(LLMProvider):
         use_native_tools = tools and self._supports_tool_calling is True
         if tools and not use_native_tools:
             tool_prompt = self._tools_as_prompt(tools)
-            formatted_messages = [
-                {"role": "system", "content": tool_prompt},
-                *formatted_messages,
-            ]
+            if formatted_messages and formatted_messages[0]["role"] == "system":
+                formatted_messages[0]["content"] = (
+                    tool_prompt + "\n\n" + formatted_messages[0]["content"]
+                )
+            else:
+                formatted_messages = [
+                    {"role": "system", "content": tool_prompt},
+                    *formatted_messages,
+                ]
+        formatted_messages = self._sanitize_messages(formatted_messages)
 
         payload: dict = {
             "model": self.model,
