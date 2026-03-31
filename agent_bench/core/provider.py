@@ -578,10 +578,7 @@ class AnthropicProvider(LLMProvider):
 
     async def health_check(self) -> bool:
         try:
-            await self.client.messages.create(
-                model=self.model, max_tokens=1,
-                messages=[{"role": "user", "content": "ping"}],
-            )
+            await self.client.models.retrieve(model_id=self.model)
             return True
         except Exception:
             return False
