@@ -82,3 +82,15 @@ class TestSecurityConfig:
         from agent_bench.core.config import load_config
         with pytest.raises(ValidationError):
             load_config(path=yaml_path)
+
+    def test_injection_tier_typo_rejected(self):
+        """A typo in tiers must not silently disable detection."""
+        from agent_bench.core.config import InjectionConfig
+        with pytest.raises(ValidationError, match="Invalid injection tier"):
+            InjectionConfig(tiers=["heurisitic"])
+
+    def test_injection_tier_valid_values_accepted(self):
+        """Valid tier combinations are accepted."""
+        from agent_bench.core.config import InjectionConfig
+        cfg = InjectionConfig(tiers=["heuristic"], classifier_url="")
+        assert cfg.tiers == ["heuristic"]

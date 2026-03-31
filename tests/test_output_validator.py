@@ -63,6 +63,25 @@ class TestURLValidation:
         assert verdict.passed is False
         assert any("url_hallucination" in v for v in verdict.violations)
 
+    def test_trailing_slash_normalization(self, validator):
+        """URLs differing only by trailing slash should not be flagged."""
+        chunks = ["Visit https://fastapi.tiangolo.com/ for docs."]
+        verdict = validator.validate(
+            output="See https://fastapi.tiangolo.com for details.",
+            retrieved_chunks=chunks,
+        )
+        assert verdict.passed is True
+        assert verdict.violations == []
+
+    def test_trailing_slash_normalization_reverse(self, validator):
+        """Chunk without slash, output with slash."""
+        chunks = ["Visit https://fastapi.tiangolo.com for docs."]
+        verdict = validator.validate(
+            output="See https://fastapi.tiangolo.com/ for details.",
+            retrieved_chunks=chunks,
+        )
+        assert verdict.passed is True
+
     def test_no_urls_passes(self, validator):
         verdict = validator.validate(
             output="Path parameters use curly braces.",
