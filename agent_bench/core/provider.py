@@ -687,7 +687,7 @@ class SelfHostedProvider(LLMProvider):
         messages. Tool results are converted to user messages and consecutive
         same-role messages are merged.
         """
-        sanitized = []
+        sanitized: list[dict] = []
         for m in messages:
             if m["role"] == "tool":
                 role = "user"
@@ -706,7 +706,7 @@ class SelfHostedProvider(LLMProvider):
                 sanitized.append({"role": role, "content": content})
 
         # Merge consecutive same-role messages that resulted from dropping empty ones
-        merged = []
+        merged: list[dict] = []
         for m in sanitized:
             if not m["content"].strip() and m["role"] != "system":
                 continue  # drop empty messages
