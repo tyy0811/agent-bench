@@ -37,9 +37,11 @@ docker:
 ## --- Infrastructure ---
 
 modal-deploy:  ## Deploy vLLM on Modal (prints endpoint URL)
+	@command -v modal >/dev/null 2>&1 || { echo "Error: modal CLI not found. Run: pip install -e '.[modal]' && modal setup"; exit 1; }
 	modal deploy modal/serve_vllm.py
 
 modal-stop:  ## Stop Modal deployment
+	@command -v modal >/dev/null 2>&1 || { echo "Error: modal CLI not found. Run: pip install -e '.[modal]' && modal setup"; exit 1; }
 	modal app stop agent-bench-vllm
 
 vllm-up:  ## Start local vLLM via Docker Compose (requires NVIDIA GPU)

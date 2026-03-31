@@ -85,6 +85,8 @@ OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
 ### Self-Hosted LLM via Modal (no local GPU needed)
 
 ```bash
+pip install -e ".[modal]"                                # Install Modal SDK
+modal setup                                              # Authenticate with Modal
 make modal-deploy                                        # Deploy vLLM on Modal A10G
 export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
 AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider
