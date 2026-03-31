@@ -68,37 +68,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         reranker_top_k=config.rag.reranker.top_k,
     )
 
-    # Tools
-    registry = ToolRegistry()
-    registry.register(
-        SearchTool(
-            retriever=retriever,
-            default_top_k=config.rag.retrieval.top_k,
-            default_strategy=config.rag.retrieval.strategy,
-            refusal_threshold=config.rag.refusal_threshold,
-        )
-    )
-    registry.register(CalculatorTool())
-
-    # Orchestrator
-    orchestrator = Orchestrator(
-        provider=provider,
-        registry=registry,
-        max_iterations=config.agent.max_iterations,
-        temperature=config.agent.temperature,
-    )
-
-    # Metrics
-    metrics = MetricsCollector()
-
-    # Conversation memory (optional, SQLite-backed)
-    conversation_store = None
-    if config.memory.enabled:
-        from agent_bench.memory.store import ConversationStore
-
-        conversation_store = ConversationStore(db_path=config.memory.db_path)
-
-    # Security components
+    # Security components (constructed before tools so PII redactor can be injected)
     from agent_bench.security.audit_logger import AuditLogger
     from agent_bench.security.injection_detector import InjectionDetector
     from agent_bench.security.output_validator import OutputValidator
@@ -125,6 +95,37 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         max_size_bytes=sec.audit.max_size_mb * 1024 * 1024,
         rotate=sec.audit.rotate,
     )
+
+    # Tools (PII redactor injected into search tool for post-retrieval redaction)
+    registry = ToolRegistry()
+    registry.register(
+        SearchTool(
+            retriever=retriever,
+            default_top_k=config.rag.retrieval.top_k,
+            default_strategy=config.rag.retrieval.strategy,
+            refusal_threshold=config.rag.refusal_threshold,
+            pii_redactor=pii_redactor if sec.pii.enabled else None,
+        )
+    )
+    registry.register(CalculatorTool())
+
+    # Orchestrator
+    orchestrator = Orchestrator(
+        provider=provider,
+        registry=registry,
+        max_iterations=config.agent.max_iterations,
+        temperature=config.agent.temperature,
+    )
+
+    # Metrics
+    metrics = MetricsCollector()
+
+    # Conversation memory (optional, SQLite-backed)
+    conversation_store = None
+    if config.memory.enabled:
+        from agent_bench.memory.store import ConversationStore
+
+        conversation_store = ConversationStore(db_path=config.memory.db_path)
 
     # Attach to app state
     app.state.orchestrator = orchestrator
