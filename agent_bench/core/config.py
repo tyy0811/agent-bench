@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 # --- Nested config models ---
 
@@ -90,11 +90,30 @@ class EvaluationConfig(BaseModel):
     golden_dataset: str = "agent_bench/evaluation/datasets/tech_docs_golden.json"
 
 
+_VALID_TIERS = {"heuristic", "classifier"}
+
+
 class InjectionConfig(BaseModel):
     enabled: bool = True
     action: Literal["block", "warn", "flag"] = "block"
     tiers: list[str] = ["heuristic", "classifier"]
     classifier_url: str = ""
+
+    @model_validator(mode="after")
+    def _validate_tiers(self) -> "InjectionConfig":
+        invalid = set(self.tiers) - _VALID_TIERS
+        if invalid:
+            raise ValueError(
+                f"Invalid injection tier(s): {invalid}. Allowed: {_VALID_TIERS}"
+            )
+        if "classifier" in self.tiers and not self.classifier_url:
+            import structlog
+            structlog.get_logger().warning(
+                "injection_classifier_no_url",
+                msg="Tier 'classifier' configured but classifier_url is empty; "
+                "classifier tier will be skipped at runtime.",
+            )
+        return self
 
 
 class PIIConfig(BaseModel):

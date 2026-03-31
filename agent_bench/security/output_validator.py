@@ -60,18 +60,27 @@ class OutputValidator:
             return [f"pii_leakage: {types} detected in output"]
         return []
 
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        """Strip trailing slashes and punctuation for comparison."""
+        return url.rstrip("/").rstrip(".,;:")
+
     def _check_urls(self, output: str, retrieved_chunks: list[str]) -> list[str]:
         url_pattern = re.compile(r"https?://[^\s\)\"'>]+")
-        output_urls = set(url_pattern.findall(output))
+        output_urls = url_pattern.findall(output)
         if not output_urls:
             return []
 
         chunk_text = " ".join(retrieved_chunks)
-        chunk_urls = set(url_pattern.findall(chunk_text))
+        chunk_urls_normalized = {self._normalize_url(u) for u in url_pattern.findall(chunk_text)}
 
-        hallucinated = output_urls - chunk_urls
+        hallucinated = []
+        for url in output_urls:
+            if self._normalize_url(url) not in chunk_urls_normalized:
+                hallucinated.append(url)
+
         if hallucinated:
-            return [f"url_hallucination: {url}" for url in hallucinated]
+            return [f"url_hallucination: {url}" for url in set(hallucinated)]
         return []
 
     def _check_blocklist(self, output: str) -> list[str]:
