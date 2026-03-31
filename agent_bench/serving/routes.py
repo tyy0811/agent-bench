@@ -215,9 +215,14 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     output_validator = getattr(request.app.state, "output_validator", None)
 
     async def event_generator():
+        from agent_bench.serving.schemas import StreamEvent as SE
+
+        # Buffer all events so we can validate before sending to client.
+        # The orchestrator emits the final answer as a single chunk (not
+        # token-by-token), so buffering adds no latency penalty.
+        buffered_events: list = []
         full_answer: list[str] = []
         cost_usd = 0.0
-        all_sources: list[str] = []
         async for event in orchestrator.run_stream(
             question=body.question,
             system_prompt=system_prompt,
@@ -225,19 +230,18 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             strategy=body.retrieval_strategy,
             history=history,
         ):
-            if event.type == "sources" and event.sources:
-                all_sources = [s.get("source", "") for s in event.sources]
+            buffered_events.append(event)
             if event.type == "chunk" and event.content:
                 full_answer.append(event.content)
             if event.type == "done" and event.metadata:
                 cost_usd = event.metadata.get("estimated_cost_usd", 0.0)
-            yield event.to_sse()
 
-        # --- Security: output validation (post-generation) ---
+        # --- Security: output validation (post-generation, pre-send) ---
         answer_text = "".join(full_answer)
+        filtered_answer = answer_text
         output_verdict_data: dict = {"passed": True, "violations": []}
+        output_blocked = False
         if output_validator:
-            from agent_bench.serving.schemas import StreamEvent as SE
             out_verdict = output_validator.validate(
                 output=answer_text,
                 retrieved_chunks=[],  # chunks already redacted by SearchTool
@@ -247,10 +251,18 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
                 "violations": out_verdict.violations,
             }
             if not out_verdict.passed and out_verdict.action == "block":
-                yield SE(
-                    type="chunk",
-                    content="\n\n[Output filtered for safety]",
-                ).to_sse()
+                output_blocked = True
+                filtered_answer = (
+                    "I'm unable to provide a response to this query. "
+                    "The output was filtered for safety."
+                )
+
+        # Now yield events to the client — safe content only
+        for event in buffered_events:
+            if output_blocked and event.type == "chunk":
+                yield SE(type="chunk", content=filtered_answer).to_sse()
+            else:
+                yield event.to_sse()
 
         # Record metrics and persist session after streaming completes
         latency_ms = (time.perf_counter() - start) * 1000
@@ -258,7 +270,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
 
         if body.session_id and conversation_store:
             conversation_store.append(body.session_id, "user", body.question)
-            conversation_store.append(body.session_id, "assistant", answer_text)
+            conversation_store.append(body.session_id, "assistant", filtered_answer)
 
         # --- Security: audit log for streaming ---
         _write_audit(

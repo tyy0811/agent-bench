@@ -182,8 +182,10 @@ class TestStreamInjectionBlocking:
             resp = await client.post("/ask/stream", json={
                 "question": "How do I contact support?",
             })
-        # The response should contain the safety filter message
-        assert "[Output filtered for safety]" in resp.text
+        # The raw PII must NOT appear in the response
+        assert "john@example.com" not in resp.text
+        # The safety filter message must appear instead
+        assert "filtered for safety" in resp.text
 
 
 class TestAuditLogging:
