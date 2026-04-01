@@ -35,6 +35,9 @@ dev = [
 modal = [
     "modal>=0.66.0",
 ]
+ner = [
+    "spacy>=3.7.0",
+]
 
 [tool.setuptools.packages.find]
 include = ["agent_bench*"]

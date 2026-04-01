@@ -79,6 +79,31 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
 
+    # --- Security: injection detection (pre-retrieval) ---
+    injection_detector = getattr(request.app.state, "injection_detector", None)
+    injection_verdict_data = {"safe": True, "tier": "none", "confidence": 1.0}
+    if injection_detector:
+        verdict = await injection_detector.detect_async(body.question)
+        injection_verdict_data = {
+            "safe": verdict.safe,
+            "tier": verdict.tier,
+            "confidence": verdict.confidence,
+            "matched_pattern": verdict.matched_pattern,
+        }
+        sec_config = getattr(request.app.state.config, "security", None)
+        action = sec_config.injection.action if sec_config else "block"
+        if not verdict.safe and action == "block":
+            # Log blocked request to audit
+            _write_audit(request, body, request_id, injection_verdict_data, blocked=True)
+            from fastapi.responses import JSONResponse
+            return JSONResponse(  # type: ignore[return-value]
+                status_code=403,
+                content={
+                    "detail": "Request blocked: potential prompt injection detected",
+                    "request_id": request_id,
+                },
+            )
+
     # Load conversation history if session_id provided
     history: list[dict] | None = None
     conversation_store = getattr(request.app.state, "conversation_store", None)
@@ -94,18 +119,37 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
         history=history,
     )
 
+    # --- Security: output validation (post-generation) ---
+    output_verdict_data: dict = {"passed": True, "violations": []}
+    output_validator = getattr(request.app.state, "output_validator", None)
+    answer = result.answer
+    if output_validator:
+        out_verdict = output_validator.validate(
+            output=result.answer,
+            retrieved_chunks=result.source_chunks,
+        )
+        output_verdict_data = {
+            "passed": out_verdict.passed,
+            "violations": out_verdict.violations,
+        }
+        if not out_verdict.passed and out_verdict.action == "block":
+            answer = (
+                "I'm unable to provide a response to this query. "
+                "The output was filtered for safety."
+            )
+
     # Store Q+A if session_id provided
     if body.session_id and conversation_store:
         conversation_store.append(body.session_id, "user", body.question)
-        conversation_store.append(body.session_id, "assistant", result.answer)
+        conversation_store.append(body.session_id, "assistant", answer)
 
     metrics.record(
         latency_ms=result.latency_ms,
         cost_usd=result.usage.estimated_cost_usd,
     )
 
-    return AskResponse(
-        answer=result.answer,
+    response = AskResponse(
+        answer=answer,
         sources=result.sources,
         metadata=ResponseMetadata(
             provider=result.provider,
@@ -118,6 +162,14 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
         ),
     )
 
+    # --- Security: audit log ---
+    _write_audit(
+        request, body, request_id, injection_verdict_data,
+        result=result, output_verdict_data=output_verdict_data,
+    )
+
+    return response
+
 
 @router.post("/ask/stream")
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
@@ -125,6 +177,34 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     orchestrator: Orchestrator = request.app.state.orchestrator
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
+    request_id: str = getattr(request.state, "request_id", "unknown")
+
+    # --- Security: injection detection (pre-retrieval) ---
+    injection_detector = getattr(request.app.state, "injection_detector", None)
+    injection_verdict_data = {"safe": True, "tier": "none", "confidence": 1.0}
+    if injection_detector:
+        verdict = await injection_detector.detect_async(body.question)
+        injection_verdict_data = {
+            "safe": verdict.safe,
+            "tier": verdict.tier,
+            "confidence": verdict.confidence,
+            "matched_pattern": verdict.matched_pattern,
+        }
+        sec_config = getattr(request.app.state.config, "security", None)
+        action = sec_config.injection.action if sec_config else "block"
+        if not verdict.safe and action == "block":
+            _write_audit(
+                request, body, request_id, injection_verdict_data,
+                endpoint="/ask/stream", blocked=True,
+            )
+            from fastapi.responses import JSONResponse
+            return JSONResponse(  # type: ignore[return-value]
+                status_code=403,
+                content={
+                    "detail": "Request blocked: potential prompt injection detected",
+                    "request_id": request_id,
+                },
+            )
 
     # Load conversation history if session_id provided
     history: list[dict] | None = None
@@ -135,7 +215,15 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
 
     start = time.perf_counter()
 
+    output_validator = getattr(request.app.state, "output_validator", None)
+
     async def event_generator():
+        from agent_bench.serving.schemas import StreamEvent
+
+        # Buffer all events so we can validate before sending to client.
+        # The orchestrator emits the final answer as a single chunk (not
+        # token-by-token), so buffering adds no latency penalty.
+        buffered_events: list = []
         full_answer: list[str] = []
         cost_usd = 0.0
         async for event in orchestrator.run_stream(
@@ -145,11 +233,39 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             strategy=body.retrieval_strategy,
             history=history,
         ):
+            buffered_events.append(event)
             if event.type == "chunk" and event.content:
                 full_answer.append(event.content)
             if event.type == "done" and event.metadata:
                 cost_usd = event.metadata.get("estimated_cost_usd", 0.0)
-            yield event.to_sse()
+
+        # --- Security: output validation (post-generation, pre-send) ---
+        answer_text = "".join(full_answer)
+        filtered_answer = answer_text
+        output_verdict_data: dict = {"passed": True, "violations": []}
+        output_blocked = False
+        if output_validator:
+            out_verdict = output_validator.validate(
+                output=answer_text,
+                retrieved_chunks=[],  # chunks already redacted by SearchTool
+            )
+            output_verdict_data = {
+                "passed": out_verdict.passed,
+                "violations": out_verdict.violations,
+            }
+            if not out_verdict.passed and out_verdict.action == "block":
+                output_blocked = True
+                filtered_answer = (
+                    "I'm unable to provide a response to this query. "
+                    "The output was filtered for safety."
+                )
+
+        # Now yield events to the client — safe content only
+        for event in buffered_events:
+            if output_blocked and event.type == "chunk":
+                yield StreamEvent(type="chunk", content=filtered_answer).to_sse()
+            else:
+                yield event.to_sse()
 
         # Record metrics and persist session after streaming completes
         latency_ms = (time.perf_counter() - start) * 1000
@@ -157,9 +273,14 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
 
         if body.session_id and conversation_store:
             conversation_store.append(body.session_id, "user", body.question)
-            conversation_store.append(
-                body.session_id, "assistant", "".join(full_answer)
-            )
+            conversation_store.append(body.session_id, "assistant", filtered_answer)
+
+        # --- Security: audit log for streaming ---
+        _write_audit(
+            request, body, request_id, injection_verdict_data,
+            endpoint="/ask/stream",
+            output_verdict_data=output_verdict_data,
+        )
 
     return StreamingResponse(
         event_generator(),
@@ -233,3 +354,47 @@ async def metrics_prometheus(request: Request) -> Response:
         content="\n".join(lines),
         media_type="text/plain; version=0.0.4; charset=utf-8",
     )
+
+
+def _write_audit(
+    request: Request,
+    body: AskRequest,
+    request_id: str,
+    injection_verdict: dict,
+    endpoint: str = "/ask",
+    blocked: bool = False,
+    result: object | None = None,
+    output_verdict_data: dict | None = None,
+) -> None:
+    """Write an audit record if audit logger is configured."""
+    audit_logger = getattr(request.app.state, "audit_logger", None)
+    if not audit_logger:
+        return
+
+    client_ip = request.client.host if request.client else "unknown"
+
+    record: dict = {
+        "request_id": request_id,
+        "session_id": body.session_id,
+        "client_ip": audit_logger.hash_ip(client_ip),
+        "endpoint": endpoint,
+        "input_query": body.question,
+        "injection_verdict": injection_verdict,
+    }
+
+    if blocked:
+        record["blocked"] = True
+    else:
+        if result is not None:
+            record.update({
+                "retrieved_chunks": [s.source for s in getattr(result, "sources", [])],
+                "llm_provider": getattr(result, "provider", ""),
+                "llm_model": getattr(result, "model", ""),
+                "output_tokens": getattr(getattr(result, "usage", None), "output_tokens", None),
+                "grounded_refusal": not bool(getattr(result, "sources", [])),
+                "response_latency_ms": getattr(result, "latency_ms", 0),
+            })
+        if output_verdict_data is not None:
+            record["output_validation"] = output_verdict_data
+
+    audit_logger.log(record)

@@ -281,3 +281,43 @@ request on first `complete()` call with tools and checks if the response contain
 `tool_calls`. The result is cached as `self._supports_tool_calling`. Transient failures
 (timeout, 5xx) return `None` and retry on the next call rather than permanently
 downgrading to prompt-based fallback.
+
+## Why two-tier injection detection, not three
+
+The original design included a middle tier (embedding similarity against known injection examples). Dropped because the existing embedding model (all-MiniLM-L6-v2) is a general-purpose sentence encoder, not specialized for adversarial detection. Cosine similarity can't distinguish semantic similarity from intent similarity — "how do I ignore a field in Pydantic?" clusters near "ignore previous instructions" in that embedding space. The threshold between "ambiguous" and "suspicious" is an untunable hyperparameter with no ground truth.
+
+Two tiers are cleaner: heuristic regex is deterministic (matches or doesn't), DeBERTa classifier is probabilistic (confidence score). No ambiguous handoff between two probabilistic layers. Deployments without GPU get heuristic-only — documented, not hidden.
+
+## Why regex + optional spaCy for PII, not a cloud API
+
+Three reasons: cost (cloud PII APIs charge per call), latency (adds network round-trip to every retrieved chunk), and data residency (PII leaves the system boundary). Regex covers the PII types with actual legal/compliance risk: SSNs, credit cards, emails, phone numbers, IP addresses.
+
+spaCy NER (PERSON, ORG) is optional because false-positive rates on technical text are unacceptable without domain tuning. "FastAPI" triggers ORG, "Jordan" triggers PERSON. The optional import pattern (`try: import spacy`) degrades gracefully with a logged warning — no crash if someone sets `use_ner: true` without installing spaCy.
+
+## Why append-only JSONL for audit, not SQLite
+
+One codepath, one format, no config branching. JSONL is append-only by nature — no schema migrations, no transactions, no connection pooling. Log rotation handles size. `jq` provides immediate queryability without building a custom API.
+
+The original design included an optional SQLite backend and a query endpoint (`GET /admin/audit`). Both were dropped: SQLite adds a second storage codepath with no consumer, and the query endpoint would require API key authentication — an inconsistency when `/ask` itself has no auth.
+
+JSONL imports trivially into SQLite/DuckDB if structured queries are needed later. No bridges burned.
+
+## Why HMAC-SHA256 IP hashing in audit logs
+
+HMAC-SHA256 with a server secret hashes client IPs before logging. Plain SHA-256 was considered but rejected: the IPv4 address space (~4.3 billion) is small enough that unsalted hashes are reversible by offline enumeration. HMAC-SHA256 with a secret key makes precomputation infeasible without the key. The key is sourced from an explicit parameter, `AUDIT_HMAC_KEY` env var, or (with a logged warning) a random per-process fallback.
+
+## Why three output validators, not four
+
+The original design included a "length/format sanity check" (reject suspiciously short responses or raw JSON in natural-language context). Dropped because the calculator tool returns short numeric answers and the tech docs domain legitimately contains code blocks and JSON examples. Every false positive erodes trust in the validation layer. The three remaining checks — PII leakage, URL hallucination, blocklist — are deterministic with clear pass/fail semantics.
+
+## Why buffer-then-validate for streaming output
+
+The `/ask/stream` endpoint buffers all events from the orchestrator before sending to the client, then validates the assembled answer. This means the client waits for the full answer before receiving any content chunks. The orchestrator emits the final synthesis as a single chunk (tool-use iterations are not streamed), so the buffering adds no perceptible latency. The alternative — streaming chunks immediately and appending a safety marker — leaks unsafe content to any client that stops reading after the `done` event.
+
+## Why no authentication on API endpoints
+
+The HF Spaces demo is public by design — the `curl` examples in the README work without credentials, which is the point. Adding API key authentication would gate access but break the zero-friction demo experience that makes the project evaluable.
+
+The security pipeline protects *content* (injection detection, PII redaction, output validation), not *access*. This is a deliberate scope boundary: application-layer guardrails ensure the system behaves safely regardless of who calls it, rather than assuming trusted callers. Rate limiting (10 RPM per IP) provides basic abuse protection.
+
+A production deployment would add authentication (API keys or OAuth) at the infrastructure layer — reverse proxy, API gateway, or middleware. The security pipeline's `getattr(..., None)` pattern means auth can be layered on without modifying the existing security components.

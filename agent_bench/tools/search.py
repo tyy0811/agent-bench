@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import structlog
 
 from agent_bench.tools.base import Tool, ToolOutput
+
+if TYPE_CHECKING:
+    from agent_bench.security.pii_redactor import PIIRedactor
 
 log = structlog.get_logger()
 
@@ -56,11 +59,13 @@ class SearchTool(Tool):
         default_top_k: int = 5,
         default_strategy: str = "hybrid",
         refusal_threshold: float = 0.0,
+        pii_redactor: PIIRedactor | None = None,
     ) -> None:
         self._retriever = retriever
         self.default_top_k = default_top_k
         self.default_strategy = default_strategy
         self.refusal_threshold = refusal_threshold
+        self._pii_redactor = pii_redactor
 
     async def execute(self, **kwargs: object) -> ToolOutput:
         query = str(kwargs.get("query", ""))
@@ -106,6 +111,10 @@ class SearchTool(Tool):
         for i, r in enumerate(results, 1):
             source = r.chunk.source
             content = r.chunk.content
+            # PII redaction: scrub retrieved chunks before they enter the LLM prompt
+            if self._pii_redactor is not None:
+                redacted = self._pii_redactor.redact(content)
+                content = redacted.text
             lines.append(f"[{i}] ({source}): {content}")
             ranked_sources.append(source)
             source_chunks.append(content)
