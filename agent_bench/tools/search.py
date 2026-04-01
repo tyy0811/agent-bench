@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import structlog
 
 from agent_bench.tools.base import Tool, ToolOutput
+
+if TYPE_CHECKING:
+    from agent_bench.security.pii_redactor import PIIRedactor
 
 log = structlog.get_logger()
 
@@ -56,7 +59,7 @@ class SearchTool(Tool):
         default_top_k: int = 5,
         default_strategy: str = "hybrid",
         refusal_threshold: float = 0.0,
-        pii_redactor: object | None = None,
+        pii_redactor: PIIRedactor | None = None,
     ) -> None:
         self._retriever = retriever
         self.default_top_k = default_top_k

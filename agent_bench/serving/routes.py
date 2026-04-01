@@ -96,7 +96,7 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
             # Log blocked request to audit
             _write_audit(request, body, request_id, injection_verdict_data, blocked=True)
             from fastapi.responses import JSONResponse
-            return JSONResponse(
+            return JSONResponse(  # type: ignore[return-value]
                 status_code=403,
                 content={
                     "detail": "Request blocked: potential prompt injection detected",
@@ -198,7 +198,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
                 endpoint="/ask/stream", blocked=True,
             )
             from fastapi.responses import JSONResponse
-            return JSONResponse(
+            return JSONResponse(  # type: ignore[return-value]
                 status_code=403,
                 content={
                     "detail": "Request blocked: potential prompt injection detected",
@@ -390,7 +390,7 @@ def _write_audit(
                 "retrieved_chunks": [s.source for s in getattr(result, "sources", [])],
                 "llm_provider": getattr(result, "provider", ""),
                 "llm_model": getattr(result, "model", ""),
-                "output_tokens": getattr(result, "usage", None) and result.usage.output_tokens,
+                "output_tokens": getattr(getattr(result, "usage", None), "output_tokens", None),
                 "grounded_refusal": not bool(getattr(result, "sources", [])),
                 "response_latency_ms": getattr(result, "latency_ms", 0),
             })
