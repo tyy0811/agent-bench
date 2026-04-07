@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations in all API configurations.
+Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations on all API provider configurations. The separate self-hosted Mistral-7B benchmark is included to show the practical model-size floor where agentic retrieval starts to break down.
 
 `288 tests` · `3 providers` · `LangChain comparison` · `K8s + Terraform` · `CI`
 
