@@ -28,7 +28,9 @@ class SearchResult(Protocol):
 class Retriever(Protocol):
     """Protocol for the retriever dependency (defined fully in rag.retriever)."""
 
-    async def search(self, query: str, top_k: int = 5, strategy: str | None = None) -> RetrievalResult: ...
+    async def search(
+        self, query: str, top_k: int = 5, strategy: str | None = None,
+    ) -> RetrievalResult: ...
 
 
 class SearchTool(Tool):
@@ -109,9 +111,14 @@ class SearchTool(Tool):
                     "sources": [], "max_score": max_score, "refused": True,
                     "refusal_threshold": self.refusal_threshold,
                     "pre_rerank_count": pre_rerank_count,
-                    "chunks": [{"source": top.chunk.source,
-                                "score": rs if (rs := getattr(top, 'rerank_score', None)) is not None else top.score,
-                                "preview": top.chunk.content[:120]}],
+                    "chunks": [{
+                        "source": top.chunk.source,
+                        "score": (
+                            rs if (rs := getattr(top, 'rerank_score', None))
+                            is not None else top.score
+                        ),
+                        "preview": top.chunk.content[:120],
+                    }],
                     "pii_redactions_count": 0,
                 },
             )

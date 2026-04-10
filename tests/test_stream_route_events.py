@@ -13,7 +13,6 @@ from agent_bench.rag.store import HybridStore
 from agent_bench.serving.middleware import MetricsCollector, RequestMiddleware
 from agent_bench.tools.calculator import CalculatorTool
 from agent_bench.tools.registry import ToolRegistry
-
 from tests.test_agent import FakeSearchTool
 
 
@@ -27,6 +26,7 @@ def _parse_sse(response_text):
 
 def _make_app_with_security(tmp_path):
     from fastapi import FastAPI
+
     from agent_bench.security.audit_logger import AuditLogger
     from agent_bench.security.injection_detector import InjectionDetector
     from agent_bench.security.output_validator import OutputValidator
@@ -165,7 +165,7 @@ class TestDoneEventEnriched:
 class TestFullEventSequence:
     @pytest.mark.asyncio
     async def test_complete_event_ordering(self, tmp_path):
-        """Full sequence: meta -> injection -> [stages] -> sources -> chunk -> output_val -> done."""
+        """Full sequence: meta -> injection -> stages -> sources -> chunk -> output_val -> done."""
         app = _make_app_with_security(tmp_path)
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"

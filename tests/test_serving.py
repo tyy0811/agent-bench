@@ -467,7 +467,8 @@ class TestStreaming:
                 all_events.append(json_mod.loads(line[6:]))
 
         # Filter to legacy event types only (stage events are additive)
-        legacy = [e for e in all_events if e["type"] in ("sources", "chunk", "done", "_orchestrator_done")]
+        legacy_types = ("sources", "chunk", "done", "_orchestrator_done")
+        legacy = [e for e in all_events if e["type"] in legacy_types]
         assert len(legacy) >= 3  # at least sources + 1 chunk + done
         assert legacy[0]["type"] == "sources"
         assert legacy[-1]["type"] in ("done", "_orchestrator_done")

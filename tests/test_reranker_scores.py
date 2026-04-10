@@ -7,7 +7,6 @@ from agent_bench.rag.chunker import Chunk
 from agent_bench.rag.reranker import CrossEncoderReranker
 from agent_bench.rag.retriever import Retriever
 
-
 SAMPLE_CHUNKS = [
     Chunk(id=f"c{i}", content=f"Content about topic {i}", source=f"doc_{i}.md",
           chunk_index=0, metadata={})

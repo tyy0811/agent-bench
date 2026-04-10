@@ -5,7 +5,6 @@ import pytest
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.provider import MockProvider
 from agent_bench.tools.registry import ToolRegistry
-
 from tests.test_agent import FakeSearchTool
 
 

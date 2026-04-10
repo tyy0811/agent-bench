@@ -184,7 +184,10 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     provider_name = getattr(config, "provider", None)
     provider_default = getattr(provider_name, "default", "unknown") if provider_name else "unknown"
     provider_obj = orchestrator.provider
-    model_name = getattr(provider_obj, "model_name", getattr(provider_obj, "_model_name", provider_default))
+    model_name = getattr(
+        provider_obj, "model_name",
+        getattr(provider_obj, "_model_name", provider_default),
+    )
 
     # --- Security: injection detection (pre-retrieval) ---
     injection_detector = getattr(request.app.state, "injection_detector", None)
@@ -232,7 +235,10 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             "model": model_name,
             "config": {
                 "top_k": body.top_k,
-                "max_iterations": getattr(config, "agent", None) and config.agent.max_iterations or 3,
+                "max_iterations": (
+                    config.agent.max_iterations
+                    if getattr(config, "agent", None) else 3
+                ),
                 "strategy": body.retrieval_strategy,
             },
         }).to_sse()

@@ -302,8 +302,9 @@ class TestCrossEncoderReranker:
         result = await retriever.search("path parameters", top_k=3)
         assert len(result.results) > 0
         # All scores must be positive (preserved from RRF), not 0.0
+        scores = [r.score for r in result.results]
         assert all(r.score > 0 for r in result.results), (
-            f"Reranked scores should be positive RRF scores, got: {[r.score for r in result.results]}"
+            f"Reranked scores should be positive RRF scores, got: {scores}"
         )
 
     @pytest.mark.asyncio
