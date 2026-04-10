@@ -110,7 +110,7 @@ class SearchTool(Tool):
                     "refusal_threshold": self.refusal_threshold,
                     "pre_rerank_count": pre_rerank_count,
                     "chunks": [{"source": top.chunk.source,
-                                "score": getattr(top, 'rerank_score', None) or top.score,
+                                "score": rs if (rs := getattr(top, 'rerank_score', None)) is not None else top.score,
                                 "preview": top.chunk.content[:120]}],
                     "pii_redactions_count": 0,
                 },
@@ -136,7 +136,7 @@ class SearchTool(Tool):
             source_chunks.append(content)
             chunk_details.append({
                 "source": source,
-                "score": getattr(r, 'rerank_score', None) if getattr(r, 'rerank_score', None) is not None else r.score,
+                "score": rs if (rs := getattr(r, 'rerank_score', None)) is not None else r.score,
                 "preview": content[:120],
             })
             if source not in sources:
