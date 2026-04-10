@@ -170,7 +170,9 @@ class TestStreamInjectionBlocking:
         async def fake_run_stream(**kwargs):
             yield StreamEvent(type="sources", sources=[])
             yield StreamEvent(type="chunk", content="Contact john@example.com for help.")
-            yield StreamEvent(type="done", metadata={"estimated_cost_usd": 0.0})
+            yield StreamEvent(type="_orchestrator_done", metadata={
+                "estimated_cost_usd": 0.0, "tokens_in": 0, "tokens_out": 0, "iterations": 1,
+            })
 
         app.state.orchestrator.run_stream = fake_run_stream
 
