@@ -321,3 +321,35 @@ The HF Spaces demo is public by design — the `curl` examples in the README wor
 The security pipeline protects *content* (injection detection, PII redaction, output validation), not *access*. This is a deliberate scope boundary: application-layer guardrails ensure the system behaves safely regardless of who calls it, rather than assuming trusted callers. Rate limiting (10 RPM per IP) provides basic abuse protection.
 
 A production deployment would add authentication (API keys or OAuth) at the infrastructure layer — reverse proxy, API gateway, or middleware. The security pipeline's `getattr(..., None)` pattern means auth can be layered on without modifying the existing security components.
+
+## Why monitor mode for output validation, not gating?
+
+Output validation runs post-stream as a monitoring layer. The answer
+streams to the client, then validation runs and emits its verdict. Gating
+(buffer-then-validate) would add 4-5 seconds of dead air while the full
+answer generates — unacceptable streaming UX for a documentation Q&A bot.
+Trade-off: a hallucinated URL or PII fragment could reach the client
+before validation catches it. For this use case (FastAPI docs, no real
+PII in corpus), the risk is near-zero. The dashboard labels this
+"monitored" (not "gated") to be explicit about the posture.
+
+## Why additive SSE stage events?
+
+The enhanced `/ask/stream` adds `meta` and `stage` event types alongside
+the existing `sources`, `chunk`, and `done` events. Existing consumers
+that only handle the three legacy types are unaffected — they simply
+ignore events with unknown types. This avoids versioning the endpoint
+or breaking the non-streaming `/ask` contract. The `meta` event fires
+first (before any stages) so the frontend can display provider/model
+info immediately.
+
+## Why vanilla JS for the frontend, not Alpine or React?
+
+The showcase dashboard has ~5 pieces of reactive state (pipeline stages,
+retrieval results, security badges, stats, chat messages). The SSE
+handler is inherently imperative: receive event, querySelector the
+target node, update classList and textContent. Wrapping this in a
+reactive framework adds a dependency, interview questions about
+"why is there a framework for 5 state variables", and indirection
+that fights the imperative SSE pattern. One `state` object + a few
+`render()` functions handles it in ~150 lines.
