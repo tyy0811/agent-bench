@@ -173,11 +173,18 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
 
 @router.post("/ask/stream")
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
-    """Stream an answer via Server-Sent Events."""
+    """Stream an answer via Server-Sent Events with per-stage instrumentation."""
     orchestrator: Orchestrator = request.app.state.orchestrator
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
+    config: object = request.app.state.config
+
+    # --- Meta event data (available before request starts) ---
+    provider_name = getattr(config, "provider", None)
+    provider_default = getattr(provider_name, "default", "unknown") if provider_name else "unknown"
+    provider_obj = orchestrator.provider
+    model_name = getattr(provider_obj, "model_name", getattr(provider_obj, "_model_name", provider_default))
 
     # --- Security: injection detection (pre-retrieval) ---
     injection_detector = getattr(request.app.state, "injection_detector", None)
@@ -214,18 +221,33 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         history = conversation_store.get_history(body.session_id, max_turns=max_turns)
 
     start = time.perf_counter()
-
     output_validator = getattr(request.app.state, "output_validator", None)
 
     async def event_generator():
         from agent_bench.serving.schemas import StreamEvent
 
-        # Buffer all events so we can validate before sending to client.
-        # The orchestrator emits the final answer as a single chunk (not
-        # token-by-token), so buffering adds no latency penalty.
+        # --- Meta event (first, before any stages) ---
+        yield StreamEvent(type="meta", metadata={
+            "provider": provider_default,
+            "model": model_name,
+            "config": {
+                "top_k": body.top_k,
+                "max_iterations": getattr(config, "agent", None) and config.agent.max_iterations or 3,
+                "strategy": body.retrieval_strategy,
+            },
+        }).to_sse()
+
+        # --- Injection check stage ---
+        yield StreamEvent(type="stage", metadata={
+            "stage": "injection_check",
+            "status": "done",
+            "verdict": injection_verdict_data,
+        }).to_sse()
+
+        # Buffer orchestrator events for output validation
         buffered_events: list = []
         full_answer: list[str] = []
-        cost_usd = 0.0
+        done_meta: dict = {}
         async for event in orchestrator.run_stream(
             question=body.question,
             system_prompt=system_prompt,
@@ -236,10 +258,10 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             buffered_events.append(event)
             if event.type == "chunk" and event.content:
                 full_answer.append(event.content)
-            if event.type == "done" and event.metadata:
-                cost_usd = event.metadata.get("estimated_cost_usd", 0.0)
+            if event.type == "_orchestrator_done" and event.metadata:
+                done_meta = event.metadata
 
-        # --- Security: output validation (post-generation, pre-send) ---
+        # --- Security: output validation (post-generation, monitor mode) ---
         answer_text = "".join(full_answer)
         filtered_answer = answer_text
         output_verdict_data: dict = {"passed": True, "violations": []}
@@ -247,7 +269,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         if output_validator:
             out_verdict = output_validator.validate(
                 output=answer_text,
-                retrieved_chunks=[],  # chunks already redacted by SearchTool
+                retrieved_chunks=[],
             )
             output_verdict_data = {
                 "passed": out_verdict.passed,
@@ -260,22 +282,45 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
                     "The output was filtered for safety."
                 )
 
-        # Now yield events to the client — safe content only
+        # Yield buffered orchestrator events (stage events + legacy events)
+        # Filter out _orchestrator_done — route handler emits the real done event
         for event in buffered_events:
+            if event.type == "_orchestrator_done":
+                continue
             if output_blocked and event.type == "chunk":
                 yield StreamEvent(type="chunk", content=filtered_answer).to_sse()
             else:
                 yield event.to_sse()
 
-        # Record metrics and persist session after streaming completes
+        # --- Output validation stage (monitor mode, after chunk) ---
+        yield StreamEvent(type="stage", metadata={
+            "stage": "output_validation",
+            "status": "done",
+            "mode": "monitor",
+            "verdict": {
+                "passed": output_verdict_data["passed"],
+                "violations": output_verdict_data.get("violations", []),
+            },
+        }).to_sse()
+
+        # --- Enriched done event with latency ---
         latency_ms = (time.perf_counter() - start) * 1000
-        metrics.record(latency_ms=latency_ms, cost_usd=cost_usd)
+        yield StreamEvent(type="done", metadata={
+            "latency_ms": latency_ms,
+            "tokens_in": done_meta.get("tokens_in", 0),
+            "tokens_out": done_meta.get("tokens_out", 0),
+            "cost": done_meta.get("estimated_cost_usd", 0.0),
+            "iterations": done_meta.get("iterations", 1),
+        }).to_sse()
+
+        # Record metrics and persist session
+        metrics.record(latency_ms=latency_ms, cost_usd=done_meta.get("estimated_cost_usd", 0.0))
 
         if body.session_id and conversation_store:
             conversation_store.append(body.session_id, "user", body.question)
             conversation_store.append(body.session_id, "assistant", filtered_answer)
 
-        # --- Security: audit log for streaming ---
+        # Audit log
         _write_audit(
             request, body, request_id, injection_verdict_data,
             endpoint="/ask/stream",
