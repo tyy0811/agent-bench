@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Protocol
 
 import structlog
 
+from agent_bench.rag.retriever import RetrievalResult
 from agent_bench.tools.base import Tool, ToolOutput
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ class SearchResult(Protocol):
 class Retriever(Protocol):
     """Protocol for the retriever dependency (defined fully in rag.retriever)."""
 
-    async def search(self, query: str, top_k: int = 5, strategy: str | None = None) -> list: ...
+    async def search(self, query: str, top_k: int = 5, strategy: str | None = None) -> RetrievalResult: ...
 
 
 class SearchTool(Tool):
@@ -81,13 +82,15 @@ class SearchTool(Tool):
             return ToolOutput(success=False, result="No query provided")
 
         retrieval_result = await self._retriever.search(query, top_k=top_k, strategy=strategy)
-        results = retrieval_result.results if hasattr(retrieval_result, 'results') else retrieval_result
+        results = retrieval_result.results
+        pre_rerank_count = retrieval_result.pre_rerank_count
 
         if not results:
             return ToolOutput(
                 success=True,
                 result="No relevant documents found.",
-                metadata={"sources": []},
+                metadata={"sources": [], "pre_rerank_count": pre_rerank_count,
+                          "chunks": [], "pii_redactions_count": 0},
             )
 
         # Compute max retrieval score for refusal gate
@@ -98,10 +101,19 @@ class SearchTool(Tool):
         if self.refusal_threshold > 0 and max_score < self.refusal_threshold:
             log.info("retrieval_refused", query=query, max_score=max_score,
                      threshold=self.refusal_threshold)
+            top = results[0]
             return ToolOutput(
                 success=True,
                 result="No relevant documents found for this query.",
-                metadata={"sources": [], "max_score": max_score, "refused": True},
+                metadata={
+                    "sources": [], "max_score": max_score, "refused": True,
+                    "refusal_threshold": self.refusal_threshold,
+                    "pre_rerank_count": pre_rerank_count,
+                    "chunks": [{"source": top.chunk.source,
+                                "score": getattr(top, 'rerank_score', None) or top.score,
+                                "preview": top.chunk.content[:120]}],
+                    "pii_redactions_count": 0,
+                },
             )
 
         # Format as numbered passages with filename attribution
@@ -109,16 +121,24 @@ class SearchTool(Tool):
         sources = []
         ranked_sources = []  # preserves rank order with duplicates
         source_chunks = []  # raw chunk text for LLM judge
+        chunk_details = []
+        total_pii_redactions = 0
         for i, r in enumerate(results, 1):
             source = r.chunk.source
             content = r.chunk.content
             # PII redaction: scrub retrieved chunks before they enter the LLM prompt
             if self._pii_redactor is not None:
                 redacted = self._pii_redactor.redact(content)
+                total_pii_redactions += redacted.redactions_count
                 content = redacted.text
             lines.append(f"[{i}] ({source}): {content}")
             ranked_sources.append(source)
             source_chunks.append(content)
+            chunk_details.append({
+                "source": source,
+                "score": getattr(r, 'rerank_score', None) if getattr(r, 'rerank_score', None) is not None else r.score,
+                "preview": content[:120],
+            })
             if source not in sources:
                 sources.append(source)
 
@@ -130,5 +150,8 @@ class SearchTool(Tool):
                 "ranked_sources": ranked_sources,
                 "source_chunks": source_chunks,
                 "max_score": max_score,
+                "pre_rerank_count": pre_rerank_count,
+                "chunks": chunk_details,
+                "pii_redactions_count": total_pii_redactions,
             },
         )

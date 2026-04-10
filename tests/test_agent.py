@@ -34,7 +34,16 @@ class FakeSearchTool(Tool):
         return ToolOutput(
             success=True,
             result="[1] (fastapi_path_params.md): Path parameters use curly braces.",
-            metadata={"sources": ["fastapi_path_params.md"]},
+            metadata={
+                "sources": ["fastapi_path_params.md"],
+                "ranked_sources": ["fastapi_path_params.md"],
+                "source_chunks": ["Path parameters use curly braces."],
+                "max_score": 0.85,
+                "pre_rerank_count": 10,
+                "chunks": [{"source": "fastapi_path_params.md", "score": 0.85,
+                            "preview": "Path parameters use curly braces."}],
+                "pii_redactions_count": 0,
+            },
         )
 
 
