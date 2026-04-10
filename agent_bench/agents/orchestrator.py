@@ -176,11 +176,11 @@ class Orchestrator:
         strategy: str = "hybrid",
         history: list[dict] | None = None,
     ) -> AsyncIterator[StreamEvent]:
-        """Stream the final synthesis. Tool-use iterations are NOT streamed.
+        """Stream with per-stage events for the showcase dashboard.
 
-        Tool calls (retrieval, calculator) are fast (~100ms each). The slow
-        part is the final LLM synthesis (~3-4s). Streaming only the final
-        answer keeps the tool-use loop simple and deterministic.
+        Yields stage events during the tool-use loop, then the legacy
+        sources/chunk/done events. Stage events are additive — existing
+        consumers that only handle sources/chunk/done are unaffected.
         """
         from agent_bench.serving.schemas import StreamEvent
 
@@ -198,15 +198,37 @@ class Orchestrator:
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
         total_cost = 0.0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        iteration = 0
 
-        # Step 1: Run tool-use loop normally (non-streamed)
-        for _ in range(self.max_iterations):
+        for iteration in range(1, self.max_iterations + 1):
+            # --- LLM stage: running ---
+            yield StreamEvent(type="stage", metadata={
+                "stage": "llm", "status": "running", "iteration": iteration,
+            })
+
             response = await self.provider.complete(
                 messages, tools=tools, temperature=self.temperature
             )
             total_cost += response.usage.estimated_cost_usd
+            total_input_tokens += response.usage.input_tokens
+            total_output_tokens += response.usage.output_tokens
+
             if not response.tool_calls:
+                # --- LLM stage: done (final answer) ---
+                yield StreamEvent(type="stage", metadata={
+                    "stage": "llm", "status": "done", "iteration": iteration,
+                })
                 break
+
+            # --- LLM stage: tool_call ---
+            for tc in response.tool_calls:
+                yield StreamEvent(type="stage", metadata={
+                    "stage": "llm", "status": "tool_call", "iteration": iteration,
+                    "tool": tc.name,
+                    "arguments": tc.arguments,
+                })
 
             messages.append(
                 Message(
@@ -215,39 +237,86 @@ class Orchestrator:
                     tool_calls=response.tool_calls,
                 )
             )
+
+            # Execute each tool call
             for tc in response.tool_calls:
                 kwargs = dict(tc.arguments)
                 if tc.name == "search_documents":
                     kwargs.setdefault("top_k", req_top_k)
                     kwargs["_strategy"] = req_strategy
+
+                # --- Retrieval stage: running ---
+                if tc.name == "search_documents":
+                    yield StreamEvent(type="stage", metadata={
+                        "stage": "retrieval", "status": "running", "iteration": iteration,
+                    })
+
                 result = await self.registry.execute(tc.name, **kwargs)
+
                 messages.append(
                     Message(role=Role.TOOL, content=result.result, tool_call_id=tc.id)
                 )
+
+                if tc.name == "search_documents":
+                    pre_rerank = result.metadata.get("pre_rerank_count", 0)
+
+                    # --- Retrieval stage: done ---
+                    yield StreamEvent(type="stage", metadata={
+                        "stage": "retrieval", "status": "done", "iteration": iteration,
+                        "chunks_pre_rerank": pre_rerank,
+                    })
+
+                    # --- Reranking stage (if reranking happened) ---
+                    if pre_rerank > 0:
+                        yield StreamEvent(type="stage", metadata={
+                            "stage": "reranking", "status": "running", "iteration": iteration,
+                        })
+                        yield StreamEvent(type="stage", metadata={
+                            "stage": "reranking", "status": "done", "iteration": iteration,
+                            "chunks": result.metadata.get("chunks", []),
+                        })
+
                 if "sources" in result.metadata:
                     all_sources.extend(result.metadata["sources"])
+        else:
+            # Max iterations hit — force text answer without tools
+            yield StreamEvent(type="stage", metadata={
+                "stage": "llm", "status": "running", "iteration": iteration,
+            })
+            response = await self.provider.complete(
+                messages, tools=None, temperature=self.temperature
+            )
+            total_cost += response.usage.estimated_cost_usd
+            total_input_tokens += response.usage.input_tokens
+            total_output_tokens += response.usage.output_tokens
+            yield StreamEvent(type="stage", metadata={
+                "stage": "llm", "status": "done", "iteration": iteration,
+            })
 
-        # Handle max_iterations=0: loop never ran, no response yet
+        # Handle max_iterations=0
         if self.max_iterations == 0:
             response = await self.provider.complete(
                 messages, tools=None, temperature=self.temperature
             )
             total_cost += response.usage.estimated_cost_usd
+            total_input_tokens += response.usage.input_tokens
+            total_output_tokens += response.usage.output_tokens
 
-        # Step 2: Emit sources
+        # --- Legacy events (backward-compatible) ---
         yield StreamEvent(
             type="sources",
             sources=[{"source": s} for s in dict.fromkeys(all_sources)],
         )
-
-        # Step 3: Emit the final answer as a single chunk.
-        # The loop's last complete() already produced the synthesis — reuse it
-        # instead of making a redundant stream_complete() call.
         yield StreamEvent(type="chunk", content=response.content)
-
+        # done event emitted by route handler (has latency)
         yield StreamEvent(
-            type="done",
-            metadata={"estimated_cost_usd": total_cost},
+            type="_orchestrator_done",
+            metadata={
+                "estimated_cost_usd": total_cost,
+                "tokens_in": total_input_tokens,
+                "tokens_out": total_output_tokens,
+                "iterations": iteration if iteration else 1,
+            },
         )
 
 
