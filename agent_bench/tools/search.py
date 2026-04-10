@@ -80,7 +80,8 @@ class SearchTool(Tool):
         if not query:
             return ToolOutput(success=False, result="No query provided")
 
-        results = await self._retriever.search(query, top_k=top_k, strategy=strategy)
+        retrieval_result = await self._retriever.search(query, top_k=top_k, strategy=strategy)
+        results = retrieval_result.results if hasattr(retrieval_result, 'results') else retrieval_result
 
         if not results:
             return ToolOutput(

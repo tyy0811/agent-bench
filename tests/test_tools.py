@@ -25,6 +25,13 @@ class MockSearchResult:
     score: float
 
 
+class MockRetrievalResult:
+    """Mimics RetrievalResult for test mocks."""
+    def __init__(self, results: list, pre_rerank_count: int = 0) -> None:
+        self.results = results
+        self.pre_rerank_count = pre_rerank_count
+
+
 class MockRetriever:
     """Fake retriever that returns canned results."""
 
@@ -33,8 +40,8 @@ class MockRetriever:
 
     async def search(
         self, query: str, top_k: int = 5, strategy: str | None = None
-    ) -> list[MockSearchResult]:
-        return self._results[:top_k]
+    ) -> MockRetrievalResult:
+        return MockRetrievalResult(results=self._results[:top_k])
 
 
 # --- Registry tests ---
