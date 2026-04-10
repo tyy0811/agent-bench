@@ -198,6 +198,7 @@ class Orchestrator:
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
         all_source_chunks: list[str] = []
+        total_pii_redactions = 0
         total_cost = 0.0
         total_input_tokens = 0
         total_output_tokens = 0
@@ -260,17 +261,31 @@ class Orchestrator:
 
                 if tc.name == "search_documents":
                     pre_rerank = result.metadata.get("pre_rerank_count", 0)
+                    refused = result.metadata.get("refused", False)
 
                     # --- Retrieval stage: done ---
-                    yield StreamEvent(type="stage", metadata={
-                        "stage": "retrieval", "status": "done", "iteration": iteration,
+                    retrieval_done_meta: dict = {
+                        "stage": "retrieval", "status": "done",
+                        "iteration": iteration,
                         "chunks_pre_rerank": pre_rerank,
-                    })
+                    }
+                    if refused:
+                        retrieval_done_meta["refused"] = True
+                        retrieval_done_meta["refusal_threshold"] = (
+                            result.metadata.get("refusal_threshold", 0)
+                        )
+                        retrieval_done_meta["chunks"] = (
+                            result.metadata.get("chunks", [])
+                        )
+                    yield StreamEvent(
+                        type="stage", metadata=retrieval_done_meta,
+                    )
 
                     # --- Reranking stage (already completed inside tool execution) ---
-                    if pre_rerank > 0:
+                    if pre_rerank > 0 and not refused:
                         yield StreamEvent(type="stage", metadata={
-                            "stage": "reranking", "status": "done", "iteration": iteration,
+                            "stage": "reranking", "status": "done",
+                            "iteration": iteration,
                             "chunks": result.metadata.get("chunks", []),
                         })
 
@@ -280,6 +295,9 @@ class Orchestrator:
                     all_source_chunks.extend(
                         result.metadata["source_chunks"]
                     )
+                total_pii_redactions += result.metadata.get(
+                    "pii_redactions_count", 0,
+                )
 
         # Max iterations hit — force text answer without tools
         # (same pattern as run(): explicit call after loop)
@@ -320,6 +338,7 @@ class Orchestrator:
                 "tokens_out": total_output_tokens,
                 "iterations": iteration if iteration else 1,
                 "source_chunks": all_source_chunks,
+                "pii_redactions_count": total_pii_redactions,
             },
         )
 

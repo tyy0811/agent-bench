@@ -21,15 +21,26 @@ from agent_bench.serving.schemas import (
 router = APIRouter()
 
 
+_LANDING_HTML: str | None = None
+
+
+def _get_landing_html() -> str:
+    """Read and cache index.html on first call."""
+    global _LANDING_HTML  # noqa: PLW0603
+    if _LANDING_HTML is None:
+        from pathlib import Path
+
+        html_path = Path(__file__).parent / "static" / "index.html"
+        _LANDING_HTML = html_path.read_text()
+    return _LANDING_HTML
+
+
 @router.get("/")
 async def root() -> Response:
     """Showcase landing page with live RAG dashboard."""
-    from pathlib import Path
-
     from starlette.responses import HTMLResponse
 
-    html_path = Path(__file__).parent / "static" / "index.html"
-    return HTMLResponse(content=html_path.read_text())
+    return HTMLResponse(content=_get_landing_html())
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -283,6 +294,9 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             "tokens_out": done_meta.get("tokens_out", 0),
             "cost": done_meta.get("estimated_cost_usd", 0.0),
             "iterations": done_meta.get("iterations", 1),
+            "pii_redactions_count": done_meta.get(
+                "pii_redactions_count", 0,
+            ),
         }).to_sse()
 
         # Record metrics and persist session

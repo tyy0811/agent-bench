@@ -246,9 +246,9 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
 
     <!-- Right: Pipeline + Retrieval + Security -->
     <div class="right-panel">
-      <div class="provider-toggle">
-        <button class="active" data-provider="openai" onclick="setProvider('openai')">OpenAI</button>
-        <button data-provider="anthropic" onclick="setProvider('anthropic')">Anthropic</button>
+      <div class="provider-toggle" id="providerToggle">
+        <button class="active" data-provider="openai">OpenAI</button>
+        <button data-provider="anthropic">Anthropic</button>
         <span class="disabled-provider" title="See benchmark report">Mistral-7B</span>
       </div>
 
@@ -369,11 +369,11 @@ const state = {
   maxIterationSeen: 1,
 };
 
-/* ── Provider toggle ─── */
-function setProvider(p) {
-  state.provider = p;
+/* ── Provider toggle (display-only, reflects server config) ─── */
+function showActiveProvider(provider) {
+  const p = (provider || '').toLowerCase();
   document.querySelectorAll('.provider-toggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.provider === p);
+    b.classList.toggle('active', p.includes(b.dataset.provider));
   });
 }
 
@@ -489,7 +489,13 @@ function updateStage(stage, status, meta) {
     updateInjectionBadge(v);
   }
   if (stage === 'retrieval' && status === 'done') {
-    detail.textContent = meta.chunks_pre_rerank ? `${meta.chunks_pre_rerank} candidates` : 'done';
+    if (meta.refused) {
+      detail.textContent = 'refused (below threshold)';
+      dot.className = 'stage-dot done';
+      showRetrievalRefusal(meta);
+    } else {
+      detail.textContent = meta.chunks_pre_rerank ? `${meta.chunks_pre_rerank} candidates` : 'done';
+    }
   }
   if (stage === 'reranking' && status === 'done') {
     const chunks = meta.chunks || [];
@@ -522,7 +528,20 @@ function addIterationNodes(iteration) {
     row.className = 'stage-row';
     row.dataset.stage = s;
     row.dataset.iteration = iteration;
-    row.innerHTML = `<div class="stage-dot"></div><div class="stage-connector"></div><div class="stage-info"><div class="stage-name">${s === 'llm' ? 'LLM Synthesis' : s.charAt(0).toUpperCase() + s.slice(1)}</div><div class="stage-detail" data-detail="${s}"></div></div>`;
+    const dot = document.createElement('div');
+    dot.className = 'stage-dot';
+    const conn = document.createElement('div');
+    conn.className = 'stage-connector';
+    const info = document.createElement('div');
+    info.className = 'stage-info';
+    const name = document.createElement('div');
+    name.className = 'stage-name';
+    name.textContent = s === 'llm' ? 'LLM Synthesis' : s.charAt(0).toUpperCase() + s.slice(1);
+    const detail = document.createElement('div');
+    detail.className = 'stage-detail';
+    detail.dataset.detail = s;
+    info.append(name, detail);
+    row.append(dot, conn, info);
     stages.insertBefore(row, outputRow);
   });
 }
@@ -585,7 +604,16 @@ function updateRetrievalResults(chunks, meta) {
     const pct = topScore > 0 ? Math.max(20, (c.score / topScore) * 95) : 20;
     const item = document.createElement('div');
     item.className = 'retrieval-item';
-    item.innerHTML = `<div class="bar-bg" style="width:${pct}%"></div><span class="source">${c.source}</span><span class="score">${c.score.toFixed(3)}</span>`;
+    const bar = document.createElement('div');
+    bar.className = 'bar-bg';
+    bar.style.width = pct + '%';
+    const src = document.createElement('span');
+    src.className = 'source';
+    src.textContent = c.source;
+    const sc = document.createElement('span');
+    sc.className = 'score';
+    sc.textContent = c.score.toFixed(3);
+    item.append(bar, src, sc);
     item.addEventListener('click', () => {
       item.classList.toggle('expanded');
     });
@@ -605,12 +633,22 @@ function showRetrievalRefusal(meta) {
   badge.className = 'badge badge-refusal';
   const chunks = meta.chunks || [];
   const top = chunks[0] || {};
-  list.innerHTML = `<div class="retrieval-refusal">
-    <div class="threshold-detail">Top candidate: ${top.source || 'none'} &mdash; ${(top.score||0).toFixed(3)}</div>
-    <div class="threshold-detail">Threshold: ${meta.refusal_threshold || '0.02'}</div>
-    <div>Decision: refuse &mdash; no chunk clears threshold</div>
-    <div style="margin-top:8px;font-size:0.8rem;font-style:italic">This is the mechanism that keeps citation accuracy at 1.00.</div>
-  </div>`;
+  const container = document.createElement('div');
+  container.className = 'retrieval-refusal';
+  const d1 = document.createElement('div');
+  d1.className = 'threshold-detail';
+  d1.textContent = `Top candidate: ${top.source || 'none'} \u2014 ${(top.score||0).toFixed(3)}`;
+  const d2 = document.createElement('div');
+  d2.className = 'threshold-detail';
+  d2.textContent = `Threshold: ${meta.refusal_threshold || '0.02'}`;
+  const d3 = document.createElement('div');
+  d3.textContent = 'Decision: refuse \u2014 no chunk clears threshold';
+  const d4 = document.createElement('div');
+  d4.style.cssText = 'margin-top:8px;font-size:0.8rem;font-style:italic';
+  d4.textContent = 'This is the mechanism that keeps citation accuracy at 1.00.';
+  container.append(d1, d2, d3, d4);
+  list.innerHTML = '';
+  list.appendChild(container);
 }
 
 function showRetrievalBlocked() {
@@ -634,7 +672,6 @@ async function streamAnswer(question) {
   let assistantEl = null;
   let answerText = '';
   let wasBlocked = false;
-  let piiCount = 0;
 
   try {
     const resp = await fetch('/ask/stream', {
@@ -677,8 +714,13 @@ async function streamAnswer(question) {
         switch (event.type) {
           case 'meta': {
             const m = event.metadata || {};
-            document.getElementById('runningOn').innerHTML =
-              `Running on: <strong>${m.provider || '?'}</strong> ${m.model || ''}`;
+            const ro = document.getElementById('runningOn');
+            ro.textContent = '';
+            ro.append('Running on: ');
+            const strong = document.createElement('strong');
+            strong.textContent = m.provider || '?';
+            ro.append(strong, ' ' + (m.model || ''));
+            showActiveProvider(m.provider);
             break;
           }
           case 'stage': {
@@ -703,8 +745,7 @@ async function streamAnswer(question) {
           case 'done': {
             const m = event.metadata || {};
             showStats(m);
-            // Update PII badge from metadata if available
-            updatePiiBadge(piiCount);
+            updatePiiBadge(m.pii_redactions_count || 0);
             break;
           }
         }
