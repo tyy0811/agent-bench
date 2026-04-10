@@ -266,11 +266,8 @@ class Orchestrator:
                         "chunks_pre_rerank": pre_rerank,
                     })
 
-                    # --- Reranking stage (if reranking happened) ---
+                    # --- Reranking stage (already completed inside tool execution) ---
                     if pre_rerank > 0:
-                        yield StreamEvent(type="stage", metadata={
-                            "stage": "reranking", "status": "running", "iteration": iteration,
-                        })
                         yield StreamEvent(type="stage", metadata={
                             "stage": "reranking", "status": "done", "iteration": iteration,
                             "chunks": result.metadata.get("chunks", []),
@@ -278,8 +275,10 @@ class Orchestrator:
 
                 if "sources" in result.metadata:
                     all_sources.extend(result.metadata["sources"])
-        else:
-            # Max iterations hit — force text answer without tools
+
+        # Max iterations hit — force text answer without tools
+        # (same pattern as run(): explicit call after loop)
+        if response.tool_calls:
             yield StreamEvent(type="stage", metadata={
                 "stage": "llm", "status": "running", "iteration": iteration,
             })
@@ -293,7 +292,6 @@ class Orchestrator:
                 "stage": "llm", "status": "done", "iteration": iteration,
             })
 
-        # Handle max_iterations=0
         if self.max_iterations == 0:
             response = await self.provider.complete(
                 messages, tools=None, temperature=self.temperature

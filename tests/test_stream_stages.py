@@ -47,7 +47,9 @@ class TestOrchestratorStageEvents:
 
         stage_events = [e for e in events if e.type == "stage"]
         reranking_events = [e for e in stage_events if e.metadata.get("stage") == "reranking"]
-        assert len(reranking_events) >= 1  # at least done (running may be instant)
+        assert len(reranking_events) >= 1  # done event with chunk details
+        # Reranking completes inside tool execution, so only a done event is emitted
+        assert all(e.metadata.get("status") == "done" for e in reranking_events)
 
     @pytest.mark.asyncio
     async def test_stream_emits_llm_stage(self, orchestrator):
