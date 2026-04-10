@@ -250,8 +250,10 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             "verdict": injection_verdict_data,
         }).to_sse()
 
-        # Buffer orchestrator events for output validation
-        buffered_events: list = []
+        # Stream orchestrator events live. Stage events are yielded
+        # immediately so the dashboard can animate in real time.
+        # Only the chunk content is accumulated for post-stream
+        # output validation (monitor mode).
         full_answer: list[str] = []
         done_meta: dict = {}
         async for event in orchestrator.run_stream(
@@ -261,21 +263,28 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             strategy=body.retrieval_strategy,
             history=history,
         ):
-            buffered_events.append(event)
+            if event.type == "_orchestrator_done":
+                # Extract metadata, don't yield to client
+                if event.metadata:
+                    done_meta = event.metadata
+                continue
             if event.type == "chunk" and event.content:
                 full_answer.append(event.content)
-            if event.type == "_orchestrator_done" and event.metadata:
-                done_meta = event.metadata
+                # Don't yield chunk yet — validate first
+                continue
+            # Yield stage and sources events live
+            yield event.to_sse()
 
         # --- Security: output validation (post-generation, monitor mode) ---
         answer_text = "".join(full_answer)
         filtered_answer = answer_text
         output_verdict_data: dict = {"passed": True, "violations": []}
         output_blocked = False
+        source_chunks = done_meta.get("source_chunks", [])
         if output_validator:
             out_verdict = output_validator.validate(
                 output=answer_text,
-                retrieved_chunks=[],
+                retrieved_chunks=source_chunks,
             )
             output_verdict_data = {
                 "passed": out_verdict.passed,
@@ -288,15 +297,11 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
                     "The output was filtered for safety."
                 )
 
-        # Yield buffered orchestrator events (stage events + legacy events)
-        # Filter out _orchestrator_done — route handler emits the real done event
-        for event in buffered_events:
-            if event.type == "_orchestrator_done":
-                continue
-            if output_blocked and event.type == "chunk":
-                yield StreamEvent(type="chunk", content=filtered_answer).to_sse()
-            else:
-                yield event.to_sse()
+        # Yield the (possibly filtered) answer chunk
+        yield StreamEvent(
+            type="chunk",
+            content=filtered_answer if output_blocked else answer_text,
+        ).to_sse()
 
         # --- Output validation stage (monitor mode, after chunk) ---
         yield StreamEvent(type="stage", metadata={
@@ -320,7 +325,8 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         }).to_sse()
 
         # Record metrics and persist session
-        metrics.record(latency_ms=latency_ms, cost_usd=done_meta.get("estimated_cost_usd", 0.0))
+        cost = done_meta.get("estimated_cost_usd", 0.0)
+        metrics.record(latency_ms=latency_ms, cost_usd=cost)
 
         if body.session_id and conversation_store:
             conversation_store.append(body.session_id, "user", body.question)

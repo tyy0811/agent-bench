@@ -17,7 +17,7 @@ from langchain_core.retrievers import BaseRetriever
 class AgentBenchRetriever(BaseRetriever):
     """Wraps agent-bench's async Retriever as a LangChain retriever.
 
-    Delegates to Retriever.search() which returns list[SearchResult].
+    Delegates to Retriever.search() which returns RetrievalResult.
     Each SearchResult has .chunk.content, .chunk.source, .chunk.id, .score.
     """
 
@@ -32,7 +32,7 @@ class AgentBenchRetriever(BaseRetriever):
         *,
         run_manager: AsyncCallbackManagerForRetrieverRun,
     ) -> List[LCDocument]:
-        results = await self.retriever.search(query, top_k=self.top_k)
+        retrieval_result = await self.retriever.search(query, top_k=self.top_k)
         return [
             LCDocument(
                 page_content=r.chunk.content,
@@ -42,7 +42,7 @@ class AgentBenchRetriever(BaseRetriever):
                     "score": r.score,
                 },
             )
-            for r in results
+            for r in retrieval_result.results
         ]
 
     def _get_relevant_documents(

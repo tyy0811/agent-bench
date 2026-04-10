@@ -197,6 +197,7 @@ class Orchestrator:
         messages.append(Message(role=Role.USER, content=question))
         tools = self.registry.get_definitions()
         all_sources: list[str] = []
+        all_source_chunks: list[str] = []
         total_cost = 0.0
         total_input_tokens = 0
         total_output_tokens = 0
@@ -275,6 +276,10 @@ class Orchestrator:
 
                 if "sources" in result.metadata:
                     all_sources.extend(result.metadata["sources"])
+                if "source_chunks" in result.metadata:
+                    all_source_chunks.extend(
+                        result.metadata["source_chunks"]
+                    )
 
         # Max iterations hit — force text answer without tools
         # (same pattern as run(): explicit call after loop)
@@ -314,6 +319,7 @@ class Orchestrator:
                 "tokens_in": total_input_tokens,
                 "tokens_out": total_output_tokens,
                 "iterations": iteration if iteration else 1,
+                "source_chunks": all_source_chunks,
             },
         )
 
