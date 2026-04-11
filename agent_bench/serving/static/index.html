@@ -155,6 +155,25 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
 .finding-card .finding-link{display:inline-block;margin-top:12px;font-size:0.85rem;font-weight:500}
 .finding-card-full{grid-column:1/-1}
 
+/* ── Request log ──────────────────────────────────── */
+.request-log{max-width:1200px;margin:0 auto;padding:0 24px 60px}
+.request-log h2{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.request-log .log-sub{color:var(--muted);font-size:0.9rem;margin-bottom:16px}
+.log-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--panel-bg)}
+.log-table{width:100%;border-collapse:collapse;font-size:0.82rem;font-variant-numeric:tabular-nums}
+.log-table th{text-align:left;padding:10px 12px;font-weight:600;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--panel-bg)}
+.log-table td{padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+.log-table tr:last-child td{border-bottom:none}
+.log-table .q-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-table .pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.75rem;font-weight:500}
+.pill-green{background:#dcfce7;color:#166534}
+.pill-red{background:#fee2e2;color:#991b1b}
+.pill-yellow{background:#fef9c3;color:#854d0e}
+.pill-gray{background:#f3f4f6;color:#6b7280}
+.log-empty{padding:24px;text-align:center;color:var(--muted);font-size:0.9rem}
+.log-summary{display:flex;gap:24px;padding:12px 16px;border-top:1px solid var(--border);font-size:0.82rem;color:var(--muted);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.log-summary span strong{color:var(--fg)}
+
 /* ── Footer ───────────────────────────────────────── */
 .footer{max-width:1200px;margin:0 auto;padding:40px 24px 60px;text-align:center;border-top:1px solid var(--border)}
 .footer .footer-stats{font-size:0.85rem;color:var(--muted);margin-bottom:8px;font-variant-numeric:tabular-nums}
@@ -316,6 +335,42 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
         </div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ── Request Log ─── -->
+<section class="request-log" id="requestLog">
+  <h2>Request Log</h2>
+  <p class="log-sub">Every query is instrumented. Metrics accumulate as you interact.</p>
+  <div class="log-table-wrap">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Question</th>
+          <th>Provider</th>
+          <th>Injection</th>
+          <th>Chunks</th>
+          <th>Reranked</th>
+          <th>PII</th>
+          <th>Output</th>
+          <th>Iters</th>
+          <th>Tokens</th>
+          <th>Latency</th>
+          <th>Cost</th>
+        </tr>
+      </thead>
+      <tbody id="logBody">
+      </tbody>
+    </table>
+    <div class="log-empty" id="logEmpty">No queries yet. Try an example above.</div>
+  </div>
+  <div class="log-summary hidden" id="logSummary">
+    <span>Queries: <strong id="sumQueries">0</strong></span>
+    <span>Avg latency: <strong id="sumLatency">--</strong> ms</span>
+    <span>Total tokens: <strong id="sumTokens">0</strong></span>
+    <span>Total cost: <strong id="sumCost">$0.0000</strong></span>
+    <span>Blocked: <strong id="sumBlocked">0</strong></span>
   </div>
 </section>
 
@@ -670,11 +725,82 @@ function showStats(meta) {
   document.getElementById('pipelineStats').classList.remove('hidden');
 }
 
+/* ── Request log ─── */
+const logData = { rows: [], totalTokens: 0, totalCost: 0, blocked: 0 };
+
+function addLogRow(entry) {
+  logData.rows.push(entry);
+  if (entry.blocked) logData.blocked++;
+  logData.totalTokens += entry.tokens || 0;
+  logData.totalCost += entry.cost || 0;
+
+  document.getElementById('logEmpty').style.display = 'none';
+  const tbody = document.getElementById('logBody');
+  const tr = document.createElement('tr');
+
+  const cells = [
+    logData.rows.length,
+    { text: entry.question, cls: 'q-cell' },
+    entry.provider,
+    { pill: entry.injection, cls: entry.injectionSafe ? 'pill-green' : 'pill-red' },
+    entry.chunks,
+    entry.reranked,
+    { pill: String(entry.pii), cls: entry.pii > 0 ? 'pill-yellow' : 'pill-green' },
+    { pill: entry.output, cls: entry.outputPassed ? 'pill-green' : 'pill-yellow' },
+    entry.iterations,
+    entry.tokens,
+    entry.latency ? Math.round(entry.latency) + ' ms' : '--',
+    entry.cost ? '$' + entry.cost.toFixed(4) : '--',
+  ];
+
+  cells.forEach(c => {
+    const td = document.createElement('td');
+    if (typeof c === 'object' && c !== null && c.pill !== undefined) {
+      const span = document.createElement('span');
+      span.className = 'pill ' + c.cls;
+      span.textContent = c.pill;
+      td.appendChild(span);
+    } else if (typeof c === 'object' && c !== null && c.text !== undefined) {
+      td.className = c.cls || '';
+      td.textContent = c.text;
+      td.title = c.text;
+    } else {
+      td.textContent = c ?? '--';
+    }
+    tr.appendChild(td);
+  });
+
+  tbody.appendChild(tr);
+
+  // Update summary
+  const sum = document.getElementById('logSummary');
+  sum.classList.remove('hidden');
+  document.getElementById('sumQueries').textContent = logData.rows.length;
+  const latencies = logData.rows.filter(r => r.latency).map(r => r.latency);
+  document.getElementById('sumLatency').textContent = latencies.length
+    ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+    : '--';
+  document.getElementById('sumTokens').textContent = logData.totalTokens;
+  document.getElementById('sumCost').textContent = '$' + logData.totalCost.toFixed(4);
+  document.getElementById('sumBlocked').textContent = logData.blocked;
+}
+
 /* ── SSE stream ─── */
 async function streamAnswer(question) {
   let assistantEl = null;
   let answerText = '';
   let wasBlocked = false;
+
+  // Per-query metrics collected during stream
+  const qm = {
+    question,
+    provider: state.provider,
+    injectionSafe: true, injection: '--',
+    chunks: '--', reranked: '--',
+    pii: 0, output: '--', outputPassed: true,
+    iterations: 0, tokens: 0, latency: 0, cost: 0,
+    blocked: false,
+  };
 
   try {
     const resp = await fetch('/ask/stream', {
@@ -693,6 +819,13 @@ async function streamAnswer(question) {
       const data = await resp.json();
       addMessage('assistant', data.detail || 'Request blocked.');
       showRetrievalBlocked();
+      qm.blocked = true;
+      qm.injectionSafe = false;
+      qm.injection = 'blocked';
+      qm.chunks = '--';
+      qm.reranked = '--';
+      qm.output = '--';
+      addLogRow(qm);
       state.busy = false;
       document.getElementById('sendBtn').disabled = false;
       return;
@@ -718,6 +851,7 @@ async function streamAnswer(question) {
         switch (event.type) {
           case 'meta': {
             const m = event.metadata || {};
+            qm.provider = m.provider || state.provider;
             const ro = document.getElementById('runningOn');
             ro.textContent = '';
             ro.append('Running on: ');
@@ -729,10 +863,29 @@ async function streamAnswer(question) {
           case 'stage': {
             const m = event.metadata || {};
             updateStage(m.stage, m.status, m);
+            // Collect metrics
+            if (m.stage === 'injection_check' && m.status === 'done') {
+              const v = m.verdict || {};
+              qm.injectionSafe = !!v.safe;
+              qm.injection = v.safe ? 'safe' : 'blocked';
+            }
+            if (m.stage === 'retrieval' && m.status === 'done') {
+              qm.chunks = m.refused ? 'refused' : (m.chunks_pre_rerank || 0);
+            }
+            if (m.stage === 'reranking' && m.status === 'done') {
+              qm.reranked = (m.chunks || []).length;
+            }
+            if (m.stage === 'output_validation' && m.status === 'done') {
+              const v = m.verdict || {};
+              qm.outputPassed = !!v.passed;
+              qm.output = v.passed ? 'pass' : (v.violations || []).length + ' issues';
+            }
+            if (m.stage === 'llm') {
+              qm.iterations = Math.max(qm.iterations, m.iteration || 0);
+            }
             break;
           }
           case 'sources': {
-            // Sources arrive but are shown via reranking chunks
             break;
           }
           case 'chunk': {
@@ -749,6 +902,11 @@ async function streamAnswer(question) {
             const m = event.metadata || {};
             showStats(m);
             updatePiiBadge(m.pii_redactions_count || 0);
+            qm.pii = m.pii_redactions_count || 0;
+            qm.tokens = (m.tokens_in || 0) + (m.tokens_out || 0);
+            qm.latency = m.latency_ms || 0;
+            qm.cost = m.cost || 0;
+            qm.iterations = m.iterations || qm.iterations;
             break;
           }
         }
@@ -758,6 +916,7 @@ async function streamAnswer(question) {
     addMessage('assistant', 'Error: ' + err.message);
   }
 
+  addLogRow(qm);
   state.busy = false;
   document.getElementById('sendBtn').disabled = false;
 }
