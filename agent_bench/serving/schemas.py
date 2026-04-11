@@ -15,6 +15,7 @@ class AskRequest(BaseModel):
     top_k: int = 5
     retrieval_strategy: Literal["semantic", "keyword", "hybrid"] = "hybrid"
     session_id: str | None = None  # None = stateless (V1 behavior)
+    provider: str | None = None  # None = use server default
 
 
 class ResponseMetadata(BaseModel):

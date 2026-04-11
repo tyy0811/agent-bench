@@ -46,7 +46,10 @@ async def root() -> Response:
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     """Ask a question and get an answer with sources."""
-    orchestrator: Orchestrator = request.app.state.orchestrator
+    orchestrators = getattr(request.app.state, "orchestrators", {})
+    orchestrator: Orchestrator = orchestrators.get(
+        body.provider, request.app.state.orchestrator,
+    ) if body.provider else request.app.state.orchestrator
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
@@ -146,7 +149,10 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
 @router.post("/ask/stream")
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     """Stream an answer via Server-Sent Events with per-stage instrumentation."""
-    orchestrator: Orchestrator = request.app.state.orchestrator
+    orchestrators = getattr(request.app.state, "orchestrators", {})
+    orchestrator: Orchestrator = orchestrators.get(
+        body.provider, request.app.state.orchestrator,
+    ) if body.provider else request.app.state.orchestrator
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")

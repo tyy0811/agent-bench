@@ -33,8 +33,27 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     # Load task config for system prompt
     task = load_task_config("tech_docs")
 
-    # Provider
+    # Providers — create all available, keyed by name
     provider = create_provider(config)
+    providers: dict = {config.provider.default: provider}
+    _alt_providers = {"openai", "anthropic"} - {config.provider.default}
+    for alt in _alt_providers:
+        try:
+            import os
+
+            from agent_bench.core.provider import (
+                AnthropicProvider,
+                OpenAIProvider,
+            )
+
+            if alt == "openai" and os.environ.get("OPENAI_API_KEY"):
+                providers["openai"] = OpenAIProvider(config)
+            elif alt == "anthropic" and os.environ.get(
+                "ANTHROPIC_API_KEY",
+            ):
+                providers["anthropic"] = AnthropicProvider(config)
+        except Exception:
+            pass  # missing dependency or key — skip
 
     # RAG pipeline
     store_path = Path(config.rag.store_path)
@@ -109,13 +128,16 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     )
     registry.register(CalculatorTool())
 
-    # Orchestrator
-    orchestrator = Orchestrator(
-        provider=provider,
-        registry=registry,
-        max_iterations=config.agent.max_iterations,
-        temperature=config.agent.temperature,
-    )
+    # Orchestrators — one per available provider
+    orchestrators: dict = {}
+    for name, prov in providers.items():
+        orchestrators[name] = Orchestrator(
+            provider=prov,
+            registry=registry,
+            max_iterations=config.agent.max_iterations,
+            temperature=config.agent.temperature,
+        )
+    orchestrator = orchestrators[config.provider.default]
 
     # Metrics
     metrics = MetricsCollector()
@@ -129,6 +151,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     # Attach to app state
     app.state.orchestrator = orchestrator
+    app.state.orchestrators = orchestrators
     app.state.store = store
     app.state.conversation_store = conversation_store
     app.state.config = config

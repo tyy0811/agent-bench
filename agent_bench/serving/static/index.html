@@ -369,13 +369,16 @@ const state = {
   maxIterationSeen: 1,
 };
 
-/* ── Provider toggle (display-only, reflects server config) ─── */
-function showActiveProvider(provider) {
-  const p = (provider || '').toLowerCase();
+/* ── Provider toggle ─── */
+function setProvider(p) {
+  state.provider = p;
   document.querySelectorAll('.provider-toggle button').forEach(b => {
-    b.classList.toggle('active', p.includes(b.dataset.provider));
+    b.classList.toggle('active', b.dataset.provider === p);
   });
 }
+document.querySelectorAll('.provider-toggle button').forEach(b => {
+  b.addEventListener('click', () => setProvider(b.dataset.provider));
+});
 
 /* ── Chat ─── */
 function addMessage(role, text) {
@@ -681,6 +684,7 @@ async function streamAnswer(question) {
         question,
         top_k: 5,
         retrieval_strategy: 'hybrid',
+        provider: state.provider,
       }),
     });
 
@@ -720,7 +724,6 @@ async function streamAnswer(question) {
             const strong = document.createElement('strong');
             strong.textContent = m.provider || '?';
             ro.append(strong, ' ' + (m.model || ''));
-            showActiveProvider(m.provider);
             break;
           }
           case 'stage': {
