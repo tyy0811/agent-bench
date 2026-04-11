@@ -36,28 +36,38 @@ _HEURISTIC_PATTERNS: list[tuple[str, re.Pattern]] = [
     )),
     # Instruction override
     ("ignore_previous", re.compile(
-        r"\bignore\s+(?:all\s+)?(?:previous|prior|above|earlier|your)\s+(?:instructions|context|rules|guidelines|directives)\b",
+        r"\bignore\s+(?:all\s+)?(?:previous|prior|above|earlier|your|my)\s+(?:instructions?|context|rules|guidelines|directives)\b",
         re.IGNORECASE,
     )),
     ("disregard", re.compile(
-        r"\bdisregard\s+(?:all\s+)?(?:your|previous|prior)?\s*(?:instructions|rules|guidelines)\b",
+        r"\bdisregard\s+(?:all\s+)?(?:your|previous|prior)?\s*(?:instructions?|rules|guidelines)\b",
         re.IGNORECASE,
     )),
     ("forget_instructions", re.compile(
-        r"\bforget\s+(?:all\s+|everything\s+)?(?:you\s+were\s+told|previous|prior|your\s+instructions|your\s+context)\b",
+        r"\bforget\s+(?:all\s+|everything\s+)?(?:you\s+were\s+told|previous|prior|your\s+instructions?|your\s+context)\b",
         re.IGNORECASE,
     )),
     ("do_not_follow", re.compile(
-        r"\bdo\s+not\s+follow\s+(?:your\s+)?(?:original\s+)?instructions\b",
+        r"\bdo\s+not\s+follow\s+(?:your\s+)?(?:original\s+)?instructions?\b",
         re.IGNORECASE,
     )),
     # System prompt extraction
     ("reveal_prompt", re.compile(
-        r"\b(?:reveal|show|display|output|print|repeat|tell\s+me)\s+(?:me\s+)?(?:your\s+)?(?:system\s+prompt|initial\s+instructions|instructions\s+verbatim|original\s+instructions)\b",
+        r"\b(?:reveal|show|display|output|print|repeat|tell\s+me|give\s+me|share|leak|dump|paste|write\s+out)\s+(?:me\s+)?(?:your\s+)?(?:system\s+prompt|initial\s+instructions?|instructions?\s+verbatim|original\s+instructions?|hidden\s+prompt|internal\s+prompt)\b",
         re.IGNORECASE,
     )),
     ("what_is_prompt", re.compile(
-        r"\bwhat\s+(?:is|are)\s+your\s+(?:system\s+prompt|instructions|initial\s+prompt)\b",
+        r"\bwhat\s+(?:is|are)\s+your\s+(?:system\s+prompt|instructions?|initial\s+prompt|hidden\s+prompt)\b",
+        re.IGNORECASE,
+    )),
+    # Direct prompt requests (catches "give me your system prompt")
+    ("give_prompt", re.compile(
+        r"\b(?:give|send|copy|provide)\s+(?:me\s+)?(?:the\s+|your\s+)?(?:system\s+prompt|full\s+prompt|original\s+prompt|system\s+instructions?|internal\s+instructions?|hidden\s+instructions?)\b",
+        re.IGNORECASE,
+    )),
+    # Prompt as a noun target (catches "I want your system prompt")
+    ("want_prompt", re.compile(
+        r"\b(?:i\s+want|i\s+need|hand\s+over|access)\s+(?:to\s+see\s+)?(?:your\s+)?(?:system\s+prompt|internal\s+prompt|original\s+instructions?|system\s+instructions?)\b",
         re.IGNORECASE,
     )),
     # System message injection
