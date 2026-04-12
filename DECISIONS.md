@@ -353,3 +353,172 @@ reactive framework adds a dependency, interview questions about
 "why is there a framework for 5 state variables", and indirection
 that fights the imperative SSE pattern. One `state` object + a few
 `render()` functions handles it in ~150 lines.
+
+## Why per-corpus refusal thresholds?
+
+FastAPI and Kubernetes have different corpus characteristics. FastAPI
+has 16 short, well-structured docs with sparse cross-references —
+relevance tends to concentrate in 1-2 chunks per query. Kubernetes
+has 30-40 docs with heavy cross-referencing between concepts (Pod →
+Deployment → Service → Ingress), which spreads relevance across more
+chunks. A single global refusal threshold would either refuse too
+aggressively on K8s (no single chunk dominates, so the top score
+looks "low") or not aggressively enough on FastAPI (where a
+moderate-scoring chunk might be the only hit and should still refuse).
+
+`CorpusConfig` carries `refusal_threshold` as a per-corpus field.
+Each threshold gets tuned against its own golden dataset — there
+is no "fair" shared threshold because BEIR showed these are not
+comparable across corpora. Placeholder values ship in default.yaml
+and are replaced by tuned values during the per-corpus evaluation
+sweep.
+
+## Why corpus and provider toggles compose — corpus_map[corpus][provider]
+
+The simpler design would have been `corpus_map[corpus]` returning a
+single orchestrator. It ships in 10 fewer lines. It also silently
+breaks the provider toggle in multi-corpus mode: the orchestrator
+inside each corpus cell holds one fixed provider, and clicking
+"Anthropic" in the dashboard keeps running on OpenAI.
+
+This project's hero-tile metric is the provider comparison (`1.00 API /
+0.14 7B self-hosted`). Breaking the mechanism that demonstrates that
+metric — on a portfolio demo where a reviewer will open DevTools and
+notice — would erode the honest-evaluation brand the whole repo is
+built around. The nested `corpus_map[corpus][provider]` structure
+keeps both toggles functional. Store, retriever, and search tool are
+shared across providers within a corpus (the expensive objects are
+held once per corpus); only the orchestrator varies per provider
+since it holds the LLM client. Per-corpus × per-provider memory
+overhead is an orchestrator struct, not a FAISS index.
+
+RSS is logged per corpus, not per corpus × provider, because the
+store is what drives memory. The provider multiplier is negligible
+compared to a hybrid index + embedder.
+
+## Why one parameterized system prompt, not per-corpus templates
+
+The template is `"You are a technical documentation assistant for
+{corpus_label}..."`. The only corpus-specific element is the label;
+prompt content is identical across corpora: same citation format,
+same refusal language, same grounding instructions. Having two
+separate prompt files would invite drift — someone tweaks the FastAPI
+prompt for a specific failure mode and forgets to update the K8s
+version, and the demo silently answers differently on the two toggles.
+
+The parameterization is enforced by two tests: (a)
+`format_system_prompt("")` raises `ValueError` so an unresolved
+`{corpus_label}` can never reach the LLM, and (b) a spy on
+`orchestrator.run_stream` asserts FastAPI and K8s requests receive
+different prompts with the correct label substituted.
+
+The wording deliberately differs from the typical "don't hallucinate"
+RAG template:
+
+- **"refuse the question explicitly"** matches our refusal-gate
+  mechanism. "Say so politely" is soft language that models interpret
+  as "hedge and answer anyway".
+- **"do not infer, do not extrapolate, do not draw on general
+  knowledge"** is the three-verb prohibition. "Do not fabricate" is
+  empirically easier to slip past because models distinguish
+  fabrication (making things up) from extrapolation (drawing
+  conclusions from adjacent but non-authoritative context).
+
+## Why Kubernetes curation targets recruiter-likely questions, not coverage
+
+The K8s corpus targets ~30-40 pages curated around concepts a
+technical reviewer would naturally type (Pod, Deployment, Service,
+Ingress, ConfigMap, RBAC) plus cross-referencing overview pages that
+stress the reranker. Cluster administration deep-dives, tutorials,
+and kubectl reference are explicitly excluded — they add noise without
+adding reviewer value and hurt retrieval precision when adjacent
+content is thin on concept definitions.
+
+`data/k8s_docs/SOURCES.md` is a version-controlled curation artifact.
+Each ingested URL has a one-line rationale, a date pulled, and a
+license note. This makes the corpus reproducible and documents the
+curation reasoning for any reviewer who looks closely.
+
+Trade-off: the corpus is not comprehensive K8s knowledge. A question
+about etcd raft internals will be correctly refused. This is not a
+bug — the refusal is part of the demo story, and "the system knows
+what it doesn't know" is a feature of the grounded-refusal mechanism.
+
+## Why no cross-corpus score comparison (BEIR principle)
+
+Per BEIR (Thakur et al., NeurIPS 2021), absolute retrieval scores are
+not comparable across different corpora — score distributions depend
+on chunk length, vocabulary overlap, and corpus density, none of which
+are held constant across domains. Only rank-ordering of system
+configurations within a single corpus is meaningful. Concrete
+consequences for this repo:
+
+- Per-corpus evaluation results are reported separately, never
+  aggregated into a single "combined" number.
+- The hero-tile citation accuracy (`1.00 API / 0.14 7B self-hosted`)
+  stays FastAPI-specific. It is not restated as a cross-corpus average.
+- `make evaluate-fast` accepts a `--corpus` flag but has no "combined"
+  mode. Anyone who wants a cross-corpus number has to run twice and
+  acknowledge the incomparability in prose.
+- The landing page "Key Findings" cards avoid sentences that compare
+  FastAPI and K8s numbers directly.
+
+The multi-corpus demo is a **surface feature for interactive
+exploration**, not a rebenchmark. The benchmark section of the README
+remains FastAPI-only and cites 27 questions on 16 docs with specific
+chunker settings.
+
+## K8s golden dataset uses the CRAG taxonomy
+
+Questions in the K8s golden dataset are distributed across the
+categories from CRAG (Yang et al., NeurIPS 2024):
+
+- Simple fact (5-6 questions)
+- Multi-hop (5-6)
+- Comparison (3-4)
+- Conditional (3-4)
+- False-premise / unanswerable (3-4)
+- Version-specific (2-3)
+
+False-premise and version-specific questions stress the grounded
+refusal mechanism. Multi-hop and comparison stress the reranker
+because relevance spreads across multiple chunks. The distribution
+was chosen to exercise the parts of the pipeline the benchmark story
+claims — not to mimic a general-purpose QA benchmark.
+
+The golden dataset JSON schema (v2, backward-compatible with the
+FastAPI flat list) includes:
+
+- `source_chunk_ids: list[str]` for multi-hop partial credit
+  (answer must cite at least one of the expected chunks)
+- `source_snippets: list[str]` for human-readable context during
+  review
+- `question_type: str` (CRAG taxonomy value)
+- `is_multi_hop: bool` for filtered reporting
+- Dataset-level header with `corpus`, `version`, `snapshot_date`,
+  and pinned `chunker` parameters so the dataset is reproducible
+  against a specific K8s docs snapshot
+
+See `docs/plans/2026-04-12-multi-corpus-refactor-design.md` for the
+full schema and rationale.
+
+## Cold-start contingency: measure first, lazy-load if needed
+
+Loading two corpora at startup costs memory and cold-start time. On
+HF Spaces (target deployment), the realistic ceiling is 8-10 GB
+resident RAM and ~60 seconds cold-start before the demo feels broken.
+
+**Policy:**
+
+1. Measure HF Spaces cold-start on Day 1 of deployment.
+2. If cold-start < 60 s: plan validated, no changes.
+3. If cold-start > 60 s: implement a lazy-load path (FastAPI eager,
+   K8s lazy on first K8s request). Scoped ~2 hours implementation.
+
+This contingency is **not** pre-built. Pre-building a lazy-load path
+that may never ship creates dead code that rots, and the test surface
+for "lazy loading plus corpus routing plus provider switching" is
+non-trivial. The RSS logging in `app.py` (Task 2) emits the exact
+numbers needed to make the decision; the decision is documented here
+so future-me remembers the threshold and doesn't optimize prematurely
+on a hunch.
