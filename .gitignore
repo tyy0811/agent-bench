@@ -23,6 +23,13 @@ venv/
 # security verdicts. Never commit these.
 logs/
 *.jsonl
+
+# Opaque binary artifacts — no PDFs in the repo today, and any that
+# appear here are almost always local reference material (downloaded
+# papers, vendor docs) that should not be committed. If a PDF ever
+# needs to be tracked for real, add it with an explicit force-add and
+# a targeted gitignore exception next to it.
+*.pdf
 docs/DESIGN.md
 terraform.tfvars
 .terraform/
