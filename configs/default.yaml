@@ -109,3 +109,9 @@ corpora:
     refusal_threshold: 0.30
     top_k: 5
     max_iterations: 3
+    # available=false keeps the K8s corpus in the schema (dashboard
+    # shows the toggle as disabled) but skips it from corpus_map at
+    # startup. Flip to true after data/k8s_docs/ is curated and
+    # `make ingest-k8s` has built .cache/store_k8s. See
+    # data/k8s_docs/SOURCES.md for the curation policy.
+    available: false

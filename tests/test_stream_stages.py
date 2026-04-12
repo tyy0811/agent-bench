@@ -111,3 +111,52 @@ class TestOrchestratorStageEvents:
         if llm_tool_calls:
             assert "tool" in llm_tool_calls[0].metadata
             assert "arguments" in llm_tool_calls[0].metadata
+
+
+class TestMaxIterationsZero:
+    """Regression: max_iterations=0 used to raise UnboundLocalError in
+    run_stream because the post-loop response.tool_calls check ran before
+    the max_iterations==0 escape hatch assigned response. Flagged by the
+    adversarial review of batch 3."""
+
+    @pytest.fixture
+    def zero_iter_orchestrator(self):
+        registry = ToolRegistry()
+        registry.register(FakeSearchTool())
+        return Orchestrator(
+            provider=MockProvider(),
+            registry=registry,
+            max_iterations=0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_run_stream_completes_without_unbound_local(
+        self, zero_iter_orchestrator,
+    ):
+        """run_stream with max_iterations=0 must not crash before yielding."""
+        events = []
+        async for event in zero_iter_orchestrator.run_stream(
+            question="What is a path parameter?",
+            system_prompt="You are a test assistant.",
+        ):
+            events.append(event)
+        # Must have emitted at least chunk + _orchestrator_done
+        event_types = {e.type for e in events}
+        assert "chunk" in event_types
+        assert "_orchestrator_done" in event_types
+        assert "sources" in event_types
+
+    @pytest.mark.asyncio
+    async def test_run_stream_zero_iter_invokes_provider_once(
+        self, zero_iter_orchestrator,
+    ):
+        """With max_iterations=0, exactly one provider.complete call fires
+        (the no-tools escape hatch), not zero and not two."""
+        events = []
+        async for event in zero_iter_orchestrator.run_stream(
+            question="hi",
+            system_prompt="You are a test assistant.",
+        ):
+            events.append(event)
+        # MockProvider increments call_count on every complete() call
+        assert zero_iter_orchestrator.provider.call_count == 1

@@ -157,6 +157,11 @@ class CorpusConfig(BaseModel):
     refusal_threshold: float = 0.0
     top_k: int = 5
     max_iterations: int = 3
+    # When False, the corpus is kept in YAML for schema visibility but is
+    # not wired into corpus_map at startup. Dashboard can render the
+    # toggle as disabled; /ask requests for the corpus return 400.
+    # Use this for corpora whose docs/store are not yet curated.
+    available: bool = True
 
 
 class AppConfig(BaseModel):
@@ -175,11 +180,21 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_default_corpus(self) -> "AppConfig":
-        if self.corpora and self.default_corpus not in self.corpora:
+        if not self.corpora:
+            return self
+        if self.default_corpus not in self.corpora:
             raise ValueError(
                 f"default_corpus={self.default_corpus!r} is not in corpora "
                 f"{sorted(self.corpora.keys())!r}. Configured corpora must "
                 "include the default.",
+            )
+        # The default corpus must also be available — otherwise the app
+        # would boot with no reachable default orchestrator.
+        if not self.corpora[self.default_corpus].available:
+            raise ValueError(
+                f"default_corpus={self.default_corpus!r} has available=False. "
+                "The default corpus must be ready to serve; set available=true "
+                "or point default_corpus at a ready corpus.",
             )
         return self
 

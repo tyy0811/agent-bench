@@ -271,6 +271,7 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
         <button class="active" data-corpus="fastapi">FastAPI Docs</button>
         <button data-corpus="k8s">Kubernetes</button>
       </div>
+      <script id="corpus-config" type="application/json">{{CORPUS_CONFIG_JSON}}</script>
 
       <div class="running-on" id="runningOn"></div>
 
@@ -417,19 +418,31 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
 </div>
 
 <script>
+/* ── Server-injected corpus config ─── */
+// Falls back to fastapi-only if the placeholder wasn't substituted
+// (e.g., the HTML was served outside create_app, or tests).
+const CORPUS_CONFIG = (() => {
+  const node = document.getElementById('corpus-config');
+  if (!node) return { corpora: { fastapi: { label: 'FastAPI Docs', available: true } }, default_corpus: 'fastapi' };
+  try {
+    return JSON.parse(node.textContent);
+  } catch {
+    return { corpora: { fastapi: { label: 'FastAPI Docs', available: true } }, default_corpus: 'fastapi' };
+  }
+})();
+
 /* ── State ─── */
 const state = {
   provider: 'openai',
-  corpus: 'fastapi',
+  corpus: CORPUS_CONFIG.default_corpus || 'fastapi',
   busy: false,
   currentIteration: 1,
   maxIterationSeen: 1,
 };
 
-const CORPUS_LABELS = {
-  fastapi: 'FastAPI Docs',
-  k8s: 'Kubernetes',
-};
+const CORPUS_LABELS = Object.fromEntries(
+  Object.entries(CORPUS_CONFIG.corpora || {}).map(([k, v]) => [k, v.label])
+);
 
 const CHIPS_BY_CORPUS = {
   fastapi: [
@@ -458,7 +471,13 @@ document.querySelectorAll('#providerToggle button').forEach(b => {
 });
 
 /* ── Corpus toggle ─── */
+function isCorpusAvailable(c) {
+  const meta = (CORPUS_CONFIG.corpora || {})[c];
+  return !!(meta && meta.available);
+}
+
 function setCorpus(c) {
+  if (!isCorpusAvailable(c)) return;  // defensive, should be blocked by disabled attr
   state.corpus = c;
   document.querySelectorAll('#corpusToggle button').forEach(b => {
     b.classList.toggle('active', b.dataset.corpus === c);
@@ -484,9 +503,28 @@ function renderChips(corpusName) {
   });
 }
 
+// Wire the corpus toggle. Unavailable corpora get disabled + a tooltip
+// explaining why, so the button is visible (the code supports it) but
+// clicking does nothing. Available corpora attach a click handler.
 document.querySelectorAll('#corpusToggle button').forEach(b => {
-  b.addEventListener('click', () => setCorpus(b.dataset.corpus));
+  const name = b.dataset.corpus;
+  if (isCorpusAvailable(name)) {
+    b.addEventListener('click', () => setCorpus(name));
+  } else {
+    b.disabled = true;
+    b.style.opacity = '0.5';
+    b.style.cursor = 'not-allowed';
+    b.title = 'Corpus not yet available on this server (curation pending)';
+  }
 });
+
+// If the hardcoded-active corpus is unavailable, flip to the first
+// available one. Default is always fastapi for now; this guards
+// against future config where fastapi is missing or unavailable.
+if (!isCorpusAvailable(state.corpus)) {
+  const available = Object.keys(CORPUS_CONFIG.corpora || {}).filter(isCorpusAvailable);
+  if (available.length > 0) setCorpus(available[0]);
+}
 
 // Initial chip render
 renderChips(state.corpus);

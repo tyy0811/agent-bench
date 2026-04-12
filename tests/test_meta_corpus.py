@@ -51,10 +51,14 @@ class TestMetaCorpus:
         assert meta["metadata"]["corpus_label"] == "Kubernetes"
 
     @pytest.mark.asyncio
-    async def test_meta_provider_label_composes_with_corpus(
+    async def test_meta_reflects_resolved_provider_not_config_default(
         self, two_corpus_two_provider_app,
     ):
-        """Provider field in meta still reflects the config default."""
+        """Meta event must report the actually-resolved provider, not
+        config.provider.default. Adversarial review flagged that the
+        previous implementation would say 'openai' in the meta event
+        even when the request was routed to anthropic (or vice versa).
+        """
         app = two_corpus_two_provider_app
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test",
@@ -65,7 +69,24 @@ class TestMetaCorpus:
             )
         events = _parse_sse(resp.text)
         meta = next(e for e in events if e.get("type") == "meta")
-        # Meta is emitted before the actual orchestrator runs; config.default
-        # provider is what's advertised. Corpus metadata follows the request.
         assert meta["metadata"]["corpus"] == "k8s"
         assert meta["metadata"]["corpus_label"] == "Kubernetes"
+        # Config default is 'mock', but the request asked for 'openai'
+        # and openai IS wired — meta must say openai.
+        assert meta["metadata"]["provider"] == "openai"
+
+    @pytest.mark.asyncio
+    async def test_meta_provider_matches_default_when_implicit(
+        self, two_corpus_two_provider_app,
+    ):
+        """When body.provider is None, meta reports the config default."""
+        app = two_corpus_two_provider_app
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/ask/stream", json={"question": "hi"},
+            )
+        events = _parse_sse(resp.text)
+        meta = next(e for e in events if e.get("type") == "meta")
+        assert meta["metadata"]["provider"] == "mock"  # config default

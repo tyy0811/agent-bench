@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from agent_bench.core.provider import LLMProvider
 from agent_bench.core.types import (
+    CompletionResponse,
     Message,
     Role,
     TokenUsage,
@@ -203,6 +204,18 @@ class Orchestrator:
         total_input_tokens = 0
         total_output_tokens = 0
         iteration = 0
+        response: CompletionResponse | None = None
+
+        # max_iterations=0 is a "no tools" escape hatch. Handle it before
+        # the loop so the post-loop response.tool_calls check never sees
+        # an unbound `response`. run() has the same shape.
+        if self.max_iterations == 0:
+            response = await self.provider.complete(
+                messages, tools=None, temperature=self.temperature
+            )
+            total_cost += response.usage.estimated_cost_usd
+            total_input_tokens += response.usage.input_tokens
+            total_output_tokens += response.usage.output_tokens
 
         for iteration in range(1, self.max_iterations + 1):
             # --- LLM stage: running ---
@@ -300,8 +313,10 @@ class Orchestrator:
                 )
 
         # Max iterations hit — force text answer without tools
-        # (same pattern as run(): explicit call after loop)
-        if response.tool_calls:
+        # (same pattern as run(): explicit call after loop). The
+        # `iteration > 0` guard prevents UnboundLocalError when
+        # max_iterations=0 short-circuited above.
+        if iteration > 0 and response is not None and response.tool_calls:
             yield StreamEvent(type="stage", metadata={
                 "stage": "llm", "status": "running", "iteration": iteration,
             })
@@ -315,13 +330,7 @@ class Orchestrator:
                 "stage": "llm", "status": "done", "iteration": iteration,
             })
 
-        if self.max_iterations == 0:
-            response = await self.provider.complete(
-                messages, tools=None, temperature=self.temperature
-            )
-            total_cost += response.usage.estimated_cost_usd
-            total_input_tokens += response.usage.input_tokens
-            total_output_tokens += response.usage.output_tokens
+        assert response is not None  # exhaustive: loop runs ≥1 iter or max_iter==0 branch fired
 
         # --- Legacy events (backward-compatible) ---
         yield StreamEvent(

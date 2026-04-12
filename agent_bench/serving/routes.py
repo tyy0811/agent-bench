@@ -25,35 +25,37 @@ router = APIRouter()
 
 def _resolve_orchestrator(
     request: Request, body: AskRequest,
-) -> tuple[Orchestrator, str]:
-    """Resolve (orchestrator, corpus_name) for an incoming request.
+) -> tuple[Orchestrator, str, str]:
+    """Resolve (orchestrator, corpus_name, provider_name) for a request.
 
-    Multi-corpus mode: look up corpus_map[corpus][provider], falling back
-    to the default provider within the corpus if the requested provider
-    is not available there.
+    Multi-corpus mode: look up corpus_map[corpus][provider]. If the
+    request explicitly names a provider that isn't wired for the
+    resolved corpus, raise 400 instead of silently falling back —
+    silent fallback makes the provider comparison telemetry
+    untrustworthy and hides config drift.
 
     Legacy single-corpus mode: use the flat orchestrators dict keyed by
-    provider name, then fall back to app.state.orchestrator.
+    provider name. Same strict rule: explicit body.provider that isn't
+    in orchestrators → 400. Implicit (None) → fall through to default.
 
     Raises:
-        HTTPException(400): body.corpus is explicitly set in multi-corpus
-            mode but the named corpus is not wired on this server. Pydantic
-            Literal on AskRequest.corpus catches unknown names (422); this
-            catches "known per schema but not deployed" at 400. Mirrors
-            the AppConfig validator for default_corpus at request time.
+        HTTPException(400): body.corpus names a corpus not in corpus_map,
+            OR body.provider names a provider not wired for the resolved
+            corpus. Pydantic Literal catches unknown names at 422; this
+            catches "known per schema but not deployed at runtime" at 400.
 
-    Returns the resolved orchestrator and the corpus name used (empty
-    string in legacy mode when no default_corpus is configured).
+    Returns:
+        (orchestrator, corpus_name, provider_name). provider_name is
+        the actual provider key used to reach the orchestrator — it
+        may differ from body.provider when body.provider is None and
+        the corpus default is used.
     """
     config: AppConfig = request.app.state.config
     corpus_map: dict = getattr(request.app.state, "corpus_map", {})
     default_corpus: str = getattr(config, "default_corpus", "") or ""
     provider_default: str = config.provider.default
 
-    # Fail loud if the request names a corpus that is not wired. Only
-    # fires when body.corpus is explicit — a None corpus always falls
-    # through to default_corpus (which the AppConfig validator guarantees
-    # is in corpus_map when corpora is non-empty).
+    # Fail loud on unwired corpus.
     if corpus_map and body.corpus is not None and body.corpus not in corpus_map:
         raise HTTPException(
             status_code=400,
@@ -67,20 +69,37 @@ def _resolve_orchestrator(
 
     if corpus_map and corpus_name in corpus_map:
         inner = corpus_map[corpus_name]
-        provider_key = body.provider or provider_default
-        if provider_key in inner:
-            return inner[provider_key], corpus_name
-        # Requested provider not wired for this corpus; fall back to the
-        # corpus default provider so the corpus selection is still honored.
-        if provider_default in inner:
-            return inner[provider_default], corpus_name
-        return next(iter(inner.values())), corpus_name
+        # Explicit body.provider must be wired for this corpus. No silent
+        # fallback — we'd mislabel telemetry and lie in the meta event.
+        if body.provider is not None:
+            if body.provider not in inner:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Provider {body.provider!r} is not available for "
+                        f"corpus {corpus_name!r}. Available providers: "
+                        f"{sorted(inner.keys())}"
+                    ),
+                )
+            return inner[body.provider], corpus_name, body.provider
+        # Implicit — use the corpus's copy of the config default provider.
+        # If even the default isn't wired (misconfig), 500 is appropriate;
+        # we let KeyError propagate as a loud server error.
+        return inner[provider_default], corpus_name, provider_default
 
     # Legacy single-corpus mode: flat per-provider dict.
     orchestrators: dict = getattr(request.app.state, "orchestrators", {})
-    if body.provider and body.provider in orchestrators:
-        return orchestrators[body.provider], corpus_name
-    return request.app.state.orchestrator, corpus_name
+    if body.provider is not None:
+        if body.provider not in orchestrators:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Provider {body.provider!r} is not available. "
+                    f"Available providers: {sorted(orchestrators.keys())}"
+                ),
+            )
+        return orchestrators[body.provider], corpus_name, body.provider
+    return request.app.state.orchestrator, corpus_name, provider_default
 
 
 def _resolve_system_prompt(
@@ -101,32 +120,57 @@ def _resolve_system_prompt(
     return request.app.state.system_prompt, ""
 
 
-_LANDING_HTML: str | None = None
+_LANDING_HTML_TEMPLATE: str | None = None
 
 
-def _get_landing_html() -> str:
-    """Read and cache index.html on first call."""
-    global _LANDING_HTML  # noqa: PLW0603
-    if _LANDING_HTML is None:
+def _get_landing_html_template() -> str:
+    """Read and cache the raw index.html template on first call."""
+    global _LANDING_HTML_TEMPLATE  # noqa: PLW0603
+    if _LANDING_HTML_TEMPLATE is None:
         from pathlib import Path
 
         html_path = Path(__file__).parent / "static" / "index.html"
-        _LANDING_HTML = html_path.read_text()
-    return _LANDING_HTML
+        _LANDING_HTML_TEMPLATE = html_path.read_text()
+    return _LANDING_HTML_TEMPLATE
+
+
+def _render_landing_html(config: AppConfig) -> str:
+    """Inject per-server corpus availability into the cached HTML.
+
+    The dashboard reads the JSON from a <script id="corpus-config">
+    block to decide which corpus toggles to enable. Injection uses a
+    literal string replace rather than a template engine to keep the
+    landing page a single static file.
+    """
+    import json as _json
+
+    template = _get_landing_html_template()
+    corpora_data = {
+        name: {"label": cfg.label, "available": cfg.available}
+        for name, cfg in config.corpora.items()
+    }
+    payload = _json.dumps({
+        "corpora": corpora_data,
+        "default_corpus": config.default_corpus,
+    })
+    # Escape </script> to avoid HTML injection if a config value ever
+    # contains one. json.dumps already escapes backslashes and quotes.
+    payload = payload.replace("</", "<\\/")
+    return template.replace("{{CORPUS_CONFIG_JSON}}", payload)
 
 
 @router.get("/")
-async def root() -> Response:
+async def root(request: Request) -> Response:
     """Showcase landing page with live RAG dashboard."""
     from starlette.responses import HTMLResponse
 
-    return HTMLResponse(content=_get_landing_html())
+    return HTMLResponse(content=_render_landing_html(request.app.state.config))
 
 
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     """Ask a question and get an answer with sources."""
-    orchestrator, corpus_name = _resolve_orchestrator(request, body)
+    orchestrator, corpus_name, _provider_name = _resolve_orchestrator(request, body)
     system_prompt, _corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
@@ -226,19 +270,19 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
 @router.post("/ask/stream")
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     """Stream an answer via Server-Sent Events with per-stage instrumentation."""
-    orchestrator, corpus_name = _resolve_orchestrator(request, body)
+    orchestrator, corpus_name, provider_name = _resolve_orchestrator(request, body)
     system_prompt, corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
     config: AppConfig = request.app.state.config
 
-    # --- Meta event data (available before request starts) ---
-    provider_name = getattr(config, "provider", None)
-    provider_default = getattr(provider_name, "default", "unknown") if provider_name else "unknown"
+    # --- Meta event data (resolved from the actual orchestrator, not
+    # from config.provider.default — otherwise a dashboard request with
+    # provider="anthropic" would see "openai" in the meta event).
     provider_obj = orchestrator.provider
     model_name = getattr(
         provider_obj, "model_name",
-        getattr(provider_obj, "_model_name", provider_default),
+        getattr(provider_obj, "_model_name", provider_name),
     )
 
     # --- Security: injection detection (pre-retrieval) ---
@@ -283,7 +327,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
 
         # --- Meta event (first, before any stages) ---
         yield StreamEvent(type="meta", metadata={
-            "provider": provider_default,
+            "provider": provider_name,
             "model": model_name,
             "corpus": corpus_name,
             "corpus_label": corpus_label,

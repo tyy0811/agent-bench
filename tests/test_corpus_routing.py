@@ -211,6 +211,31 @@ class TestMisconfiguredCorpus:
             )
         assert resp.status_code == 200
 
+    @pytest.mark.asyncio
+    async def test_unavailable_provider_returns_400(self, fastapi_only_app):
+        """Explicitly asking for a provider not wired on the server must
+        fail loud with 400 instead of silently running on the default.
+
+        The fastapi_only_app fixture only has 'mock' wired (no
+        OPENAI_API_KEY is set, so the openai alt provider is never
+        added to providers dict). A dashboard request with
+        provider='anthropic' used to silently run on mock."""
+        async with AsyncClient(
+            transport=ASGITransport(app=fastapi_only_app), base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/ask",
+                json={
+                    "question": "hi",
+                    "corpus": "fastapi",
+                    "provider": "anthropic",
+                },
+            )
+        assert resp.status_code == 400
+        detail = resp.json().get("detail", "")
+        assert "anthropic" in detail.lower()
+        assert "not available" in detail.lower()
+
 
 class TestResolveOrchestratorDirect:
     """Unit tests for _resolve_orchestrator without the HTTP stack.
@@ -262,12 +287,13 @@ class TestResolveOrchestratorDirect:
             default_corpus="fastapi",
             provider_default="mock",
         )
-        orch, name = _resolve_orchestrator(req, self._make_body())
+        orch, name, provider_name = _resolve_orchestrator(req, self._make_body())
         assert orch is sentinel
         assert name == "fastapi"
+        assert provider_name == "mock"
 
-    def test_provider_fallback_to_corpus_default(self, fake_request_builder):
-        """body.provider=None uses corpus default; Literal accepts None."""
+    def test_explicit_provider_routes_correctly(self, fake_request_builder):
+        """body.provider=openai picks the openai cell, not a fallback."""
         from agent_bench.serving.routes import _resolve_orchestrator
 
         mock_sent = object()
@@ -277,10 +303,34 @@ class TestResolveOrchestratorDirect:
             default_corpus="fastapi",
             provider_default="mock",
         )
-        orch, _ = _resolve_orchestrator(req, self._make_body(provider="openai"))
+        orch, _, provider_name = _resolve_orchestrator(
+            req, self._make_body(provider="openai"),
+        )
         assert orch is oai_sent
-        orch, _ = _resolve_orchestrator(req, self._make_body())
+        assert provider_name == "openai"
+        # Implicit provider uses corpus default.
+        orch, _, provider_name = _resolve_orchestrator(req, self._make_body())
         assert orch is mock_sent
+        assert provider_name == "mock"
+
+    def test_explicit_unavailable_provider_raises_400(self, fake_request_builder):
+        """body.provider explicitly names a provider not wired for the
+        corpus — fail closed with 400 instead of silently falling back."""
+        from fastapi import HTTPException
+
+        from agent_bench.serving.routes import _resolve_orchestrator
+
+        req = fake_request_builder(
+            # Only mock is wired — no openai, no anthropic.
+            corpus_map={"fastapi": {"mock": object()}},
+            default_corpus="fastapi",
+            provider_default="mock",
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            _resolve_orchestrator(req, self._make_body(provider="anthropic"))
+        assert exc_info.value.status_code == 400
+        assert "anthropic" in exc_info.value.detail
+        assert "mock" in exc_info.value.detail  # lists what IS available
 
     def test_explicit_unconfigured_corpus_raises_400(self, fake_request_builder):
         from fastapi import HTTPException
@@ -311,11 +361,35 @@ class TestResolveOrchestratorDirect:
             orchestrator=legacy_orch,
         )
         # body.provider=openai finds it in flat dict
-        orch, _ = _resolve_orchestrator(req, self._make_body(provider="openai"))
+        orch, _, provider_name = _resolve_orchestrator(
+            req, self._make_body(provider="openai"),
+        )
         assert orch is flat_oai
+        assert provider_name == "openai"
         # No provider falls back to app.state.orchestrator
-        orch, _ = _resolve_orchestrator(req, self._make_body())
+        orch, _, provider_name = _resolve_orchestrator(req, self._make_body())
         assert orch is legacy_orch
+        assert provider_name == "mock"
+
+    def test_legacy_mode_explicit_unavailable_provider_raises_400(
+        self, fake_request_builder,
+    ):
+        """Legacy mode is also strict on explicit unavailable providers."""
+        from fastapi import HTTPException
+
+        from agent_bench.serving.routes import _resolve_orchestrator
+
+        req = fake_request_builder(
+            corpus_map={},
+            default_corpus="",
+            provider_default="mock",
+            orchestrators={"mock": object()},  # only mock wired
+            orchestrator=object(),
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            _resolve_orchestrator(req, self._make_body(provider="anthropic"))
+        assert exc_info.value.status_code == 400
+        assert "anthropic" in exc_info.value.detail
 
 
 class TestResolveSystemPromptDirect:

@@ -114,6 +114,20 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         _default_store: HybridStore | None = None
 
         for corpus_name, corpus_cfg in config.corpora.items():
+            # Skip corpora marked unavailable. They stay in config.corpora
+            # for schema visibility but are not wired into corpus_map,
+            # so routes return 400 via _resolve_orchestrator and the
+            # dashboard can render the toggle as disabled.
+            if not corpus_cfg.available:
+                log.warning(
+                    "corpus_skipped_unavailable",
+                    name=corpus_name,
+                    label=corpus_cfg.label,
+                    reason="CorpusConfig.available=False",
+                    hint="set available=true once the store is built",
+                )
+                continue
+
             c_store_path = Path(corpus_cfg.store_path)
             if c_store_path.exists() and (c_store_path / "index.faiss").exists():
                 c_store = HybridStore.load(

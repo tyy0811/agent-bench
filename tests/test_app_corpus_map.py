@@ -167,3 +167,69 @@ def test_corpus_map_has_all_providers(multi_corpus_config, monkeypatch):
         app.state.corpus_map["fastapi"]["mock"]
         is not app.state.corpus_map["k8s"]["mock"]
     )
+
+
+def test_unavailable_corpus_is_skipped(tmp_path):
+    """A corpus with available=False is kept in config.corpora for
+    schema visibility but is NOT wired into corpus_map at startup."""
+    config = AppConfig(
+        provider=ProviderConfig(default="mock"),
+        rag=RAGConfig(store_path=str(tmp_path / "store_default")),
+        embedding=EmbeddingConfig(cache_dir=str(tmp_path / "emb_cache")),
+        corpora={
+            "fastapi": CorpusConfig(
+                label="FastAPI",
+                store_path=str(tmp_path / "store_fastapi"),
+                data_path="data/tech_docs",
+            ),
+            "k8s": CorpusConfig(
+                label="Kubernetes",
+                store_path=str(tmp_path / "store_k8s"),
+                data_path="data/k8s_docs",
+                available=False,
+            ),
+        },
+        default_corpus="fastapi",
+    )
+    app = create_app(config)
+    # Only fastapi wired in corpus_map
+    assert set(app.state.corpus_map.keys()) == {"fastapi"}
+    # But k8s is still in config.corpora for dashboard/introspection
+    assert "k8s" in config.corpora
+    assert config.corpora["k8s"].available is False
+
+
+@pytest.mark.asyncio
+async def test_unavailable_k8s_corpus_returns_400_at_request_time(tmp_path):
+    """End-to-end: request for the unavailable corpus gets 400."""
+    from httpx import ASGITransport, AsyncClient
+
+    config = AppConfig(
+        provider=ProviderConfig(default="mock"),
+        rag=RAGConfig(store_path=str(tmp_path / "store_default")),
+        embedding=EmbeddingConfig(cache_dir=str(tmp_path / "emb_cache")),
+        corpora={
+            "fastapi": CorpusConfig(
+                label="FastAPI",
+                store_path=str(tmp_path / "store_fastapi"),
+                data_path="data/tech_docs",
+            ),
+            "k8s": CorpusConfig(
+                label="Kubernetes",
+                store_path=str(tmp_path / "store_k8s"),
+                data_path="data/k8s_docs",
+                available=False,
+            ),
+        },
+        default_corpus="fastapi",
+    )
+    app = create_app(config)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test",
+    ) as client:
+        resp = await client.post(
+            "/ask", json={"question": "hi", "corpus": "k8s"},
+        )
+    assert resp.status_code == 400
+    assert "k8s" in resp.json()["detail"]
