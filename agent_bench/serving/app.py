@@ -128,7 +128,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     )
     registry.register(CalculatorTool())
 
-    # Orchestrators — one per available provider
+    # Orchestrators — one per available provider (legacy flat dict)
     orchestrators: dict = {}
     for name, prov in providers.items():
         orchestrators[name] = Orchestrator(
@@ -138,6 +138,88 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             temperature=config.agent.temperature,
         )
     orchestrator = orchestrators[config.provider.default]
+
+    # Multi-corpus construction: nested corpus_map[corpus][provider].
+    # Each corpus has its own store/retriever/search tool (shared across
+    # providers within the corpus). Only the Orchestrator differs per provider
+    # since it holds the LLM client.
+    corpus_map: dict[str, dict[str, Orchestrator]] = {}
+    if config.corpora:
+        import psutil
+        import structlog
+
+        _proc = psutil.Process()
+        _baseline_rss = _proc.memory_info().rss / 1024**2
+        _log = structlog.get_logger()
+
+        for corpus_name, corpus_cfg in config.corpora.items():
+            # Per-corpus store (may fall back to empty if no files on disk)
+            c_store_path = Path(corpus_cfg.store_path)
+            if c_store_path.exists() and (c_store_path / "index.faiss").exists():
+                c_store = HybridStore.load(
+                    str(c_store_path), rrf_k=config.rag.retrieval.rrf_k,
+                )
+            else:
+                c_store = HybridStore(
+                    dimension=384, rrf_k=config.rag.retrieval.rrf_k,
+                )
+
+            c_retriever = Retriever(
+                embedder=embedder,
+                store=c_store,
+                default_strategy=config.rag.retrieval.strategy,  # type: ignore[arg-type]
+                candidates_per_system=config.rag.retrieval.candidates_per_system,
+                reranker=reranker,
+                reranker_top_k=config.rag.reranker.top_k,
+            )
+            c_registry = ToolRegistry()
+            c_registry.register(
+                SearchTool(
+                    retriever=c_retriever,
+                    default_top_k=corpus_cfg.top_k,
+                    default_strategy=config.rag.retrieval.strategy,
+                    refusal_threshold=corpus_cfg.refusal_threshold,
+                    pii_redactor=pii_redactor if sec.pii.enabled else None,
+                )
+            )
+            c_registry.register(CalculatorTool())
+
+            # One orchestrator per available provider, sharing the registry.
+            inner: dict[str, Orchestrator] = {}
+            for p_name, p_prov in providers.items():
+                inner[p_name] = Orchestrator(
+                    provider=p_prov,
+                    registry=c_registry,
+                    max_iterations=corpus_cfg.max_iterations,
+                    temperature=config.agent.temperature,
+                )
+            corpus_map[corpus_name] = inner
+
+            _rss_mb = _proc.memory_info().rss / 1024**2
+            _log.info(
+                "corpus_loaded",
+                name=corpus_name,
+                label=corpus_cfg.label,
+                store_path=str(c_store_path),
+                providers=list(inner.keys()),
+                rss_mb=round(_rss_mb, 1),
+                rss_delta_mb=round(_rss_mb - _baseline_rss, 1),
+            )
+
+        _log.info(
+            "multi_corpus_mode",
+            corpora=list(corpus_map.keys()),
+            default=config.default_corpus,
+            providers=list(providers.keys()),
+        )
+        # Default orchestrator is the default corpus × default provider.
+        if config.default_corpus in corpus_map:
+            default_inner = corpus_map[config.default_corpus]
+            if config.provider.default in default_inner:
+                orchestrator = default_inner[config.provider.default]
+    else:
+        import structlog
+        structlog.get_logger().info("single_corpus_mode_legacy")
 
     # Metrics
     metrics = MetricsCollector()
@@ -152,6 +234,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     # Attach to app state
     app.state.orchestrator = orchestrator
     app.state.orchestrators = orchestrators
+    app.state.corpus_map = corpus_map
     app.state.store = store
     app.state.conversation_store = conversation_store
     app.state.config = config
