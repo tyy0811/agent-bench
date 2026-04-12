@@ -84,3 +84,30 @@ def test_unknown_format_raises(tmp_path):
     path.write_text(json.dumps({"foo": "bar"}))
     with pytest.raises(ValueError, match="Unrecognized golden dataset format"):
         load_golden_dataset(path)
+
+
+def test_nested_format_ignores_unknown_header_fields(tmp_path):
+    """Extra header keys alongside 'questions' don't break the loader."""
+    data = {
+        "corpus": "k8s",
+        "version": "v1.31",
+        "snapshot_date": "2026-04-15",
+        "custom_future_field": {"anything": [1, 2, 3]},
+        "author": "someone",
+        "questions": [
+            {
+                "id": "q1",
+                "question": "Test?",
+                "expected_answer_keywords": ["test"],
+                "expected_sources": ["doc.md"],
+                "category": "retrieval",
+                "difficulty": "easy",
+                "requires_calculator": False,
+            }
+        ],
+    }
+    path = tmp_path / "headerish.json"
+    path.write_text(json.dumps(data))
+    qs = load_golden_dataset(path)
+    assert len(qs) == 1
+    assert qs[0].id == "q1"

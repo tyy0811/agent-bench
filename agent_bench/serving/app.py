@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
+import psutil
+import structlog
 from fastapi import FastAPI
 
 from agent_bench.agents.orchestrator import Orchestrator
@@ -29,6 +32,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         config = load_config()
 
     app = FastAPI(title="agent-bench", version="0.1.0")
+    log = structlog.get_logger()
 
     # Load task config for system prompt
     task = load_task_config("tech_docs")
@@ -39,8 +43,6 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     _alt_providers = {"openai", "anthropic"} - {config.provider.default}
     for alt in _alt_providers:
         try:
-            import os
-
             from agent_bench.core.provider import (
                 AnthropicProvider,
                 OpenAIProvider,
@@ -55,39 +57,20 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         except Exception:
             pass  # missing dependency or key — skip
 
-    # RAG pipeline
-    store_path = Path(config.rag.store_path)
-    if store_path.exists() and (store_path / "index.faiss").exists():
-        store = HybridStore.load(str(store_path), rrf_k=config.rag.retrieval.rrf_k)
-        embedder = Embedder(
-            model_name=config.embedding.model,
-            cache_dir=config.embedding.cache_dir,
-        )
-    else:
-        # No store on disk — create empty store (for testing or first run)
-        store = HybridStore(dimension=384, rrf_k=config.rag.retrieval.rrf_k)
-        embedder = Embedder(
-            model_name=config.embedding.model,
-            cache_dir=config.embedding.cache_dir,
-        )
+    # --- Shared RAG components (corpus-independent) ---
+    embedder = Embedder(
+        model_name=config.embedding.model,
+        cache_dir=config.embedding.cache_dir,
+    )
 
-    # Optional reranker
     reranker = None
     if config.rag.reranker.enabled:
         from agent_bench.rag.reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker(model_name=config.rag.reranker.model_name)
 
-    retriever = Retriever(
-        embedder=embedder,
-        store=store,
-        default_strategy=config.rag.retrieval.strategy,  # type: ignore[arg-type]
-        candidates_per_system=config.rag.retrieval.candidates_per_system,
-        reranker=reranker,
-        reranker_top_k=config.rag.reranker.top_k,
-    )
-
-    # Security components (constructed before tools so PII redactor can be injected)
+    # --- Security components (constructed before tools so PII redactor
+    # can be injected into per-corpus SearchTools) ---
     from agent_bench.security.audit_logger import AuditLogger
     from agent_bench.security.injection_detector import InjectionDetector
     from agent_bench.security.output_validator import OutputValidator
@@ -115,45 +98,21 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         rotate=sec.audit.rotate,
     )
 
-    # Tools (PII redactor injected into search tool for post-retrieval redaction)
-    registry = ToolRegistry()
-    registry.register(
-        SearchTool(
-            retriever=retriever,
-            default_top_k=config.rag.retrieval.top_k,
-            default_strategy=config.rag.retrieval.strategy,
-            refusal_threshold=config.rag.refusal_threshold,
-            pii_redactor=pii_redactor if sec.pii.enabled else None,
-        )
-    )
-    registry.register(CalculatorTool())
-
-    # Orchestrators — one per available provider (legacy flat dict)
-    orchestrators: dict = {}
-    for name, prov in providers.items():
-        orchestrators[name] = Orchestrator(
-            provider=prov,
-            registry=registry,
-            max_iterations=config.agent.max_iterations,
-            temperature=config.agent.temperature,
-        )
-    orchestrator = orchestrators[config.provider.default]
-
-    # Multi-corpus construction: nested corpus_map[corpus][provider].
-    # Each corpus has its own store/retriever/search tool (shared across
-    # providers within the corpus). Only the Orchestrator differs per provider
-    # since it holds the LLM client.
+    # --- Mode-dependent construction: multi-corpus vs legacy single-corpus ---
     corpus_map: dict[str, dict[str, Orchestrator]] = {}
-    if config.corpora:
-        import psutil
-        import structlog
+    orchestrators: dict[str, Orchestrator] = {}
+    store: HybridStore
 
+    if config.corpora:
+        # Multi-corpus mode. Skip the legacy single-store path entirely —
+        # each corpus gets its own store / retriever / registry, and the
+        # per-corpus inner dict holds one Orchestrator per available provider.
         _proc = psutil.Process()
         _baseline_rss = _proc.memory_info().rss / 1024**2
-        _log = structlog.get_logger()
+
+        _default_store: HybridStore | None = None
 
         for corpus_name, corpus_cfg in config.corpora.items():
-            # Per-corpus store (may fall back to empty if no files on disk)
             c_store_path = Path(corpus_cfg.store_path)
             if c_store_path.exists() and (c_store_path / "index.faiss").exists():
                 c_store = HybridStore.load(
@@ -177,14 +136,13 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 SearchTool(
                     retriever=c_retriever,
                     default_top_k=corpus_cfg.top_k,
-                    default_strategy=config.rag.retrieval.strategy,
+                    default_strategy=config.rag.retrieval.strategy,  # type: ignore[arg-type]
                     refusal_threshold=corpus_cfg.refusal_threshold,
                     pii_redactor=pii_redactor if sec.pii.enabled else None,
                 )
             )
             c_registry.register(CalculatorTool())
 
-            # One orchestrator per available provider, sharing the registry.
             inner: dict[str, Orchestrator] = {}
             for p_name, p_prov in providers.items():
                 inner[p_name] = Orchestrator(
@@ -195,8 +153,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 )
             corpus_map[corpus_name] = inner
 
+            if corpus_name == config.default_corpus:
+                _default_store = c_store
+
             _rss_mb = _proc.memory_info().rss / 1024**2
-            _log.info(
+            log.info(
                 "corpus_loaded",
                 name=corpus_name,
                 label=corpus_cfg.label,
@@ -206,20 +167,73 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 rss_delta_mb=round(_rss_mb - _baseline_rss, 1),
             )
 
-        _log.info(
+        log.info(
             "multi_corpus_mode",
             corpora=list(corpus_map.keys()),
             default=config.default_corpus,
             providers=list(providers.keys()),
         )
-        # Default orchestrator is the default corpus × default provider.
-        if config.default_corpus in corpus_map:
-            default_inner = corpus_map[config.default_corpus]
-            if config.provider.default in default_inner:
-                orchestrator = default_inner[config.provider.default]
+
+        # Fix #3: legacy rag.refusal_threshold is ignored in multi-corpus mode;
+        # per-corpus refusal_threshold is authoritative. Warn loudly so config
+        # drift surfaces at startup instead of becoming a silent divergence.
+        if config.rag.refusal_threshold != 0.0:
+            log.warning(
+                "rag_refusal_threshold_ignored_in_multi_corpus_mode",
+                legacy_value=config.rag.refusal_threshold,
+                authoritative_source="corpora.<name>.refusal_threshold",
+                hint="remove rag.refusal_threshold from config to silence",
+            )
+
+        # AppConfig._validate_default_corpus guarantees default_corpus is in
+        # corpora when corpora is non-empty, so _default_store is always set.
+        assert _default_store is not None
+        store = _default_store
+        # orchestrators (flat, per-provider) is the default-corpus inner dict
+        # — keeps /ask's existing provider-switching code path working for
+        # the default corpus. Per-request corpus routing in Task 3 will
+        # consult corpus_map[corpus][provider] directly.
+        orchestrators = dict(corpus_map[config.default_corpus])
+        orchestrator = orchestrators[config.provider.default]
     else:
-        import structlog
-        structlog.get_logger().info("single_corpus_mode_legacy")
+        # Legacy single-corpus mode.
+        log.info("single_corpus_mode_legacy")
+
+        store_path = Path(config.rag.store_path)
+        if store_path.exists() and (store_path / "index.faiss").exists():
+            store = HybridStore.load(str(store_path), rrf_k=config.rag.retrieval.rrf_k)
+        else:
+            store = HybridStore(dimension=384, rrf_k=config.rag.retrieval.rrf_k)
+
+        retriever = Retriever(
+            embedder=embedder,
+            store=store,
+            default_strategy=config.rag.retrieval.strategy,  # type: ignore[arg-type]
+            candidates_per_system=config.rag.retrieval.candidates_per_system,
+            reranker=reranker,
+            reranker_top_k=config.rag.reranker.top_k,
+        )
+
+        registry = ToolRegistry()
+        registry.register(
+            SearchTool(
+                retriever=retriever,
+                default_top_k=config.rag.retrieval.top_k,
+                default_strategy=config.rag.retrieval.strategy,  # type: ignore[arg-type]
+                refusal_threshold=config.rag.refusal_threshold,
+                pii_redactor=pii_redactor if sec.pii.enabled else None,
+            )
+        )
+        registry.register(CalculatorTool())
+
+        for name, prov in providers.items():
+            orchestrators[name] = Orchestrator(
+                provider=prov,
+                registry=registry,
+                max_iterations=config.agent.max_iterations,
+                temperature=config.agent.temperature,
+            )
+        orchestrator = orchestrators[config.provider.default]
 
     # Metrics
     metrics = MetricsCollector()
@@ -254,9 +268,6 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     # Startup warmup: eager-load models to reduce cold start latency
     @app.on_event("startup")
     async def warmup() -> None:
-        import structlog
-
-        log = structlog.get_logger()
         log.info("warmup_start")
         _ = embedder.embed("warmup")
         if reranker is not None:

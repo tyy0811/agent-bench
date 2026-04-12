@@ -172,6 +172,16 @@ class AppConfig(BaseModel):
     corpora: dict[str, CorpusConfig] = {}
     default_corpus: str = "fastapi"
 
+    @model_validator(mode="after")
+    def _validate_default_corpus(self) -> "AppConfig":
+        if self.corpora and self.default_corpus not in self.corpora:
+            raise ValueError(
+                f"default_corpus={self.default_corpus!r} is not in corpora "
+                f"{sorted(self.corpora.keys())!r}. Configured corpora must "
+                "include the default.",
+            )
+        return self
+
 
 # --- Task config ---
 
