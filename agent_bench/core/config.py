@@ -147,6 +147,17 @@ class SecurityConfig(BaseModel):
     audit: AuditConfig = AuditConfig()
 
 
+class CorpusConfig(BaseModel):
+    """Per-corpus configuration: store path, thresholds, iteration limits."""
+
+    label: str
+    store_path: str
+    data_path: str
+    refusal_threshold: float = 0.0
+    top_k: int = 5
+    max_iterations: int = 3
+
+
 class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig = ProviderConfig()
@@ -157,6 +168,9 @@ class AppConfig(BaseModel):
     serving: ServingConfig = ServingConfig()
     evaluation: EvaluationConfig = EvaluationConfig()
     security: SecurityConfig = SecurityConfig()
+    # Multi-corpus support
+    corpora: dict[str, CorpusConfig] = {}
+    default_corpus: str = "fastapi"
 
 
 # --- Task config ---
