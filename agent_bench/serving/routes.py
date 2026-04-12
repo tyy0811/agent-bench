@@ -201,6 +201,12 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         getattr(provider_obj, "_model_name", provider_default),
     )
 
+    # Corpus label for meta event (empty string in legacy mode)
+    corpus_label = ""
+    corpora = getattr(config, "corpora", None) or {}
+    if corpus_name and corpus_name in corpora:
+        corpus_label = corpora[corpus_name].label
+
     # --- Security: injection detection (pre-retrieval) ---
     injection_detector = getattr(request.app.state, "injection_detector", None)
     injection_verdict_data = {"safe": True, "tier": "none", "confidence": 1.0}
@@ -245,6 +251,8 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         yield StreamEvent(type="meta", metadata={
             "provider": provider_default,
             "model": model_name,
+            "corpus": corpus_name,
+            "corpus_label": corpus_label,
             "config": {
                 "top_k": body.top_k,
                 "max_iterations": (
