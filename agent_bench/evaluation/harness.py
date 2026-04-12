@@ -31,6 +31,11 @@ class GoldenQuestion(BaseModel):
     difficulty: str
     requires_calculator: bool
     reference_answer: str = ""
+    # Multi-corpus schema v2 (optional)
+    source_chunk_ids: list[str] = []
+    source_snippets: list[str] = []
+    question_type: str = ""
+    is_multi_hop: bool = False
 
 
 class EvalResult(BaseModel):
@@ -58,10 +63,24 @@ class EvalResult(BaseModel):
 
 
 def load_golden_dataset(path: str | Path) -> list[GoldenQuestion]:
-    """Load golden questions from JSON."""
+    """Load golden questions from JSON.
+
+    Supports two formats:
+    - Legacy flat list: [{...}, {...}]
+    - Nested with header: {"corpus": ..., "version": ..., "questions": [...]}
+    """
     with open(path) as f:
         data = json.load(f)
-    return [GoldenQuestion.model_validate(q) for q in data]
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict) and "questions" in data:
+        items = data["questions"]
+    else:
+        raise ValueError(
+            f"Unrecognized golden dataset format at {path}: "
+            "expected list or dict with 'questions' key",
+        )
+    return [GoldenQuestion.model_validate(q) for q in items]
 
 
 async def run_evaluation(
