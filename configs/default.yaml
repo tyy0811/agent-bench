@@ -74,9 +74,38 @@ security:
     enabled: true
     pii_check: true
     url_check: true
+    secret_check: true
     blocklist: []
   audit:
     enabled: true
     path: logs/audit.jsonl
     max_size_mb: 100
     rotate: true
+
+# --- Multi-corpus ---
+# Per-corpus store paths, refusal thresholds, and iteration limits.
+# Default_corpus must be a key in corpora (enforced by AppConfig validator).
+#
+# NOTE: rag.refusal_threshold above is ignored when corpora is non-empty.
+# Each corpus declares its own refusal_threshold below; a startup warning
+# fires if the legacy field is non-default to surface drift.
+default_corpus: fastapi
+
+corpora:
+  fastapi:
+    label: "FastAPI Docs"
+    store_path: .cache/store
+    data_path: data/tech_docs
+    refusal_threshold: 0.02  # matches legacy rag.refusal_threshold
+    top_k: 5
+    max_iterations: 3
+  k8s:
+    label: "Kubernetes"
+    store_path: .cache/store_k8s
+    data_path: data/k8s_docs
+    # PLACEHOLDER — tune against K8s golden dataset once it exists.
+    # K8s has more cross-referenced concepts than FastAPI, so relevance
+    # spreads across more chunks; the threshold likely lands higher.
+    refusal_threshold: 0.30
+    top_k: 5
+    max_iterations: 3

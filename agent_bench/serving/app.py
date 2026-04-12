@@ -175,15 +175,21 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             providers=list(providers.keys()),
         )
 
-        # Fix #3: legacy rag.refusal_threshold is ignored in multi-corpus mode;
-        # per-corpus refusal_threshold is authoritative. Warn loudly so config
-        # drift surfaces at startup instead of becoming a silent divergence.
-        if config.rag.refusal_threshold != 0.0:
+        # Legacy rag.refusal_threshold is ignored in multi-corpus mode;
+        # per-corpus refusal_threshold is authoritative. Only warn when the
+        # legacy value is non-default AND differs from the default corpus's
+        # threshold — that is the actual drift case. A legacy value that
+        # matches the default corpus is benign (someone kept both in sync).
+        legacy_thresh = config.rag.refusal_threshold
+        default_thresh = config.corpora[config.default_corpus].refusal_threshold
+        if legacy_thresh != 0.0 and legacy_thresh != default_thresh:
             log.warning(
-                "rag_refusal_threshold_ignored_in_multi_corpus_mode",
-                legacy_value=config.rag.refusal_threshold,
-                authoritative_source="corpora.<name>.refusal_threshold",
-                hint="remove rag.refusal_threshold from config to silence",
+                "rag_refusal_threshold_drift_in_multi_corpus_mode",
+                legacy_value=legacy_thresh,
+                default_corpus=config.default_corpus,
+                default_corpus_value=default_thresh,
+                hint="rag.refusal_threshold is ignored; "
+                     "update corpora.<name>.refusal_threshold instead",
             )
 
         # AppConfig._validate_default_corpus guarantees default_corpus is in
