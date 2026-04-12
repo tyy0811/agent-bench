@@ -21,6 +21,46 @@ from agent_bench.serving.schemas import (
 router = APIRouter()
 
 
+def _resolve_orchestrator(
+    request: Request, body: AskRequest,
+) -> tuple[Orchestrator, str]:
+    """Resolve (orchestrator, corpus_name) for an incoming request.
+
+    Multi-corpus mode: look up corpus_map[corpus][provider], falling back
+    to the default provider within the corpus if the requested provider
+    is not available there.
+
+    Legacy single-corpus mode: use the flat orchestrators dict keyed by
+    provider name, then fall back to app.state.orchestrator.
+
+    Returns the resolved orchestrator and the corpus name used (empty
+    string in legacy mode when no default_corpus is configured).
+    """
+    config = request.app.state.config
+    corpus_map: dict = getattr(request.app.state, "corpus_map", {})
+    default_corpus: str = getattr(config, "default_corpus", "") or ""
+    provider_default: str = config.provider.default
+
+    corpus_name: str = body.corpus or default_corpus
+
+    if corpus_map and corpus_name in corpus_map:
+        inner = corpus_map[corpus_name]
+        provider_key = body.provider or provider_default
+        if provider_key in inner:
+            return inner[provider_key], corpus_name
+        # Requested provider not wired for this corpus; fall back to the
+        # corpus default provider so the corpus selection is still honored.
+        if provider_default in inner:
+            return inner[provider_default], corpus_name
+        return next(iter(inner.values())), corpus_name
+
+    # Legacy single-corpus mode: flat per-provider dict.
+    orchestrators: dict = getattr(request.app.state, "orchestrators", {})
+    if body.provider and body.provider in orchestrators:
+        return orchestrators[body.provider], corpus_name
+    return request.app.state.orchestrator, corpus_name
+
+
 _LANDING_HTML: str | None = None
 
 
@@ -46,10 +86,7 @@ async def root() -> Response:
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     """Ask a question and get an answer with sources."""
-    orchestrators = getattr(request.app.state, "orchestrators", {})
-    orchestrator: Orchestrator = orchestrators.get(
-        body.provider, request.app.state.orchestrator,
-    ) if body.provider else request.app.state.orchestrator
+    orchestrator, corpus_name = _resolve_orchestrator(request, body)
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
@@ -149,10 +186,7 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
 @router.post("/ask/stream")
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     """Stream an answer via Server-Sent Events with per-stage instrumentation."""
-    orchestrators = getattr(request.app.state, "orchestrators", {})
-    orchestrator: Orchestrator = orchestrators.get(
-        body.provider, request.app.state.orchestrator,
-    ) if body.provider else request.app.state.orchestrator
+    orchestrator, corpus_name = _resolve_orchestrator(request, body)
     system_prompt: str = request.app.state.system_prompt
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")

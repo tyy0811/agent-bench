@@ -16,6 +16,9 @@ class AskRequest(BaseModel):
     retrieval_strategy: Literal["semantic", "keyword", "hybrid"] = "hybrid"
     session_id: str | None = None  # None = stateless (V1 behavior)
     provider: str | None = None  # None = use server default
+    # Per-request corpus selection. None = use default_corpus from config.
+    # Unknown values are rejected at validation time with HTTP 422.
+    corpus: Literal["fastapi", "k8s"] | None = None
 
 
 class ResponseMetadata(BaseModel):
