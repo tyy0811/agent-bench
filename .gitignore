@@ -12,10 +12,17 @@ build/
 *.faiss
 *.pkl
 .env
+.env.*
+.env*
 .venv/
 venv/
 .worktrees/
 *.db
+
+# Runtime audit / telemetry logs — contain hashed IPs, raw prompts,
+# security verdicts. Never commit these.
+logs/
+*.jsonl
 docs/DESIGN.md
 terraform.tfvars
 .terraform/

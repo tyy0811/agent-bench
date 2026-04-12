@@ -90,6 +90,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     output_validator = OutputValidator(
         pii_check=sec.output.pii_check,
         url_check=sec.output.url_check,
+        secret_check=sec.output.secret_check,
         blocklist=sec.output.blocklist,
     )
     audit_logger = AuditLogger(

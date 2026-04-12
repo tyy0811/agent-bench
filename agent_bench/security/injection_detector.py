@@ -70,6 +70,46 @@ _HEURISTIC_PATTERNS: list[tuple[str, re.Pattern]] = [
         r"\b(?:i\s+want|i\s+need|hand\s+over|access)\s+(?:to\s+see\s+)?(?:your\s+)?(?:system\s+prompt|internal\s+prompt|original\s+instructions?|system\s+instructions?)\b",
         re.IGNORECASE,
     )),
+    # Secret / credential extraction
+    # Gated on extraction-verb + determiner ("the/your/exact/...") to avoid
+    # false-positives on educational questions like "What is an API key?".
+    ("api_key_extract", re.compile(
+        r"\b(?:what\s+is|what\s+are|tell\s+me|give\s+me|show\s+me|"
+        r"reveal|share|print|output|copy|send|dump|leak|hand\s+over|disclose)\s+"
+        r"(?:me\s+)?"
+        r"(?:the|your|exact|actual|current|configured|real)\s+"
+        r"(?:exact\s+|current\s+|actual\s+|configured\s+|real\s+)?"
+        r"(?:api\s+key|api_key|secret\s+key|access\s+token|"
+        r"auth\s+token|bearer\s+token|private\s+key)\b",
+        re.IGNORECASE,
+    )),
+    ("credential_extract", re.compile(
+        r"\b(?:what\s+are|tell\s+me|give\s+me|show\s+me|"
+        r"reveal|share|dump|leak|disclose|hand\s+over)\s+"
+        r"(?:me\s+)?"
+        r"(?:the|your)\s+"
+        r"(?:credentials?|secrets?|passwords?|"
+        r"auth\s+details?|login\s+details?)\b",
+        re.IGNORECASE,
+    )),
+    ("env_var_extract", re.compile(
+        r"\b(?:what(?:\s+are)?|tell\s+me|give\s+me|show\s+me|"
+        r"reveal|share|dump|leak|print|list|read)\s+"
+        r"(?:me\s+)?"
+        r"(?:the\s+|your\s+|all\s+)?"
+        r"(?:environment\s+variables?|env\s+vars?|env\s+variables?|"
+        r"process\s+env|\.env\s+file|\.env\s+contents?)\b",
+        re.IGNORECASE,
+    )),
+    # Literal known-secret env var names. Fail closed: mentioning these by
+    # name in a question to a docs assistant is almost always an extraction
+    # attempt. Narrow scope (not generic "API_KEY") to reduce false positives.
+    ("known_secret_literal", re.compile(
+        r"(?:OPENAI_API_KEY|ANTHROPIC_API_KEY|"
+        r"AWS_SECRET(?:_ACCESS_KEY)?|AWS_ACCESS_KEY(?:_ID)?|"
+        r"GITHUB_TOKEN|DATABASE_URL|DB_PASSWORD)",
+        re.IGNORECASE,
+    )),
     # System message injection
     ("system_prefix", re.compile(
         r"^(?:system\s*:|###\s*SYSTEM\s*###|```system)", re.IGNORECASE | re.MULTILINE

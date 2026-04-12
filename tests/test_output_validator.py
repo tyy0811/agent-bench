@@ -136,6 +136,58 @@ class TestBlocklist:
         assert verdict.passed is True
 
 
+class TestSecretLeakage:
+    """Secret patterns in LLM output must be blocked (fail closed)."""
+
+    @pytest.fixture
+    def validator(self):
+        return OutputValidator(
+            pii_check=False, url_check=False, secret_check=True, blocklist=[],
+        )
+
+    @pytest.mark.parametrize("output", [
+        "Your key is sk-abcdefghijklmnopqrstuvwxyz1234",
+        "here: sk-proj-ABCDEFGHIJKLMNOP0123456789",
+        "key=sk-ant-abcdefghijklmnopqrstuvwxyz",
+        "google says AIzaFIXTUREREDACTED",
+        "aws key AKIAIOSFODNN7EXAMPLE",
+        "use Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc",
+        "env: OPENAI_API_KEY=sk-test123",
+        "set ANTHROPIC_API_KEY=sk-ant-xyz",
+    ])
+    def test_blocks_known_secret_formats(self, validator, output):
+        verdict = validator.validate(output=output, retrieved_chunks=[])
+        assert verdict.passed is False, f"Should block: {output!r}"
+        assert any("secret_leakage" in v for v in verdict.violations)
+        assert verdict.action == "block"
+
+    @pytest.mark.parametrize("output", [
+        "FastAPI uses path parameters with curly braces.",
+        "You can store secrets in environment variables.",
+        "To configure the OpenAI client, set your API key in OPENAI_API_KEY env var.",
+        "Use a .env file for local development.",
+        "Kubernetes Secrets store sensitive configuration.",
+    ])
+    def test_allows_benign_credential_adjacent_output(self, validator, output):
+        """Educational content about secrets should pass — only literal
+        key formats and env-var assignments are blocked."""
+        verdict = validator.validate(output=output, retrieved_chunks=[])
+        assert verdict.passed is True, (
+            f"False positive on: {output!r} -> {verdict.violations}"
+        )
+
+    def test_secret_check_can_be_disabled(self):
+        """When secret_check=False, literal keys pass through."""
+        validator = OutputValidator(
+            pii_check=False, url_check=False, secret_check=False, blocklist=[],
+        )
+        verdict = validator.validate(
+            output="sk-abcdefghijklmnopqrstuvwxyz1234",
+            retrieved_chunks=[],
+        )
+        assert verdict.passed is True
+
+
 class TestCombinedChecks:
     def test_multiple_violations(self):
         validator = OutputValidator(

@@ -130,6 +130,7 @@ class OutputConfig(BaseModel):
     enabled: bool = True
     pii_check: bool = True
     url_check: bool = True
+    secret_check: bool = True
     blocklist: list[str] = []
 
 
