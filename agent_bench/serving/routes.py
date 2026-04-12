@@ -61,6 +61,26 @@ def _resolve_orchestrator(
     return request.app.state.orchestrator, corpus_name
 
 
+def _resolve_system_prompt(
+    request: Request, corpus_name: str,
+) -> tuple[str, str]:
+    """Return (system_prompt, corpus_label) for the active corpus.
+
+    In multi-corpus mode the prompt is formatted from the shared template
+    with the corpus's label substituted in. In legacy mode, the prompt
+    from the task config (app.state.system_prompt) is returned unchanged
+    and corpus_label is empty.
+    """
+    config = request.app.state.config
+    corpora = getattr(config, "corpora", None) or {}
+    if corpus_name and corpus_name in corpora:
+        from agent_bench.core.prompts import format_system_prompt
+
+        label = corpora[corpus_name].label
+        return format_system_prompt(label), label
+    return request.app.state.system_prompt, ""
+
+
 _LANDING_HTML: str | None = None
 
 
@@ -87,7 +107,7 @@ async def root() -> Response:
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     """Ask a question and get an answer with sources."""
     orchestrator, corpus_name = _resolve_orchestrator(request, body)
-    system_prompt: str = request.app.state.system_prompt
+    system_prompt, _corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
 
@@ -187,7 +207,7 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     """Stream an answer via Server-Sent Events with per-stage instrumentation."""
     orchestrator, corpus_name = _resolve_orchestrator(request, body)
-    system_prompt: str = request.app.state.system_prompt
+    system_prompt, corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
     config: object = request.app.state.config
@@ -200,12 +220,6 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         provider_obj, "model_name",
         getattr(provider_obj, "_model_name", provider_default),
     )
-
-    # Corpus label for meta event (empty string in legacy mode)
-    corpus_label = ""
-    corpora = getattr(config, "corpora", None) or {}
-    if corpus_name and corpus_name in corpora:
-        corpus_label = corpora[corpus_name].label
 
     # --- Security: injection detection (pre-retrieval) ---
     injection_detector = getattr(request.app.state, "injection_detector", None)
