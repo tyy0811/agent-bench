@@ -1,6 +1,13 @@
-"""Tests for the parameterized system prompt template."""
+"""Tests for the parameterized system prompt template.
+
+The integration tests rely on `two_corpus_two_provider_app` from
+tests/conftest.py.
+"""
 
 from __future__ import annotations
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 from agent_bench.core.prompts import SYSTEM_PROMPT_TEMPLATE, format_system_prompt
 
@@ -47,10 +54,15 @@ def test_format_requires_citations():
 def test_format_rejects_empty_label():
     """Empty label is a caller bug — fail loud instead of producing a
     prompt with an unresolved placeholder."""
-    import pytest as _pytest
-
-    with _pytest.raises(ValueError, match="corpus_label"):
+    with pytest.raises(ValueError, match="corpus_label"):
         format_system_prompt("")
+
+
+def test_format_is_cached():
+    """@lru_cache on format_system_prompt — same input returns same object."""
+    a = format_system_prompt("FastAPI Docs")
+    b = format_system_prompt("FastAPI Docs")
+    assert a is b  # cached: same object identity, not just equal
 
 
 class TestRouteHandlerUsesFormattedPrompt:
@@ -58,14 +70,10 @@ class TestRouteHandlerUsesFormattedPrompt:
     formatted with the active corpus's label — not the legacy
     app.state.system_prompt."""
 
-    import pytest
-
     @pytest.mark.asyncio
     async def test_stream_passes_k8s_prompt_to_orchestrator(
-        self, two_corpus_two_provider_app,  # noqa: F811
+        self, two_corpus_two_provider_app,
     ):
-        from httpx import ASGITransport, AsyncClient
-
         app = two_corpus_two_provider_app
         # Record every system_prompt the orchestrator sees.
         captured: list[str] = []
@@ -96,10 +104,8 @@ class TestRouteHandlerUsesFormattedPrompt:
 
     @pytest.mark.asyncio
     async def test_fastapi_and_k8s_prompts_differ(
-        self, two_corpus_two_provider_app,  # noqa: F811
+        self, two_corpus_two_provider_app,
     ):
-        from httpx import ASGITransport, AsyncClient
-
         app = two_corpus_two_provider_app
         captured: dict[str, str] = {}
 
@@ -130,7 +136,3 @@ class TestRouteHandlerUsesFormattedPrompt:
         assert "FastAPI Docs" in captured["fastapi"]
         assert "Kubernetes" in captured["k8s"]
         assert captured["fastapi"] != captured["k8s"]
-
-
-# Re-export the multi-corpus fixture so the class above can use it
-from tests.test_corpus_routing import two_corpus_two_provider_app  # noqa: F401, E402

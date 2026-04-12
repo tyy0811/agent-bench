@@ -1,8 +1,9 @@
 """Tests for per-request corpus routing.
 
 Exercises the full corpus × provider matrix through /ask and /ask/stream.
-Uses create_app with a multi-corpus fixture and monkeypatches a second
-provider so both toggles can be tested without real API keys.
+The multi-corpus test-app fixture (`two_corpus_two_provider_app`) lives
+in tests/conftest.py and is shared with test_meta_corpus.py and
+test_prompt_template.py.
 """
 
 from __future__ import annotations
@@ -18,62 +19,7 @@ from agent_bench.core.config import (
     RAGConfig,
     SecurityConfig,
 )
-from agent_bench.core.provider import MockProvider
 from agent_bench.serving.app import create_app
-
-
-class _FakeOpenAI(MockProvider):
-    """Distinct MockProvider subclass so we can distinguish it from the
-    default mock when asserting which orchestrator actually ran."""
-
-
-@pytest.fixture
-def two_corpus_two_provider_app(tmp_path, monkeypatch):
-    """Two corpora (fastapi, k8s) × two providers (mock, openai-faked).
-
-    After building the app, each corpus×provider cell gets a *unique*
-    MockProvider instance stamped with a `_tag` attribute. create_app
-    deliberately shares one provider instance across corpora (it's an
-    expensive object), but the test needs to distinguish which cell ran
-    a given request, so we break the sharing here and only here.
-    """
-    from agent_bench.core import provider as provider_mod
-
-    monkeypatch.setattr(provider_mod, "OpenAIProvider", lambda _cfg: _FakeOpenAI())
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
-    config = AppConfig(
-        provider=ProviderConfig(default="mock"),
-        rag=RAGConfig(store_path=str(tmp_path / "store_default")),
-        embedding=EmbeddingConfig(cache_dir=str(tmp_path / "emb_cache")),
-        security=SecurityConfig(),
-        corpora={
-            "fastapi": CorpusConfig(
-                label="FastAPI Docs",
-                store_path=str(tmp_path / "store_fastapi"),
-                data_path="data/tech_docs",
-            ),
-            "k8s": CorpusConfig(
-                label="Kubernetes",
-                store_path=str(tmp_path / "store_k8s"),
-                data_path="data/k8s_docs",
-            ),
-        },
-        default_corpus="fastapi",
-    )
-    app = create_app(config)
-
-    # Stamp a unique provider into each cell so call_count is per-cell.
-    for c_name, inner in app.state.corpus_map.items():
-        for p_name, orch in inner.items():
-            unique = MockProvider()
-            unique._tag = f"{c_name}:{p_name}"  # type: ignore[attr-defined]
-            orch.provider = unique
-    # Keep the flat orchestrators dict and the singular orchestrator in
-    # sync with the per-cell instances for the default corpus.
-    app.state.orchestrators = dict(app.state.corpus_map[config.default_corpus])
-    app.state.orchestrator = app.state.orchestrators[config.provider.default]
-    return app
 
 
 def _reset_call_counts(app):
@@ -196,3 +142,227 @@ class TestLegacyRouting:
                 "/ask", json={"question": "hi", "corpus": "fastapi"},
             )
         assert resp.status_code == 200
+
+
+class TestMisconfiguredCorpus:
+    """body.corpus valid-per-Literal but not in corpus_map should fail
+    loud at request time with 400 instead of silently falling through
+    to the legacy orchestrator."""
+
+    @pytest.fixture
+    def fastapi_only_app(self, tmp_path, monkeypatch):
+        """Multi-corpus mode with ONLY fastapi configured (k8s removed)."""
+        from agent_bench.core import provider as provider_mod
+        from agent_bench.core.provider import MockProvider
+
+        monkeypatch.setattr(
+            provider_mod, "OpenAIProvider", lambda _cfg: MockProvider(),
+        )
+        config = AppConfig(
+            provider=ProviderConfig(default="mock"),
+            rag=RAGConfig(store_path=str(tmp_path / "store_default")),
+            embedding=EmbeddingConfig(cache_dir=str(tmp_path / "emb_cache")),
+            security=SecurityConfig(),
+            corpora={
+                "fastapi": CorpusConfig(
+                    label="FastAPI Docs",
+                    store_path=str(tmp_path / "store_fastapi"),
+                    data_path="data/tech_docs",
+                ),
+            },
+            default_corpus="fastapi",
+        )
+        return create_app(config)
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_corpus_returns_400(self, fastapi_only_app):
+        """k8s passes Literal but is not in corpus_map — expect 400."""
+        async with AsyncClient(
+            transport=ASGITransport(app=fastapi_only_app), base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/ask", json={"question": "hi", "corpus": "k8s"},
+            )
+        assert resp.status_code == 400
+        detail = resp.json().get("detail", "")
+        assert "not configured" in detail.lower()
+        assert "k8s" in detail
+        assert "fastapi" in detail  # lists available corpora
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_corpus_returns_400_stream(self, fastapi_only_app):
+        """Same guard on /ask/stream."""
+        async with AsyncClient(
+            transport=ASGITransport(app=fastapi_only_app), base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/ask/stream", json={"question": "hi", "corpus": "k8s"},
+            )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_default_corpus_still_works(self, fastapi_only_app):
+        """fastapi (the only configured corpus) still routes fine."""
+        async with AsyncClient(
+            transport=ASGITransport(app=fastapi_only_app), base_url="http://test",
+        ) as client:
+            resp = await client.post(
+                "/ask", json={"question": "hi", "corpus": "fastapi"},
+            )
+        assert resp.status_code == 200
+
+
+class TestResolveOrchestratorDirect:
+    """Unit tests for _resolve_orchestrator without the HTTP stack.
+
+    Builds a fake Request object with just the app.state attributes the
+    helper reads. Catches edge cases that integration tests would miss
+    (unknown provider, explicit provider not in inner dict, etc.).
+    """
+
+    @pytest.fixture
+    def fake_request_builder(self):
+        """Return a factory that makes a fake Request with the given state."""
+        from types import SimpleNamespace
+
+        def build(
+            corpus_map,
+            default_corpus,
+            provider_default,
+            orchestrators=None,
+            orchestrator=None,
+            system_prompt="legacy prompt",
+        ):
+            state = SimpleNamespace(
+                config=SimpleNamespace(
+                    corpora={k: SimpleNamespace(label=k.title()) for k in corpus_map},
+                    default_corpus=default_corpus,
+                    provider=SimpleNamespace(default=provider_default),
+                ),
+                corpus_map=corpus_map,
+                orchestrators=orchestrators or {},
+                orchestrator=orchestrator,
+                system_prompt=system_prompt,
+            )
+            return SimpleNamespace(app=SimpleNamespace(state=state))
+
+        return build
+
+    def _make_body(self, corpus=None, provider=None):
+        from agent_bench.serving.schemas import AskRequest
+
+        return AskRequest(question="x", corpus=corpus, provider=provider)
+
+    def test_multi_corpus_happy_path(self, fake_request_builder):
+        from agent_bench.serving.routes import _resolve_orchestrator
+
+        sentinel = object()
+        req = fake_request_builder(
+            corpus_map={"fastapi": {"mock": sentinel}},
+            default_corpus="fastapi",
+            provider_default="mock",
+        )
+        orch, name = _resolve_orchestrator(req, self._make_body())
+        assert orch is sentinel
+        assert name == "fastapi"
+
+    def test_provider_fallback_to_corpus_default(self, fake_request_builder):
+        """body.provider=None uses corpus default; Literal accepts None."""
+        from agent_bench.serving.routes import _resolve_orchestrator
+
+        mock_sent = object()
+        oai_sent = object()
+        req = fake_request_builder(
+            corpus_map={"fastapi": {"mock": mock_sent, "openai": oai_sent}},
+            default_corpus="fastapi",
+            provider_default="mock",
+        )
+        orch, _ = _resolve_orchestrator(req, self._make_body(provider="openai"))
+        assert orch is oai_sent
+        orch, _ = _resolve_orchestrator(req, self._make_body())
+        assert orch is mock_sent
+
+    def test_explicit_unconfigured_corpus_raises_400(self, fake_request_builder):
+        from fastapi import HTTPException
+
+        from agent_bench.serving.routes import _resolve_orchestrator
+
+        req = fake_request_builder(
+            corpus_map={"fastapi": {"mock": object()}},
+            default_corpus="fastapi",
+            provider_default="mock",
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            _resolve_orchestrator(req, self._make_body(corpus="k8s"))
+        assert exc_info.value.status_code == 400
+        assert "k8s" in exc_info.value.detail
+        assert "fastapi" in exc_info.value.detail
+
+    def test_legacy_mode_uses_flat_orchestrators(self, fake_request_builder):
+        from agent_bench.serving.routes import _resolve_orchestrator
+
+        legacy_orch = object()
+        flat_oai = object()
+        req = fake_request_builder(
+            corpus_map={},
+            default_corpus="",
+            provider_default="mock",
+            orchestrators={"openai": flat_oai},
+            orchestrator=legacy_orch,
+        )
+        # body.provider=openai finds it in flat dict
+        orch, _ = _resolve_orchestrator(req, self._make_body(provider="openai"))
+        assert orch is flat_oai
+        # No provider falls back to app.state.orchestrator
+        orch, _ = _resolve_orchestrator(req, self._make_body())
+        assert orch is legacy_orch
+
+
+class TestResolveSystemPromptDirect:
+    """Unit tests for _resolve_system_prompt."""
+
+    def _build_req(self, corpora, system_prompt="legacy"):
+        from types import SimpleNamespace
+
+        state = SimpleNamespace(
+            config=SimpleNamespace(corpora=corpora),
+            system_prompt=system_prompt,
+        )
+        return SimpleNamespace(app=SimpleNamespace(state=state))
+
+    def test_multi_corpus_formats_template(self):
+        from types import SimpleNamespace
+
+        from agent_bench.serving.routes import _resolve_system_prompt
+
+        req = self._build_req(
+            {"fastapi": SimpleNamespace(label="FastAPI Docs")},
+        )
+        prompt, label = _resolve_system_prompt(req, "fastapi")
+        assert label == "FastAPI Docs"
+        assert "FastAPI Docs" in prompt
+        assert "{corpus_label}" not in prompt
+        assert "refuse" in prompt.lower()
+
+    def test_legacy_returns_task_prompt(self):
+        from agent_bench.serving.routes import _resolve_system_prompt
+
+        req = self._build_req({}, system_prompt="legacy task prompt")
+        prompt, label = _resolve_system_prompt(req, "")
+        assert prompt == "legacy task prompt"
+        assert label == ""
+
+    def test_unknown_corpus_name_falls_to_legacy(self):
+        """If corpus_name isn't in corpora (shouldn't happen post-resolve
+        because of the 400 guard, but the helper should still be safe)."""
+        from types import SimpleNamespace
+
+        from agent_bench.serving.routes import _resolve_system_prompt
+
+        req = self._build_req(
+            {"fastapi": SimpleNamespace(label="FastAPI Docs")},
+            system_prompt="legacy",
+        )
+        prompt, label = _resolve_system_prompt(req, "nonexistent")
+        assert prompt == "legacy"
+        assert label == ""

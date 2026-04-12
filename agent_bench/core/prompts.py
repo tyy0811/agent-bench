@@ -7,6 +7,8 @@ prevents per-corpus drift when the prompt is tuned.
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 SYSTEM_PROMPT_TEMPLATE = """\
 You are a technical documentation assistant for {corpus_label}. Answer \
 questions using ONLY the retrieved context from the {corpus_label} \
@@ -18,11 +20,13 @@ extrapolate, do not draw on general knowledge.\
 """
 
 
+@lru_cache(maxsize=32)
 def format_system_prompt(corpus_label: str) -> str:
     """Format the template with a corpus label.
 
-    Raises at call time if the caller forgets to pass a label, which is
-    louder than silently returning a prompt with an unresolved
+    Cached because the corpus label set is small (a handful of corpora)
+    and the prompt is requested once per /ask call. Raises on empty
+    label — louder than silently returning a prompt with an unresolved
     placeholder.
     """
     if not corpus_label:

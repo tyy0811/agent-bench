@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.responses import Response
 
 from agent_bench.agents.orchestrator import Orchestrator
+from agent_bench.core.config import AppConfig
+from agent_bench.core.prompts import format_system_prompt
 from agent_bench.serving.middleware import MetricsCollector
 from agent_bench.serving.schemas import (
     AskRequest,
@@ -33,13 +35,33 @@ def _resolve_orchestrator(
     Legacy single-corpus mode: use the flat orchestrators dict keyed by
     provider name, then fall back to app.state.orchestrator.
 
+    Raises:
+        HTTPException(400): body.corpus is explicitly set in multi-corpus
+            mode but the named corpus is not wired on this server. Pydantic
+            Literal on AskRequest.corpus catches unknown names (422); this
+            catches "known per schema but not deployed" at 400. Mirrors
+            the AppConfig validator for default_corpus at request time.
+
     Returns the resolved orchestrator and the corpus name used (empty
     string in legacy mode when no default_corpus is configured).
     """
-    config = request.app.state.config
+    config: AppConfig = request.app.state.config
     corpus_map: dict = getattr(request.app.state, "corpus_map", {})
     default_corpus: str = getattr(config, "default_corpus", "") or ""
     provider_default: str = config.provider.default
+
+    # Fail loud if the request names a corpus that is not wired. Only
+    # fires when body.corpus is explicit — a None corpus always falls
+    # through to default_corpus (which the AppConfig validator guarantees
+    # is in corpus_map when corpora is non-empty).
+    if corpus_map and body.corpus is not None and body.corpus not in corpus_map:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Corpus {body.corpus!r} is not configured on this server. "
+                f"Available corpora: {sorted(corpus_map.keys())}"
+            ),
+        )
 
     corpus_name: str = body.corpus or default_corpus
 
@@ -71,11 +93,9 @@ def _resolve_system_prompt(
     from the task config (app.state.system_prompt) is returned unchanged
     and corpus_label is empty.
     """
-    config = request.app.state.config
+    config: AppConfig = request.app.state.config
     corpora = getattr(config, "corpora", None) or {}
     if corpus_name and corpus_name in corpora:
-        from agent_bench.core.prompts import format_system_prompt
-
         label = corpora[corpus_name].label
         return format_system_prompt(label), label
     return request.app.state.system_prompt, ""
@@ -210,7 +230,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     system_prompt, corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
-    config: object = request.app.state.config
+    config: AppConfig = request.app.state.config
 
     # --- Meta event data (available before request starts) ---
     provider_name = getattr(config, "provider", None)
