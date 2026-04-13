@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.config import load_config, load_task_config
+from agent_bench.core.prompts import format_system_prompt
 from agent_bench.core.provider import MockProvider, create_provider
 from agent_bench.evaluation.harness import run_evaluation
 from agent_bench.rag.embedder import Embedder
@@ -29,10 +30,45 @@ from agent_bench.tools.search import SearchTool
 
 async def main_async(args: argparse.Namespace) -> None:
     config = load_config(Path(args.config) if args.config else None)
-    task = load_task_config("tech_docs")
+
+    # Resolve corpus-specific settings (--corpus) vs legacy single-store path.
+    # Explicit --corpus routes through config.corpora[name]; without it we keep
+    # the pre-multi-corpus behavior for backward compat with `make evaluate-fast`.
+    if args.corpus:
+        if args.corpus not in config.corpora:
+            print(
+                f"Error: corpus '{args.corpus}' not in config.corpora "
+                f"(available: {sorted(config.corpora.keys())})"
+            )
+            sys.exit(1)
+        corpus_cfg = config.corpora[args.corpus]
+        if not corpus_cfg.available:
+            print(
+                f"Error: corpus '{args.corpus}' has available=false. "
+                "Flip to true after data is curated and store is built."
+            )
+            sys.exit(1)
+        if corpus_cfg.golden_dataset is None:
+            print(
+                f"Error: corpus '{args.corpus}' has no golden_dataset configured. "
+                f"Set corpora.{args.corpus}.golden_dataset in the config."
+            )
+            sys.exit(1)
+        store_path = corpus_cfg.store_path
+        refusal_threshold = corpus_cfg.refusal_threshold
+        golden_path: str = corpus_cfg.golden_dataset
+        system_prompt = format_system_prompt(corpus_cfg.label)
+        corpus_label = corpus_cfg.label
+    else:
+        task = load_task_config("tech_docs")
+        store_path = config.rag.store_path
+        refusal_threshold = config.rag.refusal_threshold
+        golden_path = config.evaluation.golden_dataset
+        system_prompt = task.system_prompt
+        corpus_label = "(legacy single-store)"
 
     # Build the RAG pipeline
-    store = HybridStore.load(config.rag.store_path, rrf_k=config.rag.retrieval.rrf_k)
+    store = HybridStore.load(store_path, rrf_k=config.rag.retrieval.rrf_k)
     embedder = Embedder(model_name=config.embedding.model, cache_dir=config.embedding.cache_dir)
     # Optional reranker
     reranker = None
@@ -56,7 +92,7 @@ async def main_async(args: argparse.Namespace) -> None:
         SearchTool(
             retriever=retriever,
             default_top_k=config.rag.retrieval.top_k,
-            refusal_threshold=config.rag.refusal_threshold,
+            refusal_threshold=refusal_threshold,
         )
     )
     registry.register(CalculatorTool())
@@ -83,15 +119,15 @@ async def main_async(args: argparse.Namespace) -> None:
         judge = create_provider(judge_config)
 
     # Run evaluation
-    golden_path = config.evaluation.golden_dataset
     print(f"Running evaluation in '{args.mode}' mode...")
+    print(f"Corpus: {corpus_label}")
     print(f"Golden dataset: {golden_path}")
     print(f"Store: {store.stats().total_chunks} chunks")
     print()
 
     results = await run_evaluation(
         orchestrator=orchestrator,
-        system_prompt=task.system_prompt,
+        system_prompt=system_prompt,
         golden_path=golden_path,
         judge_provider=judge,
     )
@@ -117,6 +153,12 @@ async def main_async(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run evaluation harness")
     parser.add_argument("--config", default=None, help="Config YAML path")
+    parser.add_argument(
+        "--corpus",
+        default=None,
+        help="Corpus name from config.corpora (e.g. 'fastapi', 'k8s'). "
+        "If omitted, uses legacy rag.store_path + evaluation.golden_dataset.",
+    )
     parser.add_argument(
         "--mode",
         choices=["deterministic", "full"],

@@ -157,6 +157,11 @@ class CorpusConfig(BaseModel):
     refusal_threshold: float = 0.0
     top_k: int = 5
     max_iterations: int = 3
+    # Optional: path to the golden dataset JSON for this corpus. None is
+    # a valid state (corpus has no golden set yet during bring-up). The
+    # evaluation CLI errors clearly if --corpus targets a corpus with
+    # golden_dataset=None rather than requiring the field upfront.
+    golden_dataset: str | None = None
     # When False, the corpus is kept in YAML for schema visibility but is
     # not wired into corpus_map at startup. Dashboard can render the
     # toggle as disabled; /ask requests for the corpus return 400.
