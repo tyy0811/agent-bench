@@ -522,3 +522,153 @@ non-trivial. The RSS logging in `app.py` (Task 2) emits the exact
 numbers needed to make the decision; the decision is documented here
 so future-me remembers the threshold and doesn't optimize prematurely
 on a hunch.
+
+## False-premise questions come in two flavors
+
+When authoring golden-dataset questions whose premise is wrong, the
+question can point at one of two genuinely different failure modes.
+Both are valid; they test different pipeline paths and should be
+labeled distinctly so the evaluator routes correctly.
+
+**Flavor A — pure refusal.** The premise is not addressed anywhere in
+the corpus. Example: "How do I configure Claude API rate limits in
+Kubernetes?" K8s has no such concept. Schema: `category: "out_of_scope"`,
+`expected_sources: []`, `source_snippets: []`. The evaluator's
+`grounded_refusal` metric expects the answer to contain a refusal
+phrase ("does not contain", "no information") AND cite zero sources.
+Tests the pipeline path where retrieval correctly returns nothing
+useful and the agent correctly declines.
+
+**Flavor B — documented negative.** The corpus contains an explicit
+negative answer. Example: "How do I configure NetworkPolicy to enforce
+mTLS?" The K8s NetworkPolicy docs have a "What you can't do with
+network policies" section that explicitly says "Anything TLS related
+(use a service mesh or ingress controller for this)". Schema:
+`category: "retrieval"`, `question_type: "false_premise"`,
+`expected_sources: [<the negative-answer page>]`, `source_snippets:
+[<the verbatim negative statement>]`. The evaluator expects the agent
+to retrieve the page, find the negative statement, and answer
+negatively with a citation. Tests the stricter path where the corpus
+genuinely contains the answer and the agent must not hallucinate a
+contradictory capability.
+
+**Why both matter for the honest-evaluation brand.** Grounded refusal
+is not "refuse when retrieval is weak." It is "answer exactly what the
+source says, including when the source says no." Flavor A tests the
+first half (refuse when there is nothing to ground on); flavor B tests
+the second half (report the documented negative instead of
+confabulating a positive). The K8s golden dataset includes at least
+one of each. The first K8s pilot (`k8s_pilot_005`, NetworkPolicy
+mTLS) is flavor B. Flavor A is reserved for questions targeting
+features that genuinely do not exist in the K8s corpus; at least one
+such question is required in the full 25-question set.
+
+## Pilot_005 refusal-gate + agent-behavior measurement
+
+The first K8s pilot run surfaced two distinct flavor-B failure modes
+on `k8s_pilot_005` (NetworkPolicy mTLS). Both are empirical, both
+have specific numbers, and both are logged in
+`results/k8s_pilot_threshold_0.02.json` and
+`results/k8s_pilot_threshold_0.015.json`.
+
+**Failure mode 1 — threshold calibration (at 0.02).** The
+`SearchTool.execute()` refusal gate fired with `max_score=0.01639` —
+exactly `1/(60+1)`, the rank-1 RRF score from a single fusion system.
+BM25 hit "NetworkPolicy" at rank 1; the dense encoder contributed
+nothing, because "Anything TLS related (use a service mesh or ingress
+controller for this)" is a single negative sentence, not a conceptual
+topic the page is semantically "about." Hybrid fusion inherited only
+the BM25 rank-1 score. At threshold 0.02 (the FastAPI working value),
+the gate refused before the agent saw any chunks. Retrieval P@5 and
+R@5 both 0.00; answer is a generic refusal.
+
+**Failure mode 2 — agent behavior on documented negative (at 0.015).**
+With the threshold dropped just below the measured max score
+(`0.015 < 0.01639`), retrieval is perfect: P@5 1.00, R@5 1.00, all
+five top chunks from `k8s_network_policies.md`. But the agent still
+produces a flavor-A-style refusal: *"The Kubernetes documentation
+does not provide specific instructions on configuring a NetworkPolicy
+to enforce mutual TLS..."* The "Anything TLS related" sentence is in
+the retrieved chunks — the agent simply treats the absence of
+positive instructions as grounds for refusal, rather than reading the
+explicit negative sentence and citing it as the answer. KHR 0.67: the
+`service mesh` and `ingress controller` keywords (the documented
+alternatives the page points to) are missing from the answer.
+
+**Implication.** The flavor-B mechanism requires more than threshold
+tuning. Fixing the gate is necessary but not sufficient. The system
+prompt needs a flavor-B clause (e.g., *"if the documentation
+explicitly says a feature does not exist or is not supported, report
+that with citation — do not treat it as unanswerable"*), **or** the
+K8s golden dataset's flavor-B questions must use phrasing the
+current prompt can route correctly. The 0.30 placeholder value from
+the design doc was based on "prefer conservative" intuition without
+empirical grounding — the measured working range for K8s pilot
+retrieval is lower by more than an order of magnitude than that
+intuition, and even at the working threshold the prompt layer is the
+blocker.
+
+**What this measurement is.** A pilot smoke-test result, not a
+benchmark claim. Aggregates at 0.02: P@5 0.63, R@5 0.83, KHR 0.69.
+Aggregates at 0.015: P@5 0.80, R@5 1.00, KHR 0.75. Five of six pilots
+produce substantively correct answers on K8s content under the
+working threshold — evidence the retrieval stack generalizes to K8s.
+The pilot's job was schema validation + calibration evidence, not
+launch metrics. Launch metrics come from the 25-question K8s golden
+set with tuned threshold and (likely) a revised system prompt,
+sequenced after this pilot.
+
+## Evaluation-layer multi-corpus support lagged the serving-layer refactor
+
+The Tasks 1–8 multi-corpus refactor wired corpora through
+`app.state.corpus_map` and the `/ask` serving route. `scripts/evaluate.py`
+was not touched and remained single-corpus — it read
+`config.rag.store_path` and `config.evaluation.golden_dataset`
+directly, with no awareness of the `corpora` dict. This was an
+accurate scoping of the refactor (serving-layer, not eval-layer) but
+the gap was not surfaced in the original task list.
+
+The K8s pilot commit adds `--corpus <name>` to `scripts/evaluate.py`,
+routing through `config.corpora[name]` for `store_path`,
+`refusal_threshold`, and a new optional `golden_dataset` field on
+`CorpusConfig`. Without `--corpus`, the legacy single-store path is
+preserved for backward compatibility with `make evaluate-fast` and
+any existing invocations.
+
+`CorpusConfig.golden_dataset` is `str | None = None` — optional
+rather than required — because two legitimate states exist: corpus
+has a golden dataset (FastAPI, K8s post-authoring), and corpus has no
+golden dataset yet (any corpus during bring-up). The CLI errors
+cleanly with *"corpus '<name>' has no golden_dataset configured"*
+when the field is None, rather than requiring all corpora to ship
+with datasets.
+
+## Deferred: path-preserving ingestion
+
+`scripts/ingest.py` uses `doc_path.glob("*.md")` (non-recursive) and
+stores the bare filename as the chunk's `source` field. This forces
+a flat-namespace convention: FastAPI ships as `fastapi_*.md`, K8s
+ships as `k8s_*.md`, and golden dataset `expected_sources` are
+filename stems. The path-preserving alternative (recursive `rglob`
+plus relative-path source IDs, e.g., `concepts/workloads/pods`) was
+evaluated during the K8s pilot planning and explicitly deferred. The
+root-cause refactor would have required FastAPI re-ingestion and a
+rewrite of the FastAPI golden dataset's `expected_sources` — trading
+certain regression risk on a green baseline (288 tests, citation
+accuracy 1.00 on API providers) for speculative legibility benefit
+on K8s authoring.
+
+The `source_pages` field on `GoldenQuestion` preserves the
+human-readable path anchor separately from the machine identifier,
+so the deferral does not lose information. Authors see both
+`expected_sources: ["k8s_pods.md"]` (what the evaluator matches on)
+and `source_pages: ["concepts/workloads/pods"]` (where the content
+came from on kubernetes.io) in the same question record.
+
+**Pattern marker, not a promise.** This is the second visa-timeline
+deferral of a root-cause refactor in favor of a minimal-blast-radius
+fix; the first was the Mar 25 → Apr 12 P@5 slide bisection. Both
+deferrals were deliberate, not forgetting. Not scheduled until
+post-launch; marker only. Post-launch scope: modify `ingest.py` to
+`rglob` + relative-path source IDs, re-ingest FastAPI, rewrite both
+golden datasets' `expected_sources` to path-style. Estimated 3h.
