@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.provider import LLMProvider
@@ -36,6 +36,12 @@ class GoldenQuestion(BaseModel):
     source_snippets: list[str] = []
     question_type: str = ""
     is_multi_hop: bool = False
+    # Authoring-time anchors for pre-ingestion golden datasets; index-aligned
+    # with source_snippets. source_sections[i] == "" means the snippet lives in
+    # page lede content above the first H2/H3 — this is allowed, not a missing
+    # value. Backfill matches on source_snippets, not on these fields.
+    source_pages: list[str] = Field(default_factory=list)
+    source_sections: list[str] = Field(default_factory=list)
 
 
 class EvalResult(BaseModel):

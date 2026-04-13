@@ -86,6 +86,58 @@ def test_unknown_format_raises(tmp_path):
         load_golden_dataset(path)
 
 
+def test_k8s_pilot_dataset_loads():
+    """The 6-question K8s pilot dataset parses and holds schema invariants.
+
+    Pre-ingestion: source_chunk_ids is empty on every pilot. source_pages and
+    source_sections are populated and index-aligned with source_snippets. This
+    is the authoring shape the backfill script consumes in Commit 7.
+    """
+    path = Path("agent_bench/evaluation/datasets/k8s_golden_pilot.json")
+    qs = load_golden_dataset(path)
+
+    # (a) all 6 pilots parse
+    assert len(qs) == 6
+    ids = [q.id for q in qs]
+    assert ids == [f"k8s_pilot_{i:03d}" for i in range(1, 7)]
+
+    # (b) source_pages and source_sections are populated on every pilot
+    # (Variant B false-premise means no pilot has empty sources)
+    for q in qs:
+        assert len(q.source_pages) > 0, f"{q.id}: source_pages is empty"
+        assert len(q.source_snippets) > 0, f"{q.id}: source_snippets is empty"
+
+    # (c) at least one pilot has source_sections[i] == "" (intro edge case)
+    intro_edge_pilots = [q.id for q in qs if "" in q.source_sections]
+    assert len(intro_edge_pilots) >= 1, (
+        "expected at least one pilot testing the intro-content edge case "
+        "(snippet above first H2/H3, source_sections[i] == '')"
+    )
+
+    # (d) source_chunk_ids is empty pre-ingestion on every pilot
+    for q in qs:
+        assert q.source_chunk_ids == [], (
+            f"{q.id}: source_chunk_ids should be empty pre-backfill"
+        )
+
+    # (e) index-alignment invariant across all four parallel lists
+    # source_chunk_ids is allowed to be empty OR length-matched (pre/post backfill)
+    for q in qs:
+        n = len(q.source_snippets)
+        assert len(q.source_pages) == n, (
+            f"{q.id}: source_pages length {len(q.source_pages)} != "
+            f"source_snippets length {n}"
+        )
+        assert len(q.source_sections) == n, (
+            f"{q.id}: source_sections length {len(q.source_sections)} != "
+            f"source_snippets length {n}"
+        )
+        assert len(q.source_chunk_ids) in (0, n), (
+            f"{q.id}: source_chunk_ids length {len(q.source_chunk_ids)} "
+            f"must be 0 (pre-backfill) or {n} (post-backfill)"
+        )
+
+
 def test_nested_format_ignores_unknown_header_fields(tmp_path):
     """Extra header keys alongside 'questions' don't break the loader."""
     data = {
