@@ -12,7 +12,7 @@
       "id": "k8s_pilot_001",
       "question": "In Kubernetes, does each Pod receive its own IP address, and how do containers inside the same Pod talk to each other?",
       "expected_answer_keywords": ["unique", "IP address", "shared", "localhost"],
-      "expected_sources": ["concepts/workloads/pods"],
+      "expected_sources": ["k8s_pods.md"],
       "category": "retrieval",
       "difficulty": "easy",
       "requires_calculator": false,
@@ -31,8 +31,8 @@
       "question": "When you update a Deployment's pod template, what mechanism does Kubernetes use to transition Pods from the old version to the new one, and what role does the ReplicaSet play?",
       "expected_answer_keywords": ["ReplicaSet", "new ReplicaSet", "old ReplicaSet", "controlled rate", "replicas", "selector"],
       "expected_sources": [
-        "concepts/workloads/controllers/deployment",
-        "concepts/workloads/controllers/replicaset"
+        "k8s_deployment.md",
+        "k8s_replicaset.md"
       ],
       "category": "retrieval",
       "difficulty": "hard",
@@ -42,7 +42,7 @@
       "is_multi_hop": true,
       "source_chunk_ids": [],
       "source_snippets": [
-        "A new ReplicaSet is created and the Deployment manages moving the Pods from the old ReplicaSet to the new one at a controlled rate",
+        "A new ReplicaSet is created, and the Deployment gradually scales it up while scaling down the old ReplicaSet, ensuring Pods are replaced at a controlled rate",
         "A ReplicaSet is defined with fields, including a selector that specifies how to identify Pods it can acquire, a number of replicas indicating how many Pods it should be maintaining"
       ],
       "source_pages": [
@@ -56,8 +56,8 @@
       "question": "What is the key difference between a ConfigMap and a Secret when deciding where to store sensitive application data like database passwords?",
       "expected_answer_keywords": ["non-confidential", "confidential", "Secret", "ConfigMap", "encryption", "etcd"],
       "expected_sources": [
-        "concepts/configuration/configmap",
-        "concepts/configuration/secret"
+        "k8s_configmap.md",
+        "k8s_secret.md"
       ],
       "category": "retrieval",
       "difficulty": "medium",
@@ -68,7 +68,7 @@
       "source_chunk_ids": [],
       "source_snippets": [
         "A ConfigMap is an API object used to store non-confidential data in key-value pairs",
-        "Secrets are similar to ConfigMaps but are specifically intended to hold confidential data"
+        "specifically intended to hold confidential data"
       ],
       "source_pages": [
         "concepts/configuration/configmap",
@@ -80,7 +80,7 @@
       "id": "k8s_pilot_004",
       "question": "If I set a custom value for one hard eviction threshold on the kubelet (e.g., memory.available) but leave the other thresholds unset, what happens to the defaults for the thresholds I didn't override?",
       "expected_answer_keywords": ["zero", "default", "not inherited", "custom", "all thresholds", "explicit"],
-      "expected_sources": ["concepts/scheduling-eviction/node-pressure-eviction"],
+      "expected_sources": ["k8s_node_pressure_eviction.md"],
       "category": "retrieval",
       "difficulty": "hard",
       "requires_calculator": false,
@@ -98,7 +98,7 @@
       "id": "k8s_pilot_005",
       "question": "How do I configure a Kubernetes NetworkPolicy to enforce mutual TLS (mTLS) between Pods in the same namespace?",
       "expected_answer_keywords": ["not", "does not", "NetworkPolicy", "service mesh", "TLS", "ingress controller"],
-      "expected_sources": ["concepts/services-networking/network-policies"],
+      "expected_sources": ["k8s_network_policies.md"],
       "category": "retrieval",
       "difficulty": "medium",
       "requires_calculator": false,
@@ -116,7 +116,7 @@
       "id": "k8s_pilot_006",
       "question": "As of the Kubernetes v1.31 snapshot, what is the feature state (alpha, beta, or stable) of the built-in Pod Security admission controller, and in which version did it reach that state?",
       "expected_answer_keywords": ["stable", "v1.25", "Pod Security", "admission controller"],
-      "expected_sources": ["concepts/security/pod-security-admission"],
+      "expected_sources": ["k8s_pod_security_admission.md"],
       "category": "retrieval",
       "difficulty": "easy",
       "requires_calculator": false,
@@ -125,7 +125,7 @@
       "is_multi_hop": false,
       "source_chunk_ids": [],
       "source_snippets": [
-        "FEATURE STATE: Kubernetes v1.25 [stable]"
+        "FEATURE STATE: `Kubernetes v1.25 [stable]`"
       ],
       "source_pages": ["concepts/security/pod-security-admission"],
       "source_sections": [""]

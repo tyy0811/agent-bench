@@ -103,15 +103,10 @@ corpora:
     label: "Kubernetes"
     store_path: .cache/store_k8s
     data_path: data/k8s_docs
-    # PLACEHOLDER — tune against K8s golden dataset once it exists.
-    # K8s has more cross-referenced concepts than FastAPI, so relevance
-    # spreads across more chunks; the threshold likely lands higher.
-    refusal_threshold: 0.30
+    refusal_threshold: 0.02  # PILOT: matches fastapi working value for 6-pilot smoke test.
+                             # 0.30 placeholder remains the launch-intent; full tuning sweep
+                             # lands with the 25-question golden set (see DECISIONS.md).
     top_k: 5
     max_iterations: 3
-    # available=false keeps the K8s corpus in the schema (dashboard
-    # shows the toggle as disabled) but skips it from corpus_map at
-    # startup. Flip to true after data/k8s_docs/ is curated and
-    # `make ingest-k8s` has built .cache/store_k8s. See
-    # data/k8s_docs/SOURCES.md for the curation policy.
-    available: false
+    golden_dataset: agent_bench/evaluation/datasets/k8s_golden_pilot.json
+    available: true
