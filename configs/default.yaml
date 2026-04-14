@@ -8,6 +8,9 @@ provider:
     gpt-4o-mini:
       input_cost_per_mtok: 0.15
       output_cost_per_mtok: 0.60
+    gpt-4o-mini-2024-07-18:  # dated pin used by OpenAIProvider.model at runtime
+      input_cost_per_mtok: 0.15
+      output_cost_per_mtok: 0.60
     claude-sonnet-4-20250514:
       input_cost_per_mtok: 3.0
       output_cost_per_mtok: 15.0
@@ -99,6 +102,7 @@ corpora:
     refusal_threshold: 0.02  # matches legacy rag.refusal_threshold
     top_k: 5
     max_iterations: 3
+    golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json
   k8s:
     label: "Kubernetes"
     store_path: .cache/store_k8s

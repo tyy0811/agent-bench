@@ -718,3 +718,67 @@ the threshold calibration should stand on its own empirical merit.
 Feedback memory `feedback_fix_before_sweep.md` applies recursively:
 fix measurement-affecting bugs at every layer before combining
 fixes into single experiments.
+
+## Prep for counterfactual-query prompt regression — pin, wire, tolerances
+
+**Three sub-changes bundled as one prep commit, each small and in
+service of making the downstream regression measurement valid.**
+
+**1. OpenAI model pin.** `agent_bench/core/provider.py:208` changes
+`self.model = "gpt-4o-mini"` → `self.model = "gpt-4o-mini-2024-07-18"`.
+The unpinned alias is a known drift vector — the Mar 25 → Apr 12 P@5
+slide bisection is an already-open parallel track item traceable to
+silent alias migration. A regression run that uses the alias across
+pre-edit and post-edit phases conflates prompt-clause effect with
+model drift, even within a single session if the alias happens to
+roll between runs. Pinning the dated snapshot removes the variable.
+Pricing dict in `configs/default.yaml` gets a matching
+`gpt-4o-mini-2024-07-18` entry so the cost-lookup at
+`provider.py:209` still resolves. Tests that pin the model string
+live in mock response payloads (not outgoing assertions) and the
+langchain baseline (separate code path) — neither affected.
+
+**2. FastAPI multi-corpus eval wiring.** `configs/default.yaml`
+adds `corpora.fastapi.golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json`.
+The production serving path at `routes.py:105-120 _resolve_system_prompt`
+already routes `/ask` and `/ask/stream` through `format_system_prompt(label)`
+from `core/prompts.py` — the `app.state.system_prompt` legacy fallback
+(serving/app.py:276) is effectively dead code given the shipped multi-corpus
+config. The **only** remaining caller of `task.system_prompt` is the
+`scripts/evaluate.py` legacy branch used by `make evaluate-fast`. Adding
+the missing `golden_dataset` field makes `--corpus fastapi` work so the
+regression gate can measure the actual production prompt path, not the
+legacy eval-scaffolding prompt. Purely additive; zero blast radius on
+serving (serving doesn't read `golden_dataset`).
+
+**3. Pre-committed four-metric tolerances.** Written down now, before
+the post-edit runs, so the pass/fail call on the counterfactual-query
+prompt clause is not a judgment under confirmation-bias pressure.
+Applied identically to FastAPI and K8s:
+
+| Metric | Pass criterion |
+|---|---|
+| P@5 | post-edit ≥ pre-edit − 0.02 |
+| R@5 | post-edit ≥ pre-edit − 0.02 |
+| Citation accuracy | post-edit ≥ pre-edit (**hard gate** — any drop blocks commit) |
+| Mean `tool_calls_made` | post-edit ≤ pre-edit + 0.30 |
+| Individual question cap | no question that used fewer than `max_iterations=3` iterations pre-edit may hit the cap post-edit |
+
+**pilot_005 strict flip criterion (K8s-only):**
+- `keyword_hit_rate ≥ 0.60` against golden keywords `["not", "does not", "NetworkPolicy", "service mesh", "TLS", "ingress controller"]`
+- Answer cites `k8s_network_policies.md`
+- Answer contains "service mesh" OR "ingress controller" (the concrete documented-negative evidence the pre-edit refusal lacked)
+- Answer does NOT begin with refusal phrasing ("The ... documentation does not provide", "I cannot answer")
+
+**Baseline reference:** K8s pre-edit numbers from `results/k8s_preedit.json`
+at commit `b97f00f` — P@5 0.80, R@5 1.00, citation 1.00 (all 6),
+mean tool_calls 1.167. FastAPI pre-edit reference established by
+`results/fastapi_preedit.json` in the next step of this session,
+same pinned ID, same refusal threshold (0.02).
+
+**Rationale for bundling.** All three sub-changes answer "what must
+be true before the regression measurement is valid" — drift control,
+evaluation path, decision criteria. Splitting into three commits
+would add noise without adding signal. None of them change the
+prompt template itself; the prompt edit is the NEXT commit and is
+the sole experimental variable the regression measures.

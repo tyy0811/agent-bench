@@ -192,7 +192,7 @@ class MockProvider(LLMProvider):
 
 
 class OpenAIProvider(LLMProvider):
-    """OpenAI API provider using gpt-4o-mini."""
+    """OpenAI API provider pinned to a dated gpt-4o-mini snapshot."""
 
     def __init__(self, config: AppConfig | None = None) -> None:
         try:
@@ -205,7 +205,7 @@ class OpenAIProvider(LLMProvider):
         self.config = config or load_config()
         api_key = os.environ.get("OPENAI_API_KEY", "")
         self.client = AsyncOpenAI(api_key=api_key)
-        self.model = "gpt-4o-mini"
+        self.model = "gpt-4o-mini-2024-07-18"
         model_pricing = self.config.provider.models.get(self.model)
         self._input_cost = model_pricing.input_cost_per_mtok if model_pricing else 0.15
         self._output_cost = model_pricing.output_cost_per_mtok if model_pricing else 0.60
