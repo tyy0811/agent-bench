@@ -374,7 +374,7 @@ both are on record** — one per prompt path:
 
 | Baseline file | Invocation | Prompt source | In-scope P@5 | In-scope R@5 | Citation | Mean calls |
 |---|---|---|---|---|---|---|
-| `results/fastapi_preedit.json` @ `bd2b913` | `--corpus fastapi` | `format_system_prompt("FastAPI")` | 0.718 | 0.833 | 1.000 | 1.14 |
+| `results/fastapi_preedit.json` @ `e6d9675` | `--corpus fastapi` | `format_system_prompt("FastAPI")` | 0.718 | 0.833 | 1.000 | 1.14 |
 | `results/fastapi_legacy_baseline_pinned.json` @ this commit | `make evaluate-fast` (no `--corpus`) | `tech_docs.yaml` `task.system_prompt` | 0.655 | 0.849 | 1.000 | 1.45 |
 
 Citation accuracy holds at 1.000 on both paths, both in-scope and
@@ -856,7 +856,7 @@ Applied identically to FastAPI and K8s:
 - Answer does NOT begin with refusal phrasing ("The ... documentation does not provide", "I cannot answer")
 
 **Baseline reference:** K8s pre-edit numbers from `results/k8s_preedit.json`
-at commit `b97f00f` — P@5 0.80, R@5 1.00, citation 1.00 (all 6),
+at commit `c1d8163` — P@5 0.80, R@5 1.00, citation 1.00 (all 6),
 mean tool_calls 1.167. FastAPI pre-edit reference established by
 `results/fastapi_preedit.json` in the next step of this session,
 same pinned ID, same refusal threshold (0.02).
@@ -952,13 +952,13 @@ snapshot in this session:
 - `k8s_preedit_pinned.json` — 6 pilots, HEAD prompt, 0.015 threshold
 - `k8s_postedit.json` — 6 pilots, clause prompt, 0.015 threshold (**gate-passing run, pilot_005 strict flip confirmed**)
 
-The previously-committed `results/k8s_preedit.json` (from `b97f00f`)
+The previously-committed `results/k8s_preedit.json` (from `c1d8163`)
 is also a valid K8s-pinned measurement at the session-equivalent
 snapshot and remains the canonical threshold-commit evidence.
 
 **Held DECISIONS.md drafts stay held.** The counterfactual-query
 finding draft (to be updated when Fix 2 lands) and the threshold-
-calibration entry already committed at `b97f00f` are both correct
+calibration entry already committed at `c1d8163` are both correct
 in scope. The narrowed serving-migration deferral entry (tied to
 any external reference to the counterfactual-query fix) also stays
 deferred until Fix 2 lands, since the production/eval-harness
@@ -1023,7 +1023,7 @@ requires an A/B comparison.
 
 **Baseline reuse.** The Fix 1 session's pre-edit JSONs
 (`results/fastapi_preedit.json`, `results/k8s_preedit_pinned.json`,
-both committed at `bd2b913`) were measured under the currently-
+both committed at `e6d9675`) were measured under the currently-
 committed state of the repo: pinned `gpt-4o-mini-2024-07-18`, K8s
 threshold 0.015, FastAPI threshold 0.02, HEAD `prompts.py` with no
 clause, HEAD `search.py` with no expansion. The working tree
@@ -1065,8 +1065,8 @@ gate):**
 
 | Corpus | Pre-edit source | P@5 | R@5 | Citation | Mean tool_calls |
 |---|---|---|---|---|---|
-| FastAPI (27) | `results/fastapi_preedit.json` @ `bd2b913` | 0.585 | 0.679 | 1.000 | 1.111 |
-| K8s (6 pilots) | `results/k8s_preedit_pinned.json` @ `bd2b913` | 0.800 | 1.000 | 1.000 | 1.167 |
+| FastAPI (27) | `results/fastapi_preedit.json` @ `e6d9675` | 0.585 | 0.679 | 1.000 | 1.111 |
+| K8s (6 pilots) | `results/k8s_preedit_pinned.json` @ `e6d9675` | 0.800 | 1.000 | 1.000 | 1.167 |
 
 **Post-edit filenames (to be produced).**
 - `results/fastapi_postedit_fix2.json`
@@ -1155,7 +1155,7 @@ a technical reviewer, like the system failed to find the answer
 and is papering over the gap, even though the facts and citation
 are present. The criterion fired as designed.
 
-**Compare to Fix 1 post-edit answer (from `bd2b913` evidence):**
+**Compare to Fix 1 post-edit answer (from `e6d9675` evidence):**
 
 > *"Kubernetes NetworkPolicy does not support enforcing mutual TLS
 > (mTLS) directly. The documentation states that anything TLS
@@ -1221,9 +1221,9 @@ Reverting, same Fix-1 pattern.
 `agent_bench/tools/search.py`, `agent_bench/core/prompts.py`, or
 `configs/default.yaml`. Both Fix 1 (prompt clause) and Fix 2
 (SearchTool expansion) have been attempted and reverted this
-session. Three commits of progress nonetheless: `b97f00f`
-(threshold calibration, empirical), `77017db` (prep bundle: model
-pin + fastapi wire + Fix 1 pre-committed tolerances), `bd2b913`
+session. Three commits of progress nonetheless: `c1d8163`
+(threshold calibration, empirical), `740c9d5` (prep bundle: model
+pin + fastapi wire + Fix 1 pre-committed tolerances), `e6d9675`
 (Fix 1 revert narrative). The threshold calibration and model pin
 are real, shipped, measurement-grounded infrastructure changes.
 The two fix attempts are documented learning that shapes the
@@ -1284,7 +1284,7 @@ refactor could silently widen the matcher back to substring and pass
 all existing tests. The negative test pins design intent.
 
 **Scope bound.** This is a metric correctness fix, not a threshold
-change. The 0.015 refusal-gate threshold (calibrated in `b97f00f`
+change. The 0.015 refusal-gate threshold (calibrated in `c1d8163`
 against the 6-question pilot) is unchanged by this commit. Whether
 the corrected metric shifts the optimal threshold against the full
 25-question set is a question for the threshold-sweep session, not
@@ -1359,16 +1359,29 @@ and decision criteria before measuring.
    follow-up commit when the rename happens.
 
 6. **OpenAI snapshot drift bisection.** Mar 25 → Apr 12 P@5 slide;
-   the model pin at `77017db` (`gpt-4o-mini-2024-07-18`) removed
+   the model pin at `740c9d5` (`gpt-4o-mini-2024-07-18`) removed
    the ongoing drift risk, so any future measurement is apples-to-
    apples. The original bisection is still unresolved but cheap at
    this point — tractable whenever there is session capacity, low
    urgency because the pin protects forward runs.
 
+7. **Fix 2 revert commit SHA missing from the Fix 2 outcome entry.**
+   The "Fix 2 outcome — mechanism works, response-style criterion
+   fired, reverted" DECISIONS.md entry describes the revert
+   narratively but does not cite the revert commit's SHA
+   (post-rewrite: `8c836f5` — `docs(eval): Fix 2 SearchTool query
+   expansion — attempted and reverted`). Add retroactive SHA
+   reference in the next docs pass. Not urgent; noted so the
+   narrative-without-SHA pattern does not spread to other entries.
+   **Lesson going forward:** prefer explicit SHAs over positional
+   references like "this commit" / "commit above" in DECISIONS.md
+   entries — positional references do not survive history rewrites
+   as robustly as SHA references do.
+
 ## K8s refusal_threshold sweep against 25-question golden — 2026-04-14
 
 **Override notice.** This sweep ran in the same session as the
-25-question authoring + grounded_refusal metric fix (`526be18`),
+25-question authoring + grounded_refusal metric fix (`6d177ba`),
 after I explicitly flagged that the parallel-tracks guidance from
 earlier in the session recommended waiting for a fresh session with
 pre-commitment discipline. The user issued an explicit override:
@@ -1379,12 +1392,12 @@ locked before the first data point was observed, not retrofitted.
 
 **Sweep grid.** 4 threshold values: `0.010`, `0.015` (already
 measured in `.cache/eval_k8s_full25_postfix.json`, the post-metric-
-fix run from `526be18`), `0.020`, `0.025`.
+fix run from `6d177ba`), `0.020`, `0.025`.
 - `0.010`: one tick below current calibration; sanity-check floor.
 - `0.015`: current calibration (pilot-floor, one tick below
   pilot_005's 0.01639 max_score).
 - `0.020`: matches legacy FastAPI threshold and the original
-  provisional K8s default before the `b97f00f` calibration.
+  provisional K8s default before the `c1d8163` calibration.
 - `0.025`: one tick above legacy; exploration of whether aggressive
   OOS short-circuiting is worth the correctness risk.
 
@@ -1424,7 +1437,7 @@ phrasing; that's the Fix 2 + prompt guidance stacked experiment
 the parallel-tracks list already defers.
 
 **Measured results.** All four runs use the post-metric-fix pipeline
-(grounded_refusal metric from `526be18`), deterministic mode,
+(grounded_refusal metric from `6d177ba`), deterministic mode,
 `gpt-4o-mini-2024-07-18`, same retriever config.
 
 | threshold | avg R@5 | OOS refusal | gate fired on                     | broken retrieval       |
@@ -1499,7 +1512,7 @@ other corpora. (b) Tuning FastAPI's threshold against its golden
 set — the FastAPI default was empirically fine on its own 30Q set
 and is not a documented regression. (c) Fixing the `k8s_015`
 R@5=0.50 value observed across all threshold runs — pre-existing
-authoring state from `526be18`, tracked separately if it becomes
+authoring state from `6d177ba`, tracked separately if it becomes
 a concern on future runs.
 
 **Narrative summary.** Session hypothesis: pilot_005 is a
@@ -1515,3 +1528,176 @@ prompt guidance stacked** is the natural next experiment; this
 session's pilot-first discipline has been preserved against two
 distinct pre-committed gates, both firing for the reasons they
 were designed to catch.
+
+## Credential-exposure incident and history rewrite — 2026-04-14/15
+
+**Summary.** During Week 1 work on the
+`feat/user-friendly-landing-page-live-dashboard` branch, an
+`instruction.txt` file containing plaintext OpenAI and Anthropic
+API keys was accidentally committed at pre-rewrite SHA `2b3150f`
+(`style: fix ruff lint — import sorting, line length`) and removed
+from the working tree in a later commit (pre-rewrite SHA `3a2c5ef`,
+`security: remove instruction.txt containing plaintext credentials`).
+The removal did not clean git history — the keys remained accessible
+via `git show 2b3150f:instruction.txt` in local history.
+
+**Discovery.** The issue was discovered when GitHub push protection
+rejected the first push of the branch to the `origin` remote,
+flagging the credentials via its secret-scanning system. The branch
+had never been pushed to any public remote prior to the rewrite;
+the detection fired on the very first push attempt, which is the
+correct moment for secret-scanning to act. Honest credit to the
+tooling: GitHub's push protection did exactly what it was designed
+to do, and the alternative failure mode (silent push of real
+credentials to a public repo) did not occur.
+
+**Immediate actions, in order.**
+
+1. **Key rotation.** Rotated both OpenAI and Anthropic keys at the
+   respective provider dashboards, revoking the exposed values
+   immediately. Rotation was confirmed before any git operation
+   ran — the reasoning was that the keys were exposed on the local
+   disk regardless of whether they ever made it to a public remote,
+   so the exposure window needed to be closed first.
+
+2. **Unauthorized-use check.** Verified billing/usage dashboards on
+   both OpenAI and Anthropic for the exposure window (from commit
+   `2b3150f` landing until rotation). No unauthorized activity
+   observed on either account.
+
+3. **Local `.env` update and smoke test.** Updated local `.env`
+   with the new keys. Verified both worked via minimal API calls
+   that return only HTTP status codes (never the key values
+   themselves): `GET /v1/models` for OpenAI (200), `POST /v1/messages`
+   with a 1-token request for Anthropic (200). Total verification
+   cost: <$0.0001.
+
+4. **Repository backup.** Before running any history-rewriting
+   command, backed up the entire repository via `rsync -a` to
+   `/Users/zenith/Desktop/agent-bench.pre-filter-repo-backup-<ts>`,
+   excluding only `.mypy_cache` and `.cache` (both derivative,
+   regenerable, and explicitly `.gitignore`'d). The backup preserved
+   `.git/`, all four worktree state files under `.git/worktrees/`,
+   the `.worktrees/` checkouts themselves, and all tracked source
+   files. The backup is the safety net if the rewrite had gone
+   wrong in any way; this session never needed to consult it.
+
+5. **History rewrite via `git filter-repo`.** Ran
+   `git filter-repo --path instruction.txt --invert-paths --force`
+   on the main clone. The `--force` flag was required because
+   filter-repo's default safety check refuses to run on non-fresh
+   clones; the backup step above mitigates the risk that this flag
+   is usually guarding against. 186 commits were parsed and
+   rewritten in ~2.4 seconds; filter-repo's internal repacking
+   completed in an additional ~5 seconds. The `origin` and `hf`
+   remotes were automatically unset by filter-repo as its standard
+   safety behavior (and restored from a saved file before the push).
+
+6. **Dropped empty commit.** Pre-rewrite commit `3a2c5ef` (which
+   removed `instruction.txt` from the working tree but did not
+   clean history) became empty after filter-repo stripped the file
+   from all prior commits and was dropped automatically. This is
+   correct filter-repo behavior: the commit's only net effect was
+   to remove a file that no longer exists in any predecessor, so
+   post-rewrite it has no content change and is elided from the
+   linear history. The total commit count went from 186 → 185.
+   Pre-rewrite SHA `3a2c5ef` maps to `00000...00000` in
+   `.git/filter-repo/commit-map`, indicating the drop. The dropped
+   SHA was not referenced anywhere in DECISIONS.md, so the drop
+   had zero audit-trail impact.
+
+7. **Multi-layer verification sweep.** Ran six checks across every
+   location where the credentials could still be present:
+   (a) `git log --all --full-history -- instruction.txt` returned
+   empty; (b) `git rev-list --all --objects | grep instruction.txt`
+   returned 0 matches; (c) `git reflog --all` was empty after
+   `git reflog expire --expire=now --all`; (d) `git fsck
+   --unreachable` returned clean; (e) `git stash list` was empty;
+   (f) a precise key-value regex scan across all blobs in the
+   rewritten object database (`sk-[A-Za-z0-9]{30,}`,
+   `sk-ant-[A-Za-z0-9]{20,}`, and env-var-assignment patterns)
+   found 23 matches, **all verified to be non-secret content**
+   — specifically: 15 historical README.md blobs containing the
+   documentation placeholder `ANTHROPIC_API_KEY=sk-ant-...`
+   (with three literal dots), 7 historical `docs/provider_comparison.md`
+   blobs with the same documentation placeholder pattern, and 1
+   `tests/test_output_validator.py` blob containing test fixtures
+   that intentionally use mock key-shaped strings to verify the
+   output-validator's secret-redaction logic. The precise scan is
+   a meaningful check: it demonstrates that the exposure was
+   isolated to `instruction.txt` and did not spread via copy-paste
+   of the key values into other files before removal.
+
+8. **Worktree walk.** All four worktrees (`feat-infra-sprint`,
+   `feature-grounded-refusal`, `langchain-baseline`,
+   `security-hardening`) were checked for `instruction.txt` history
+   pollution and for uncommitted changes. All four were clean —
+   no pollution in any branch's history (filter-repo operates on
+   all refs in a shared `.git/`, so the worktrees were reached
+   through the main clone's object database) and no local dirty
+   state in any working tree. No worktree deletion or recreation
+   was needed.
+
+9. **DECISIONS.md SHA remap.** The filter-repo operation rewrote
+   every commit's SHA downstream of the first rewritten commit.
+   This broke every explicit SHA reference in DECISIONS.md because
+   those references pointed to pre-rewrite SHAs that no longer
+   exist. The remap used `.git/filter-repo/commit-map` as the
+   authoritative SHA-based mapping (not message-based pairing,
+   which would have been vulnerable to duplicate-message
+   ambiguity — 2 pairs of commits in the pre-rewrite history did
+   in fact have identical messages, though neither was in the
+   substitution set). Four unique old SHAs were remapped across
+   18 substitution sites:
+
+   | OLD (pre-rewrite) | NEW (post-rewrite) | Commit role |
+   |---|---|---|
+   | `bd2b913` | `e6d9675` | Fix 1 counterfactual prompt clause revert |
+   | `b97f00f` | `c1d8163` | K8s refusal_threshold 0.02 → 0.015 calibration |
+   | `77017db` | `740c9d5` | pin gpt-4o-mini snapshot + wire fastapi golden |
+   | `526be18` | `6d177ba` | Week 1 step 5 — 25Q golden + grounded_refusal fix |
+
+   Every message matched exactly across the old→new pairing; no
+   new SHA prefix collides with any old SHA prefix; post-remap
+   grep confirmed zero remaining references to any old SHA.
+
+**Exposure scope assessment.** The branch had never been pushed
+to any public remote prior to the rewrite. The credentials existed
+in:
+- Local git history at `/Users/zenith/Desktop/agent-bench/.git/` (cleaned)
+- Four worktree clones sharing the same `.git/` (cleaned via the main repo)
+- The rsync backup at
+  `/Users/zenith/Desktop/agent-bench.pre-filter-repo-backup-<ts>`
+  (to be deleted after this commit and test suite confirm the
+  rewrite is correct)
+
+No external exposure via GitHub, HF Spaces, or any other shared
+system occurred. No cached CI artifacts contain the keys because
+CI only runs on pushed branches and this branch was never pushed.
+No forks or clones exist outside the local machine. GitHub's
+push-protection detection itself touched the key strings during
+the rejected push attempt, but GitHub's secret scanning is trusted
+infrastructure and the rejection is the good outcome, not an
+additional exposure event.
+
+**Why this entry exists.** Credential hygiene failures are worth
+documenting, not hiding. A reviewer who reads this entry sees a
+developer who: made a mistake, caught it via automated tooling
+working as designed, rotated keys before touching git, rewrote
+history surgically with a backup as the safety net, verified the
+rewrite across six independent checks, and preserved audit-trail
+integrity through the SHA remap. The honest-evaluation brand
+extends to credential-handling incidents — the alternative of
+pretending this didn't happen, or silently unblocking the secret-
+scanning rejection to push exposed values to a public repo, would
+be a strictly worse outcome for both security posture and brand
+credibility.
+
+**Procedural lessons for DECISIONS.md going forward.** Prefer
+explicit commit SHAs over positional references like "this commit"
+or "commit above" — positional references do not survive history
+rewrites as robustly as explicit SHAs do. The "Fix 2 outcome"
+entry above was identified during this incident as missing an
+explicit SHA reference to the Fix 2 revert commit (post-rewrite
+SHA `8c836f5`); this is tracked as parallel-tracks item #7 for a
+retroactive fix in the next docs pass.
