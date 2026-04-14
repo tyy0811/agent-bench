@@ -259,3 +259,26 @@ Before writing the 25 questions, step 5 author must:
 
 Only after these three checks pass does the step 5 author proceed
 to the full 25-question authoring session.
+
+## Post-authoring observations (step 5 shipped 2026-04-14)
+
+Pilot→full generalization numbers: pilot (6Q) P@5=0.80, R@5=1.00,
+KHR=0.81 → full (25Q post-fix) P@5=0.83, R@5=0.96, KHR=0.90. R@5
+movement is within expected variance when corpus breadth expands
+from 8 → 28 pages; KHR jump from 0.81→0.90 is an open question —
+the 25Q distribution may skew toward questions where the golden
+keyword set is more readily satisfied (simple + simple_w_condition
++ set together = 11/25 questions with short, high-precision expected
+answers), vs the pilot's retrieval-heavy mix. Worth revisiting if
+KHR drifts on future corpora — if consistent across datasets, it's
+authoring signal that the keyword set should be tightened for CRAG
+type parity.
+
+Flavor-B reproducibility finding: k8s_022 (RBAC deny rules) and
+pilot_005 (NetworkPolicy mTLS) both produce refusal-phrased answers
+when the documented negative is in retrieved context. Two independent
+reproductions confirm the LLM-hedges-on-documented-negative pattern
+is a class of failure mode, not a one-off — strengthens the case
+for the deferred Fix 2 + targeted prompt guidance stacked experiment.
+Authoring itself is clean on both: retrieval surfaces the expected
+chunks, citation accuracy 1.00, snippets verify against chunk IDs.

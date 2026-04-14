@@ -1290,6 +1290,56 @@ the corrected metric shifts the optimal threshold against the full
 25-question set is a question for the threshold-sweep session, not
 this authoring session.
 
+## Parallel tracks / deferred items — 2026-04-14
+
+Tracked list of work items that are deferred to parallel sessions.
+Each item has a reason for deferral and a rough scope boundary so
+the session that picks it up has the context to pre-commit tolerances
+and decision criteria before measuring.
+
+1. **`routes.py:552` audit-logger semantics unification.** The
+   serving layer's audit record field still uses the pre-fix
+   `grounded_refusal = not bool(sources)` expression, which disagrees
+   with the evaluation metric's answer-text-based definition. Not
+   surfaced to the dashboard (audit log only), but external reviewers
+   who reference audit records for runtime verification would see a
+   different definition than the benchmark claims. Fix: call
+   `grounded_refusal(answer, category)` from `metrics.py` directly.
+   When this lands, the "grounded_refusal metric" DECISIONS.md entry
+   above should get a one-line addendum noting the unification.
+
+2. **Full 25Q threshold sweep → production-target `refusal_threshold`
+   for K8s.** The 25Q set exists, the metric is correct. Sweep
+   against the full set, compare to pilot-floor 0.015, pick the
+   production-target value, update `configs/default.yaml` placeholder
+   comment. Pre-commit before measuring: sweep range, decision
+   criteria, tolerances. Do not entangle with flavor-B response-style
+   work below — those are independent axes.
+
+3. **Flavor-B response-style class (pilot_005 + k8s_022).** Two
+   independent reproductions of "LLM refuses when documented negative
+   is in retrieved context". Retrieval is healthy on both; the gap
+   is prompting. Future session: Fix 2 (counterfactual-query
+   expansion in `SearchTool`) + targeted prompt clause stacked —
+   previously speculative in the Fix 2 revert entry, now addresses
+   a documented reproducible class. Two reproductions, not one-off.
+
+4. **Serving-migration deferral.** Tied to external references to
+   the counterfactual-query fix. Unchanged from prior sessions.
+
+5. **`agent-bench` → `refusal-bench` rename due diligence.**
+   Outstanding from session 1. No scope change; the rename has
+   repo-wide implications that need a dedicated session (GitHub
+   repo URL, HF Space slug, README, import paths, commit
+   message prefix conventions).
+
+6. **OpenAI snapshot drift bisection.** Mar 25 → Apr 12 P@5 slide;
+   the model pin at `77017db` (`gpt-4o-mini-2024-07-18`) removed
+   the ongoing drift risk, so any future measurement is apples-to-
+   apples. The original bisection is still unresolved but cheap at
+   this point — tractable whenever there is session capacity, low
+   urgency because the pin protects forward runs.
+
 **Narrative summary.** Session hypothesis: pilot_005 is a
 counterfactual-query-expansion problem. Session evidence: the
 hypothesis is correct on retrieval — the target chunk is reachable
