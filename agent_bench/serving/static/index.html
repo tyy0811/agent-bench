@@ -228,7 +228,7 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
       <div class="label">Citation Acc</div>
     </div>
     <div class="tile">
-      <div class="value">336</div>
+      <div class="value">441</div>
       <div class="label">Tests</div>
     </div>
     <div class="tile">
@@ -282,15 +282,7 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
             <div class="stage-dot"></div><div class="stage-connector"></div>
             <div class="stage-info"><div class="stage-name">Injection Check</div><div class="stage-detail" data-detail="injection_check"></div></div>
           </div>
-          <div class="stage-row" data-stage="retrieval" data-iteration="1">
-            <div class="stage-dot"></div><div class="stage-connector"></div>
-            <div class="stage-info"><div class="stage-name">Retrieval</div><div class="stage-detail" data-detail="retrieval"></div></div>
-          </div>
-          <div class="stage-row" data-stage="reranking" data-iteration="1">
-            <div class="stage-dot"></div><div class="stage-connector"></div>
-            <div class="stage-info"><div class="stage-name">Reranking</div><div class="stage-detail" data-detail="reranking"></div></div>
-          </div>
-          <div class="stage-row" data-stage="llm" data-iteration="1">
+          <div class="stage-row" data-stage="llm">
             <div class="stage-dot"></div><div class="stage-connector"></div>
             <div class="stage-info"><div class="stage-name">LLM Synthesis</div><div class="stage-detail" data-detail="llm"></div></div>
           </div>
@@ -401,7 +393,7 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
 
 <!-- ── Footer ─── -->
 <footer class="footer">
-  <div class="footer-stats">agent-bench &middot; MIT License &middot; 336 tests &middot; 3 providers</div>
+  <div class="footer-stats">agent-bench &middot; MIT License &middot; 441 tests &middot; 3 providers</div>
   <div class="footer-name">Built by Jane Yeung &mdash; Munich, Germany</div>
   <div class="footer-links">
     <a href="mailto:">Email</a>
@@ -573,7 +565,11 @@ observer.observe(document.getElementById('demo'));
 /* ── Pipeline reset ─── */
 function resetPipeline() {
   state.currentIteration = 1;
-  state.maxIterationSeen = 1;
+  state.maxIterationSeen = 0;
+  // Remove all dynamically-created retrieval/reranking rows and iteration dividers.
+  // The three static rows (injection_check, llm, output_validation) stay.
+  document.querySelectorAll('.iteration-divider, .stage-row[data-iteration]').forEach(el => el.remove());
+
   document.querySelectorAll('.stage-dot').forEach(d => {
     d.className = 'stage-dot';
   });
@@ -593,24 +589,52 @@ function resetPipeline() {
   });
   document.getElementById('injectionSub').textContent = '';
   document.getElementById('outputSub').textContent = 'monitored';
-
-  // Remove extra iteration rows
-  document.querySelectorAll('.iteration-divider, .stage-row[data-iteration]:not([data-iteration="1"])').forEach(el => el.remove());
 }
 
 /* ── Pipeline stage update ─── */
+// Design notes:
+// - LLM Synthesis is a single terminal row ("the final answer pass"), not
+//   per-iteration. Intermediate llm/running and llm/tool_call events route
+//   to the iteration's retrieval row (tool_call detail = the search query).
+//   Only the final llm/done transitions LLM Synthesis to its done state.
+//   This matches how users think about RAG — "search happened, then the
+//   agent answered" — rather than leaking the internal iteration loop.
+// - Retrieval and reranking rows are created strictly lazily per stage per
+//   iteration. An iteration that never runs retrieval (OOS refusal, or the
+//   final-answer pass after a prior search) never creates rows. Reranking
+//   is also its own lazy creation because the backend skips reranking on a
+//   grounded refusal (retrieval/done with refused=true), so pre-creating
+//   reranking alongside retrieval would leave a dead row in that case.
+// - The "iteration N — agent refined search" divider appears only when
+//   iter=N>1 actually runs retrieval, which is when the label is true.
 function updateStage(stage, status, meta) {
   const iteration = meta.iteration || 0;
   let row;
 
   if (stage === 'injection_check' || stage === 'output_validation') {
     row = document.querySelector(`.stage-row[data-stage="${stage}"]`);
-  } else {
-    // Iteration-aware: create nodes for iteration > 1
-    if (iteration > state.maxIterationSeen) {
-      state.maxIterationSeen = iteration;
-      addIterationNodes(iteration);
+  } else if (stage === 'llm') {
+    if (status === 'tool_call') {
+      // Route the tool_call detail to the iteration's retrieval row.
+      ensureStageRow('retrieval', iteration);
+      const retrievalRow = document.querySelector(
+        `.stage-row[data-stage="retrieval"][data-iteration="${iteration}"]`
+      );
+      if (retrievalRow && meta.tool) {
+        const d = retrievalRow.querySelector('[data-detail]');
+        const args = meta.arguments || {};
+        if (d) {
+          d.dataset.query = args.query || '';
+          d.textContent = `search: "${args.query || ''}"`;
+        }
+      }
+      return;
     }
+    // llm/running and llm/done both target the single LLM Synthesis row.
+    row = document.querySelector('.stage-row[data-stage="llm"]');
+  } else {
+    // retrieval, reranking — lazy per-stage creation
+    ensureStageRow(stage, iteration);
     row = document.querySelector(`.stage-row[data-stage="${stage}"][data-iteration="${iteration}"]`);
   }
   if (!row) return;
@@ -622,16 +646,8 @@ function updateStage(stage, status, meta) {
     dot.className = 'stage-dot running' + (stage === 'llm' ? ' llm-stage' : '');
   } else if (status === 'done') {
     dot.className = 'stage-dot done';
-  } else if (status === 'tool_call') {
-    dot.className = 'stage-dot running llm-stage';
-    const detail = row.querySelector('[data-detail]');
-    if (detail && meta.tool) {
-      const args = meta.arguments || {};
-      detail.textContent = `${meta.tool}: "${args.query || ''}"`;
-    }
   }
 
-  // Stage-specific details
   const detail = row.querySelector('[data-detail]');
   if (!detail) return;
 
@@ -647,7 +663,10 @@ function updateStage(stage, status, meta) {
       dot.className = 'stage-dot done';
       showRetrievalRefusal(meta);
     } else {
-      detail.textContent = meta.chunks_pre_rerank ? `${meta.chunks_pre_rerank} candidates` : 'done';
+      // Preserve the search query from the tool_call event if present.
+      const q = detail.dataset.query;
+      const count = meta.chunks_pre_rerank ? `${meta.chunks_pre_rerank} candidates` : 'done';
+      detail.textContent = q ? `"${q}" \u2192 ${count}` : count;
     }
   }
   if (stage === 'reranking' && status === 'done') {
@@ -666,37 +685,52 @@ function updateStage(stage, status, meta) {
   }
 }
 
-/* ── Add iteration nodes ─── */
-function addIterationNodes(iteration) {
+/* ── Ensure a single stage row exists for an iteration ─── */
+// Idempotent. Creates exactly one stage row (retrieval or reranking) for
+// the given iteration if it doesn't already exist, inserting it right
+// before the shared LLM Synthesis row. For iteration > 1, inserts the
+// "agent refined search" divider on first row creation for that iteration
+// (tracked by a divider element tagged with data-iteration).
+function ensureStageRow(stage, iteration) {
+  if (!iteration) return;
+  if (document.querySelector(`.stage-row[data-stage="${stage}"][data-iteration="${iteration}"]`)) {
+    return;
+  }
   const stages = document.getElementById('pipelineStages');
-  const outputRow = document.querySelector('.stage-row[data-stage="output_validation"]');
+  const synthesisRow = document.querySelector('.stage-row[data-stage="llm"]');
 
-  const divider = document.createElement('div');
-  divider.className = 'iteration-divider';
-  divider.textContent = `iteration ${iteration} -- agent refined search`;
-  stages.insertBefore(divider, outputRow);
+  if (iteration > state.maxIterationSeen) {
+    state.maxIterationSeen = iteration;
+  }
 
-  ['retrieval', 'reranking', 'llm'].forEach(s => {
-    const row = document.createElement('div');
-    row.className = 'stage-row';
-    row.dataset.stage = s;
-    row.dataset.iteration = iteration;
-    const dot = document.createElement('div');
-    dot.className = 'stage-dot';
-    const conn = document.createElement('div');
-    conn.className = 'stage-connector';
-    const info = document.createElement('div');
-    info.className = 'stage-info';
-    const name = document.createElement('div');
-    name.className = 'stage-name';
-    name.textContent = s === 'llm' ? 'LLM Synthesis' : s.charAt(0).toUpperCase() + s.slice(1);
-    const detail = document.createElement('div');
-    detail.className = 'stage-detail';
-    detail.dataset.detail = s;
-    info.append(name, detail);
-    row.append(dot, conn, info);
-    stages.insertBefore(row, outputRow);
-  });
+  // Insert the iter-N divider on first row creation for iteration > 1.
+  if (iteration > 1 && !document.querySelector(`.iteration-divider[data-iteration="${iteration}"]`)) {
+    const divider = document.createElement('div');
+    divider.className = 'iteration-divider';
+    divider.dataset.iteration = iteration;
+    divider.textContent = `iteration ${iteration} \u2014 agent refined search`;
+    stages.insertBefore(divider, synthesisRow);
+  }
+
+  const row = document.createElement('div');
+  row.className = 'stage-row';
+  row.dataset.stage = stage;
+  row.dataset.iteration = iteration;
+  const dot = document.createElement('div');
+  dot.className = 'stage-dot';
+  const conn = document.createElement('div');
+  conn.className = 'stage-connector';
+  const info = document.createElement('div');
+  info.className = 'stage-info';
+  const name = document.createElement('div');
+  name.className = 'stage-name';
+  name.textContent = stage === 'retrieval' ? 'Retrieval' : 'Reranking';
+  const detail = document.createElement('div');
+  detail.className = 'stage-detail';
+  detail.dataset.detail = stage;
+  info.append(name, detail);
+  row.append(dot, conn, info);
+  stages.insertBefore(row, synthesisRow);
 }
 
 /* ── Security badges ─── */

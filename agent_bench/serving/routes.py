@@ -279,11 +279,11 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     # --- Meta event data (resolved from the actual orchestrator, not
     # from config.provider.default — otherwise a dashboard request with
     # provider="anthropic" would see "openai" in the meta event).
+    # All real providers store the dated model snapshot on self.model
+    # (OpenAI/Anthropic/SelfHosted); the fallback covers test doubles
+    # like MockProvider that don't set it.
     provider_obj = orchestrator.provider
-    model_name = getattr(
-        provider_obj, "model_name",
-        getattr(provider_obj, "_model_name", provider_name),
-    )
+    model_name = getattr(provider_obj, "model", provider_name)
 
     # --- Security: injection detection (pre-retrieval) ---
     injection_detector = getattr(request.app.state, "injection_detector", None)
