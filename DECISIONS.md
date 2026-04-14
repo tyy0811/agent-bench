@@ -1345,9 +1345,18 @@ and decision criteria before measuring.
    honest-evaluation positioning without the rename cost:
    > "A RAG benchmark built from primitives, with honest
    >  evaluation of retrieval, refusal, and grounded citation."
-   HF Space `Nomearod/agentbench` renamed to `Nomearod/agent-bench`
-   for consistency with GitHub repo name at the same time (absorbs
-   the HF URL break before the first LinkedIn post links out).
+   HF Space rename (`Nomearod/agentbench` → `Nomearod/agent-bench`
+   for GitHub-name consistency) is a separate, smaller follow-up
+   deferred approximately one week. Reason: several job
+   applications submitted the preceding week reference the current
+   HF URL (`nomearod-agentbench.hf.space`); renaming the Space now
+   would break those inbound links with no HF-side redirect. The
+   rename absorbs cleanly once the application wave lands and the
+   reference window expires. Until then the README, dashboard, and
+   DECISIONS.md continue to reference the current `agentbench` URL;
+   launch-adjacent work (Post #1, screenshots, cold-start measure)
+   uses the current URL and will be updated in a single small
+   follow-up commit when the rename happens.
 
 6. **OpenAI snapshot drift bisection.** Mar 25 → Apr 12 P@5 slide;
    the model pin at `77017db` (`gpt-4o-mini-2024-07-18`) removed

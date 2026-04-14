@@ -45,21 +45,21 @@ API providers are directly comparable (same config). The self-hosted row uses `m
 
 ## Live Demo
 
-**https://nomearod-agent-bench.hf.space** (Hugging Face Spaces — first request after idle may take ~30s for cold start)
+**https://nomearod-agentbench.hf.space** (Hugging Face Spaces — first request after idle may take ~30s for cold start)
 
 ```bash
 # In-scope question (expect answer with sources)
-curl -X POST https://nomearod-agent-bench.hf.space/ask \
+curl -X POST https://nomearod-agentbench.hf.space/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "How do I define a path parameter in FastAPI?"}'
 
 # Out-of-scope question (expect grounded refusal)
-curl -X POST https://nomearod-agent-bench.hf.space/ask \
+curl -X POST https://nomearod-agentbench.hf.space/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "How do I cook pasta?"}'
 
 # Health check
-curl https://nomearod-agent-bench.hf.space/health
+curl https://nomearod-agentbench.hf.space/health
 ```
 
 ## Quick Start (Local)
