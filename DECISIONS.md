@@ -672,3 +672,49 @@ deferrals were deliberate, not forgetting. Not scheduled until
 post-launch; marker only. Post-launch scope: modify `ingest.py` to
 `rglob` + relative-path source IDs, re-ingest FastAPI, rewrite both
 golden datasets' `expected_sources` to path-style. Estimated 3h.
+
+## K8s refusal_threshold empirical calibration — 0.02 → 0.015
+
+**Change.** `configs/default.yaml`, `corpora.k8s.refusal_threshold`:
+`0.02` → `0.015`. Single-line config change, pilot-corpus only.
+FastAPI threshold unchanged.
+
+**Empirical evidence.** Diagnostic instrumentation of `k8s_pilot_005`
+(*"How do I configure a Kubernetes NetworkPolicy to enforce mutual
+TLS (mTLS) between Pods in the same namespace?"*) captured the
+retrieval gate firing at `max_score = 0.01639344262295082` — exactly
+`1 / (60 + 1)`, the algebraic floor for a single rank-1 BM25 hit
+under RRF with `rrf_k = 60`, dense contribution zero. At
+`refusal_threshold = 0.02`, pilot_005 tripped the gate and short-
+circuited before retrieval chunks reached the agent. At
+`refusal_threshold = 0.015` (one tick below the measured floor), the
+gate releases and retrieval proceeds. The 0.015 value is not a
+tuning guess — it is the nearest round-number floor below the
+observed gate-fire value for the single worst pilot in the set.
+
+**Validation.** `results/k8s_preedit.json` captures the full 6-pilot
+run at 0.015. Aggregate: P@5 0.80, R@5 1.00, KHR 0.78, mean
+`tool_calls_made` 1.167. All six questions receive retrieval; no
+gate-fire short-circuits. pilot_005 still refuses as a separate
+downstream issue (see next entry when the counterfactual-query fix
+lands); that is not a threshold problem.
+
+**Scope of this commit.** K8s only. FastAPI `refusal_threshold`
+(0.02) is not affected and FastAPI baseline is not re-measured.
+Launch-intent `0.30` placeholder for K8s remains as a comment
+marker; the full threshold sweep against the 25-question golden set
+replaces 0.015 with a properly-tuned value in a later commit. 0.015
+is the pilot-floor safety value, not the production-target value.
+
+**Why this is a separate commit from the prompt revision.** The
+threshold calibration is empirically grounded on its own — it
+removes the 0.01639 gate-fire blocker, which is the precondition for
+any downstream evaluation of pilot_005's actual agent behavior. The
+prompt revision addresses a *different* failure mode surfaced once
+the gate releases (agent search strategy is monotone positive-
+framing). Two independent changes must not entangle in one commit;
+if the prompt revision fails its regression gate and is reverted,
+the threshold calibration should stand on its own empirical merit.
+Feedback memory `feedback_fix_before_sweep.md` applies recursively:
+fix measurement-affecting bugs at every layer before combining
+fixes into single experiments.

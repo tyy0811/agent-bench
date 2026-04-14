@@ -103,9 +103,9 @@ corpora:
     label: "Kubernetes"
     store_path: .cache/store_k8s
     data_path: data/k8s_docs
-    refusal_threshold: 0.02  # PILOT: matches fastapi working value for 6-pilot smoke test.
-                             # 0.30 placeholder remains the launch-intent; full tuning sweep
-                             # lands with the 25-question golden set (see DECISIONS.md).
+    refusal_threshold: 0.015  # Empirically calibrated one tick below the 0.01639 gate-fire
+                              # observed on pilot_005 (see DECISIONS.md). 0.30 launch-intent
+                              # still holds; full sweep lands with the 25-question golden set.
     top_k: 5
     max_iterations: 3
     golden_dataset: agent_bench/evaluation/datasets/k8s_golden_pilot.json
