@@ -1327,11 +1327,27 @@ and decision criteria before measuring.
 4. **Serving-migration deferral.** Tied to external references to
    the counterfactual-query fix. Unchanged from prior sessions.
 
-5. **`agent-bench` → `refusal-bench` rename due diligence.**
-   Outstanding from session 1. No scope change; the rename has
-   repo-wide implications that need a dedicated session (GitHub
-   repo URL, HF Space slug, README, import paths, commit
-   message prefix conventions).
+5. **`agent-bench` → `refusal-bench` rename — CLOSED 2026-04-14.**
+   Decision: keep `agent-bench`, reframe via tagline. The original
+   concern was name collision with AgentBench (Liu et al., ICLR
+   2024, ~1000 citations). Due-diligence at launch time: the name
+   is `agent-bench` (hyphenated) vs. `AgentBench` (camelcase),
+   which are distinct identifiers across GitHub, arXiv, and PyPI.
+   The two projects target different audiences (LLM-as-agent
+   capability vs. RAG+refusal benchmark) and any reviewer reaching
+   the repo via LinkedIn or CV sees the scope in the README within
+   seconds. Rename cost is substantial (~350 internal references
+   across ~60 files, two external account renames, one HF Space
+   URL break with no redirect) for a naming-precision benefit that
+   isn't supported by the actual scope — the benchmark measures
+   retrieval, grounding, multi-hop, citation accuracy, and refusal
+   as seven axes, not refusal alone. Tagline reframe captures the
+   honest-evaluation positioning without the rename cost:
+   > "A RAG benchmark built from primitives, with honest
+   >  evaluation of retrieval, refusal, and grounded citation."
+   HF Space `Nomearod/agentbench` renamed to `Nomearod/agent-bench`
+   for consistency with GitHub repo name at the same time (absorbs
+   the HF URL break before the first LinkedIn post links out).
 
 6. **OpenAI snapshot drift bisection.** Mar 25 → Apr 12 P@5 slide;
    the model pin at `77017db` (`gpt-4o-mini-2024-07-18`) removed
