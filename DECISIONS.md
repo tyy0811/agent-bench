@@ -782,3 +782,99 @@ evaluation path, decision criteria. Splitting into three commits
 would add noise without adding signal. None of them change the
 prompt template itself; the prompt edit is the NEXT commit and is
 the sole experimental variable the regression measures.
+
+## Fix 1 (prompt-level counterfactual clause) attempted and reverted
+
+**Outcome.** K8s regression clean on every metric (P@5, R@5, KHR,
+citation, mean tool_calls all within tolerance or unchanged); K8s
+pilot_005 flipped from refusal to documented-negative-with-citation
+as designed (KHR 0.67 → 1.00, answer contains both "service mesh"
+and "ingress controller", cites `k8s_network_policies.md`).
+**FastAPI regression failed** on the iteration-inflation tolerance:
+mean `tool_calls_made` 1.111 → 1.556 (delta +0.444, gate +0.30),
+and two retrieval questions (q024, q025) were pushed from 1 pre-edit
+tool call to 3 post-edit tool calls (hitting `max_iterations=3`
+cap), violating the pre-committed "no new cap-hits from sub-cap
+baseline" criterion.
+
+**Correctness metrics on FastAPI all held.** Citation accuracy
+stayed at 1.000 / 1.000 across all 27 questions. P@5 delta −0.007,
+R@5 delta 0.000, KHR delta +0.006. The failure is purely process
+inflation, not output regression. q024 and q025 produce identical
+P@5/R@5/KHR/citation numbers pre and post despite the cap-hit — the
+orchestrator's "max iterations hit → one final complete() without
+tools" path happened to keep answers correct, but that is
+observation, not structural protection.
+
+**Failure mode.** The clause's trigger condition — *"your first
+search returned documentation about the subject of the question
+without addressing the specific capability or feature the user is
+asking about"* — relies on subjective LLM judgment about whether
+retrieved content "addresses" a capability. The judgment is fuzzy
+on compound multi-topic questions where the first search returns
+partial-topic coverage. q024 asks about "Docker + Gunicorn workers
++ health checks + Pydantic Settings"; first search returns Docker
+content, LLM reads "documentation about the subject without
+addressing the specific capability," fires the follow-up with
+negative framing, gets nothing useful, does a third normal search
+to cover the remaining topics, hits the cap. Same pattern on q025.
+Over-firing on this class of question is an inherent fragility of
+prompt-level LLM-judged triggers; a wording refinement might
+narrow the misfire rate but cannot eliminate it as long as the
+judgment itself is fuzzy.
+
+**q023 vs q024/q025 asymmetry is a useful signal for Fix 2.** q023
+is a pre-existing 3-tool-call compound question ("custom error
+handling + CORS middleware + structured testing with dependency
+overrides"). Under the prompt clause, **q023 was unchanged** — the
+clause did not fire on it — while q024 and q025, structurally
+similar compound questions, were pushed into 3-tool-call cap-hit.
+The difference is not in question structure but in how the LLM
+interpreted the first-search return for each. That asymmetry is
+the precise reason a deterministic trigger is the right next step:
+any Fix 2 / Fix 3 candidate should be unit-testable against
+`(pilot_005, q023, q024, q025)` — the right fix must fire on
+pilot_005 and behave predictably on all three compound questions
+(either fire on all of them or none of them, but not pick them
+selectively by LLM whim).
+
+**Gate discipline honored.** The pre-committed FastAPI tolerances
+fired for exactly the reason the pre-commitment was designed:
+catching process-metric regressions before they ship. Tolerance-
+relaxation post-hoc would burn the session's strongest discipline
+artifact (pre-committed-tolerances + honored-gate) for marginal
+ship-this-approach EV. The narrow pilot_005 finding does not
+evaporate with the revert — chunk 63 (`d0806d5da91d6026`) is real,
+the negative-framing retrieval is reproducible, and Fix 2 will
+surface the documented negative the same way via a deterministic
+path.
+
+**Fix 2 deferred to a later session.** Deterministic query
+expansion at the `SearchTool` layer: when a `search_documents`
+call returns no chunk containing a direct answer string, issue a
+second internal search with negative-framing keywords and merge
+results before returning to the orchestrator. Offline-testable,
+corpus-agnostic, no LLM judgment required, no iteration-budget
+impact (the double-search happens inside a single tool call, not
+across iterations). Unit-testable against the
+`(pilot_005, q023, q024, q025)` asymmetry as an acceptance fixture.
+
+**Evidence retained.** Four result JSONs in `results/` document the
+regression measurement at the pinned `gpt-4o-mini-2024-07-18`
+snapshot in this session:
+- `fastapi_preedit.json` — 27 questions, HEAD prompt, 0.02 threshold
+- `fastapi_postedit.json` — 27 questions, clause prompt, 0.02 threshold (**gate-failing run**)
+- `k8s_preedit_pinned.json` — 6 pilots, HEAD prompt, 0.015 threshold
+- `k8s_postedit.json` — 6 pilots, clause prompt, 0.015 threshold (**gate-passing run, pilot_005 strict flip confirmed**)
+
+The previously-committed `results/k8s_preedit.json` (from `b97f00f`)
+is also a valid K8s-pinned measurement at the session-equivalent
+snapshot and remains the canonical threshold-commit evidence.
+
+**Held DECISIONS.md drafts stay held.** The counterfactual-query
+finding draft (to be updated when Fix 2 lands) and the threshold-
+calibration entry already committed at `b97f00f` are both correct
+in scope. The narrowed serving-migration deferral entry (tied to
+any external reference to the counterfactual-query fix) also stays
+deferred until Fix 2 lands, since the production/eval-harness
+prompt divergence is unchanged by this revert.
