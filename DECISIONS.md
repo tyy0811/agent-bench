@@ -1340,6 +1340,143 @@ and decision criteria before measuring.
    this point — tractable whenever there is session capacity, low
    urgency because the pin protects forward runs.
 
+## K8s refusal_threshold sweep against 25-question golden — 2026-04-14
+
+**Override notice.** This sweep ran in the same session as the
+25-question authoring + grounded_refusal metric fix (`526be18`),
+after I explicitly flagged that the parallel-tracks guidance from
+earlier in the session recommended waiting for a fresh session with
+pre-commitment discipline. The user issued an explicit override:
+"proceed on best-judgment sweep range and criteria" — logged here
+for audit trail. The pre-commitment frame below was drafted BEFORE
+running any sweep value, not after. The decision criteria were
+locked before the first data point was observed, not retrofitted.
+
+**Sweep grid.** 4 threshold values: `0.010`, `0.015` (already
+measured in `.cache/eval_k8s_full25_postfix.json`, the post-metric-
+fix run from `526be18`), `0.020`, `0.025`.
+- `0.010`: one tick below current calibration; sanity-check floor.
+- `0.015`: current calibration (pilot-floor, one tick below
+  pilot_005's 0.01639 max_score).
+- `0.020`: matches legacy FastAPI threshold and the original
+  provisional K8s default before the `b97f00f` calibration.
+- `0.025`: one tick above legacy; exploration of whether aggressive
+  OOS short-circuiting is worth the correctness risk.
+
+**Decision criteria (pre-committed).**
+1. **OOS refusal must hold.** Both `k8s_004` (Jaeger) and `k8s_024`
+   (Envoy xDS) must retain `grounded_refusal=True` at the chosen
+   threshold — whether the gate fires at the tool level or the
+   LLM refuses after inspecting context doesn't matter, only that
+   the metric reports True.
+2. **Retrieval recall must not degrade.** Each retrieval-category
+   question's R@5 at the chosen threshold must be ≥ its R@5 at
+   `0.015` (the post-fix-25Q baseline) with a noise tolerance of at
+   most ONE question dropping by at most 0.20. Two or more drops,
+   or any drop > 0.20, disqualifies the value.
+3. **Citation accuracy must hold.** All questions' citation_accuracy
+   must be ≥ 0.95 at the chosen threshold. One question at 0.80 is
+   noise-tolerated; two or more is a hard stop.
+4. **k8s_022 (flavor-B) retrieval must remain at R@5=1.0.** The
+   gap is prompting-side, not retrieval-side; any threshold that
+   breaks the already-working retrieval on flavor-B questions is
+   a regression.
+5. **Pick the highest threshold that satisfies 1–4.** Rationale:
+   a higher threshold short-circuits more OOS queries at the tool
+   level, saving a retrieval round trip and an LLM call — this is
+   a real latency and token-cost win when the correctness is held.
+6. **Tie-break.** If multiple values all satisfy 1–4, prefer the
+   value closest to a clean round number (0.020 over 0.018) for
+   documentation clarity.
+7. **Floor.** If no threshold > 0.015 satisfies 1–4, keep 0.015.
+   No threshold < 0.015 will be chosen regardless — sub-0.015 is
+   strictly less protective than the pilot-floor.
+
+**Scope bound.** K8s only; FastAPI's `refusal_threshold: 0.02` is
+unchanged. The flavor-B response-style gap (parallel track #3) is
+NOT a sweep variable — changing the threshold does not fix LLM
+phrasing; that's the Fix 2 + prompt guidance stacked experiment
+the parallel-tracks list already defers.
+
+**Measured results.** All four runs use the post-metric-fix pipeline
+(grounded_refusal metric from `526be18`), deterministic mode,
+`gpt-4o-mini-2024-07-18`, same retriever config.
+
+| threshold | avg R@5 | OOS refusal | gate fired on                     | broken retrieval       |
+|-----------|---------|-------------|-----------------------------------|------------------------|
+| 0.010     | 0.957   | 2/2         | —                                 | —                      |
+| 0.015     | 0.957   | 2/2         | —                                 | —                      |
+| 0.020     | 0.870   | 2/2         | k8s_006, k8s_007, k8s_024         | k8s_006, k8s_007 (R@5=0.00) |
+| 0.025     | 0.913   | 2/2         | k8s_004, k8s_007, k8s_024         | k8s_007 (R@5=0.00)     |
+
+**Structural finding: LLM query variance makes max_scores non-deterministic.**
+At 0.020, `k8s_006` (ConfigMap, simple) gate-fired → empty retrieval →
+R@5=0.00. At 0.025, `k8s_006` did NOT gate-fire → 5 sources → R@5=1.00.
+A higher threshold producing fewer gate-fires is physically impossible
+if retrieval is deterministic — the SearchTool receives different
+queries across runs because the orchestrator issues LLM-generated
+queries, and the same question can produce different top-k max_scores
+run-to-run. `k8s_006`'s max_score for the query the LLM chose lives
+somewhere around the 0.018–0.025 boundary; which side of any given
+threshold it lands on depends on which query the LLM wrote.
+
+This means **any threshold above 0.015 is structurally fragile**, not
+merely "failed on this run." Even if a run at 0.018 passed, a future
+run could gate-fire on `k8s_006` or `k8s_007` because the query is
+non-reproducible. The production threshold needs to sit below all
+legitimate simple-question max_scores with enough margin to absorb
+LLM query variance.
+
+**Decision: keep `refusal_threshold: 0.015`.**
+
+- `0.010`: meets all criteria, identical measured metrics to `0.015`
+  (avg R@5=0.957, OOS refusal 2/2, no citation fails). Not chosen:
+  lowering strictly weakens the gate's ability to catch low-
+  confidence retrievals without improving any measured metric.
+- `0.015`: chosen. Meets all criteria and is the highest value that
+  does not degrade retrieval — which is the definition of the
+  correct refusal-gate threshold. Preserving the gate's signal is
+  the gate's purpose; `0.015` gives maximum gate strength without
+  cost, `0.010` gives the same measurable behavior with less gate
+  signal, so `0.015` dominates.
+- `0.020`: breaks TWO retrieval questions (`k8s_006`, `k8s_007`);
+  disqualified per criterion 2.
+- `0.025`: breaks ONE retrieval question in this run (`k8s_007`)
+  but the non-determinism finding means a future run could break
+  more. Even ignoring non-determinism, still disqualified by the
+  citation-accuracy-equivalent drop on `k8s_007`.
+
+**Corpus characteristic finding.** The 0.020 default inherited from
+FastAPI breaks on K8s because K8s retrieval score distributions are
+lower for "easy" questions. `k8s_006` ("What is a ConfigMap?") and
+`k8s_007` ("What does a Kubernetes Job do?") are both `type: simple`
+with clean single-source expected answers — exactly the cases where
+BM25+embedding scores should be highest. They land at max_scores in
+the ~0.018 range, below the FastAPI-calibrated 0.020 default. This
+is **not an authoring bug** — both questions retrieve their
+`expected_sources` correctly when the gate doesn't fire. It's a
+corpus characteristic: K8s documentation has more topic-overlap
+across pages than FastAPI, diluting top-k concentration.
+
+The 25-question set exposed this because the 6-question pilot had
+no simple questions with low max_scores — the pilot was drawn from
+retrieval-stressful areas (comparison, multi-hop, flavor-B). The
+25-question authoring deliberately added simple questions to hit
+the CRAG distribution target (6 simple, 5–6 target), and those
+simple questions revealed the corpus-characteristic floor.
+
+**Config change.** `configs/default.yaml` `corpora.k8s.refusal_threshold`
+comment updated to reference this sweep. Value unchanged at `0.015`.
+
+**Not in scope.** (a) Adding retry-with-query-variance to the
+SearchTool to reduce max_score variance — separate session, affects
+other corpora. (b) Tuning FastAPI's threshold against its golden
+set — the FastAPI default was empirically fine on its own 30Q set
+and is not a documented regression. (c) Fixing the `k8s_015`
+R@5=0.50 value observed across all threshold runs — pre-existing
+authoring state from `526be18`, tracked separately if it becomes
+a concern on future runs.
+
 **Narrative summary.** Session hypothesis: pilot_005 is a
 counterfactual-query-expansion problem. Session evidence: the
 hypothesis is correct on retrieval — the target chunk is reachable

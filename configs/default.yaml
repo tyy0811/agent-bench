@@ -107,7 +107,10 @@ corpora:
     label: "Kubernetes"
     store_path: .cache/store_k8s
     data_path: data/k8s_docs
-    refusal_threshold: 0.015  # Empirically calibrated one tick below the 0.01639 gate-fire
+    refusal_threshold: 0.015  # Validated against 25Q set 2026-04-14 — see DECISIONS.md
+                              # (K8s refusal_threshold sweep). 0.020 and 0.025 both break
+                              # simple-question retrieval (k8s_006 ConfigMap, k8s_007 Job).
+                              # LLM-driven query variance makes any value > 0.015 fragile.
                               # observed on pilot_005 (see DECISIONS.md). 0.30 launch-intent
                               # still holds; full sweep lands with the 25-question golden set.
     top_k: 5
