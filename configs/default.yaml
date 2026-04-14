@@ -112,5 +112,5 @@ corpora:
                               # still holds; full sweep lands with the 25-question golden set.
     top_k: 5
     max_iterations: 3
-    golden_dataset: agent_bench/evaluation/datasets/k8s_golden_pilot.json
+    golden_dataset: agent_bench/evaluation/datasets/k8s_golden.json
     available: true

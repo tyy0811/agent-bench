@@ -1229,6 +1229,67 @@ are real, shipped, measurement-grounded infrastructure changes.
 The two fix attempts are documented learning that shapes the
 future direction.
 
+## `grounded_refusal` metric reads answer text, not retrieved sources — 2026-04-14
+
+**Context.** Week 1 step 5 authoring (25-question K8s golden set). Two
+flavor-A out-of-scope questions (`k8s_004` Jaeger sidecar, `k8s_024`
+Envoy xDS ADS) surfaced a pre-existing bug in the
+`grounded_refusal` metric during the functional check.
+
+**Bug 1 — wrong signal.** The metric's docstring said it checks
+whether the answer correctly refuses AND cites no sources, but the
+implementation was checking `len(response_sources) == 0` where
+`response_sources` is the *retrieved*-sources list. Real agents
+retrieve candidates on any non-trivial OOS query (the grounded-refusal
+gate at tool level only catches the thinnest queries), inspect the
+candidates, find nothing relevant, and refuse *in the answer text*
+without citing anything. Checking retrieval emptiness flagged those
+correct refusals as failures. Fix: inspect the answer text for
+`[source: X.md]` citations via regex; drop the `response_sources`
+parameter from the signature entirely.
+
+This was a silent false negative on all 5 fastapi out-of-scope
+questions (`q008`–`q010`, `q026`–`q027`) which all correctly refuse
+but were being marked `grounded_refusal=False`. Aggregate
+`refusal_rate` in `report.py` shifts by the resulting 5-question
+delta; any historical comparison to pre-fix fastapi numbers needs
+to acknowledge this.
+
+**Bug 2 — metric coverage gap surfaced during 25-question authoring.**
+`grounded_refusal_rate` recognized "does not contain information"
+phrasing (in `refusal_phrases` list) but missed "not in the
+{corpus_label} documentation" phrasing — the exact shape taught by
+the system prompt at `core/prompts.py:17-18`. The LLM produced the
+canonical form on some questions and the phrase-list form on others;
+the metric inflation/deflation was non-deterministic. Fix: narrow
+regex `\bnot in the\b[^.]{0,60}\bdocumentation\b` added alongside
+phrase-list matching.
+
+**Rejected alternative.** Substring `"not in the"` would produce
+false positives on valid-answer phrasing — "the rate limit is not in
+the same scope as the request timeout", "the flag is not in the 1.28
+release; it landed in 1.29", "this value is not in the default
+range" — all of which are legitimate retrieval answers with
+conditional or scope-limiting language, not refusals. Honest
+evaluation cannot afford a metric that silently counts these as
+grounded refusals.
+
+**Tests.** Two unit tests pin both directions:
+`test_canonical_refusal_phrasing_recognized` covers the positive
+case ("The answer is not in the Kubernetes documentation"), and
+`test_not_in_the_is_not_substring_refusal` covers the negative case
+("The rate limit is not in the same scope as the request timeout").
+The negative test is the load-bearing one — without it, a future
+refactor could silently widen the matcher back to substring and pass
+all existing tests. The negative test pins design intent.
+
+**Scope bound.** This is a metric correctness fix, not a threshold
+change. The 0.015 refusal-gate threshold (calibrated in `b97f00f`
+against the 6-question pilot) is unchanged by this commit. Whether
+the corrected metric shifts the optimal threshold against the full
+25-question set is a question for the threshold-sweep session, not
+this authoring session.
+
 **Narrative summary.** Session hypothesis: pilot_005 is a
 counterfactual-query-expansion problem. Session evidence: the
 hypothesis is correct on retrieval — the target chunk is reachable

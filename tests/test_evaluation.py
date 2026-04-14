@@ -82,28 +82,64 @@ class TestSourcePresence:
 
 
 class TestGroundedRefusal:
-    def test_out_of_scope_with_refusal_no_sources(self):
+    def test_out_of_scope_with_refusal_no_citations(self):
+        """Refusal phrase + no [source:] citations in answer text = passes."""
         assert (
-            grounded_refusal("The documentation does not contain this info.", "out_of_scope", [])
+            grounded_refusal("The documentation does not contain this info.", "out_of_scope")
             is True
         )
 
     def test_out_of_scope_without_refusal(self):
-        assert grounded_refusal("Here is how you do it...", "out_of_scope", []) is False
+        assert grounded_refusal("Here is how you do it...", "out_of_scope") is False
 
-    def test_out_of_scope_refusal_but_has_sources(self):
-        """Refusal language + sources cited = NOT a grounded refusal."""
-        assert (
-            grounded_refusal(
-                "The documentation does not contain this info.",
-                "out_of_scope",
-                ["some_doc.md"],
-            )
-            is False
+    def test_out_of_scope_refusal_with_citation_in_answer_fails(self):
+        """Refusal phrase + [source:] citation in answer text = NOT a grounded refusal.
+
+        The metric inspects the answer text for citations rather than the
+        retrieved-sources list — a correct flavor-A refusal retrieves
+        candidates, inspects them, and explicitly declines to cite any of
+        them, which is the behavior the metric is designed to measure.
+        """
+        answer = (
+            "The documentation does not contain this info. "
+            "[source: some_doc.md]"
         )
+        assert grounded_refusal(answer, "out_of_scope") is False
+
+    def test_out_of_scope_refusal_no_citation_passes_even_with_retrieval(self):
+        """Flavor-A refusal: agent retrieved candidates but answer cites none."""
+        answer = (
+            "The retrieved context does not contain information about Jaeger "
+            "sidecar injection. I cannot provide an answer."
+        )
+        # Under the old signature this test would have failed because the
+        # retrieved-sources list was non-empty. The fix moves the check to
+        # the answer text where the actual citations live.
+        assert grounded_refusal(answer, "out_of_scope") is True
+
+    def test_canonical_refusal_phrasing_recognized(self):
+        """System-prompt-taught shape "not in the {label} documentation" passes.
+
+        core/prompts.py:17-18 instructs the agent to say "the answer is not
+        in the {corpus_label} documentation and stop" on out-of-scope queries.
+        The metric must recognize that canonical form.
+        """
+        answer = "The answer is not in the Kubernetes documentation."
+        assert grounded_refusal(answer, "out_of_scope") is True
+
+    def test_not_in_the_is_not_substring_refusal(self):
+        """Bare "not in the" fragment must NOT count as refusal.
+
+        Pins the design choice to match the canonical shape via a narrow
+        regex anchored on "documentation" rather than a loose substring.
+        A future refactor that widens the matcher to substring "not in the"
+        will break this test — that is the point.
+        """
+        answer = "The rate limit is not in the same scope as the request timeout."
+        assert grounded_refusal(answer, "out_of_scope") is False
 
     def test_in_scope_always_true(self):
-        assert grounded_refusal("any answer", "retrieval", ["a.md"]) is True
+        assert grounded_refusal("any answer", "retrieval") is True
 
 
 class TestCitationAccuracy:

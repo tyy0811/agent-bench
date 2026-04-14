@@ -53,16 +53,21 @@ def source_presence(response: AgentResponse) -> bool:
     return len(response.sources) > 0
 
 
-def grounded_refusal(
-    answer: str,
-    category: str,
-    response_sources: list[str],
-) -> bool:
+def grounded_refusal(answer: str, category: str) -> bool:
     """For out_of_scope: does the answer correctly refuse AND cite no sources?
+
+    "Cite no sources" means no [source: X.md] citations appear in the answer
+    text, not that retrieval returned zero candidates. On any non-trivial
+    out-of-scope query, retrieval will still return low-relevance candidates
+    (unless the grounded-refusal gate fires at the tool level, which only
+    catches the thinnest queries). The agent is expected to inspect the
+    candidates, find nothing relevant, and refuse without citing anything —
+    and that refusal shape is what this metric measures.
 
     Returns True if:
     - Category is not out_of_scope (metric not applicable)
-    - Category is out_of_scope AND answer contains refusal language AND no sources cited
+    - Category is out_of_scope AND answer contains refusal language AND the
+      answer text contains no [source: ...] citations
     """
     if category != "out_of_scope":
         return True  # not applicable
@@ -77,9 +82,18 @@ def grounded_refusal(
         "outside the scope",
     ]
     answer_lower = answer.lower()
-    has_refusal = any(phrase in answer_lower for phrase in refusal_phrases)
-    has_no_sources = len(response_sources) == 0
-    return has_refusal and has_no_sources
+    has_phrase_refusal = any(phrase in answer_lower for phrase in refusal_phrases)
+    # Canonical shape taught by the system prompt at core/prompts.py:17-18:
+    # "not in the {corpus_label} documentation". Narrow regex anchors on
+    # "documentation" within 60 chars so plain "not in the" fragments from
+    # retrieval answers ("not in the same scope", "not in the default range")
+    # do not count as refusals.
+    has_canonical_refusal = bool(
+        re.search(r"\bnot in the\b[^.]{0,60}\bdocumentation\b", answer, re.IGNORECASE)
+    )
+    has_refusal = has_phrase_refusal or has_canonical_refusal
+    cites_in_answer = re.findall(r"\[source:\s*[^\]]+\]", answer, re.IGNORECASE)
+    return has_refusal and len(cites_in_answer) == 0
 
 
 def citation_accuracy(answer: str, sources: list[str]) -> float:

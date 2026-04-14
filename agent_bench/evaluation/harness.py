@@ -36,6 +36,13 @@ class GoldenQuestion(BaseModel):
     source_snippets: list[str] = []
     question_type: str = ""
     is_multi_hop: bool = False
+    # Version-state flag: true when the correct answer depends on a specific
+    # K8s (or framework) version / feature-state pin. Orthogonal to
+    # question_type — a simple and a simple_w_condition can both be time-
+    # sensitive. Defaults false; the v1.1 K8s plan pins 2–3 time_sensitive
+    # questions out of 25. The pilot file predates this flag and never sets
+    # it, so the default keeps the pilot schema-compatible.
+    time_sensitive: bool = False
     # Authoring-time anchors for pre-ingestion golden datasets; index-aligned
     # with source_snippets. source_sections[i] == "" means the snippet lives in
     # page lede content above the first H2/H3 — this is allowed, not a missing
@@ -130,7 +137,7 @@ async def run_evaluation(
             retrieval_recall=retrieval_recall_at_k(ranked_sources, q.expected_sources),
             keyword_hit_rate=keyword_hit_rate(agent_response.answer, q.expected_answer_keywords),
             has_source_citation=source_presence(agent_response),
-            grounded_refusal=grounded_refusal(agent_response.answer, q.category, deduped_sources),
+            grounded_refusal=grounded_refusal(agent_response.answer, q.category),
             citation_accuracy=citation_accuracy(agent_response.answer, deduped_sources),
             calculator_used_correctly=calculator_used_when_expected(
                 agent_response, q.requires_calculator
