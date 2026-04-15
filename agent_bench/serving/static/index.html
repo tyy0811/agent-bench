@@ -134,7 +134,9 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
 
 /* Security badges */
 .security-panel{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:12px;padding:16px}
-.security-panel h3{font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px}
+.security-panel h3{font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:4px}
+.security-panel-sub{display:block;color:var(--muted);font-size:0.78rem;line-height:1.4;margin-bottom:10px;text-decoration:none}
+.security-panel-sub:hover{color:var(--text);text-decoration:underline}
 .security-badges{display:flex;gap:12px;flex-wrap:wrap}
 .sec-badge{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:8px;background:var(--code-bg);flex:1;min-width:120px}
 .sec-badge .sec-label{font-size:0.75rem;color:var(--muted);font-weight:500}
@@ -310,6 +312,7 @@ code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.9em
 
       <div class="security-panel">
         <h3>Security</h3>
+        <a class="security-panel-sub" href="https://github.com/tyy0811/agent-bench/blob/main/SECURITY.md" target="_blank" aria-label="OWASP LLM Top 10 mapping in SECURITY.md">Mapped against the OWASP LLM Top 10 (2025) &mdash; named residual risks for LLM01, scope limits for LLM02 &rarr; SECURITY.md</a>
         <div class="security-badges">
           <div class="sec-badge idle" id="badgeInjection">
             <span class="sec-label">Injection</span>
