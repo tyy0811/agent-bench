@@ -111,7 +111,9 @@ LLM04 and LLM08 are intentionally absent from the "Detailed mapping" H2 — they
 
 **Implementation:** <one paragraph with inline cross-links to source and DECISIONS.md>.
 
-[optional third line — only for LLM01, LLM02, LLM03, LLM10]
+[3rd line — REQUIRED for LLM01, LLM02, LLM03, LLM10;
+            PROHIBITED for LLM05, LLM06, LLM07, LLM09
+            (do not invent residual risks for structural symmetry)]
 **Residual risk:** <one line>.      ← LLM01 (OWASP says RAG does not fully mitigate)
 **Scope limit:** <one line>.        ← LLM02 (narrower output-side scope than LLM02's four classes)
 **Named gap:** <one line>.          ← LLM03, LLM10 (infrastructure layer, specific missing pieces)
@@ -133,7 +135,7 @@ LLM05, LLM06, LLM07, LLM09 use the 2-part skeleton only. Their verdicts read pla
 >
 > **Implementation:** Regex PII redaction on every retrieved chunk before it enters the LLM context window (EMAIL, SSN, CREDIT_CARD, PHONE, IP_ADDRESS) with optional spaCy NER for PERSON/ORG; post-generation output validation with an always-on secret-format deny list (OpenAI/Anthropic/Google/AWS/GitHub key prefixes, bearer tokens, env-var assignments) and URL-against-retrieved-chunks check. See [`agent_bench/security/pii_redactor.py`](agent_bench/security/pii_redactor.py), [`agent_bench/security/output_validator.py`](agent_bench/security/output_validator.py), and [DECISIONS.md § Why regex + optional spaCy for PII, not a cloud API](DECISIONS.md#why-regex--optional-spacy-for-pii-not-a-cloud-api).
 >
-> **Scope limit:** OWASP LLM02 spans access controls, training-data handling, user-consent transparency, and proprietary-information governance. This implementation addresses only response-time data surfaced to users; broader concerns would require architectural changes for multi-tenant or authenticated deployment.
+> **Scope limit:** OWASP LLM02 spans access controls, training-data handling, user-consent transparency, and proprietary-information governance. This implementation addresses only response-time data surfaced to users — a narrower, output-side subset that does not cleanly map to any single one of the four; broader concerns would require architectural changes for multi-tenant or authenticated deployment.
 
 ### Remaining 6 subsections (content outline; drafted at implementation time)
 
@@ -361,6 +363,24 @@ f. Start `make serve`, open localhost:8000 in a browser, verify the
 g. Final brand-check: no overclaiming phrases anywhere across the four
    surfaces.
 ```
+
+---
+
+## Paired-review gate (cross-cutting #9)
+
+**Trigger:** the Part A DECISIONS.md entry cites OWASP 2025 verbatim and enumerates four LLM02 concern classes — the paper/framework/methodology citation class cross-cutting #9 covers.
+
+**When:** after Step 2 (DECISIONS.md entry drafted), before its commit lands. Step 3 (README tail) does not begin until the gate passes.
+
+**Reviewer:** Jane, continuing the collaboration pattern from every design step on this branch.
+
+**Checks:**
+
+1. OWASP LLM01 verbatim phrases survive PDF cross-reference (the "do not fully mitigate" sentence and the "indirect injection through retrieved content" claim).
+2. LLM02 four-concern-class enumeration matches the OWASP 2025 PDF's LLM02 section.
+3. SECURITY.md LLM01 and LLM02 cells survive a reviewer reading the OWASP PDF in a second tab.
+
+Same failure class as the CRAG-taxonomy error caught on 2026-04-14: an unverified citation propagates across surfaces because the four-surface discipline amplifies it. ~10–15 min, performed by Jane with the OWASP 2025 PDF open.
 
 ---
 
