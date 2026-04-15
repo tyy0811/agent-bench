@@ -21,8 +21,11 @@ RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cro
 RUN python scripts/ingest.py --doc-dir data/tech_docs/ --store-path .cache/store
 RUN python scripts/ingest.py --doc-dir data/k8s_docs/ --store-path .cache/store_k8s
 
-# Give user 1000 ownership of build-time artifacts
-RUN chown -R user:user .cache/
+# Give user 1000 ownership of build-time artifacts and create a
+# runtime-writable logs/ dir. Without the explicit mkdir+chown, the
+# audit logger's first write fails with PermissionError because
+# WORKDIR is root-owned.
+RUN mkdir -p logs && chown -R user:user .cache/ logs/
 
 USER user
 EXPOSE 7860
