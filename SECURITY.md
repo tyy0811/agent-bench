@@ -51,19 +51,19 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed directly.
 
-**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs four checks: PII detection, secret-format deny list, URL-chunk validation, configurable blocklist. Text-only — no HTML, SQL, or code execution.
+**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs four checks: PII detection, secret-format deny list, URL-chunk validation, configurable blocklist. Text-only — no HTML, SQL, or code execution. See [DECISIONS.md § Why three output validators, not four](DECISIONS.md#why-three-output-validators-not-four).
 
 ### LLM06 Excessive Agency
 
 **Verdict:** Addressed directly.
 
-**Implementation:** `max_iterations` cap bounds tool-use depth; [`ToolRegistry`](agent_bench/tools/registry.py) contains only `search_documents` (read-only) and `calculator` (pure arithmetic) — no write, network, or code execution.
+**Implementation:** `max_iterations` caps tool-use depth; [`ToolRegistry`](agent_bench/tools/registry.py) contains only `search_documents` and `calculator` (pure arithmetic) — no write, network, or code execution.
 
 ### LLM07 System Prompt Leakage
 
 **Verdict:** Addressed directly.
 
-**Implementation:** System prompt holds no credentials, no auth tokens, and no multi-tenant structure — a docs-Q&A instruction with corpus-label substitution. Access control is enforced outside the LLM: [`RateLimitMiddleware`](agent_bench/serving/middleware.py) provides per-IP abuse protection, and production deployments add authentication at the reverse-proxy or API-gateway level. See [DECISIONS.md § Why no authentication on API endpoints](DECISIONS.md#why-no-authentication-on-api-endpoints).
+**Implementation:** System prompt holds no credentials, no auth tokens, and no multi-tenant structure — a docs-Q&A instruction with corpus-label substitution. Access control is enforced outside the LLM: [`RateLimitMiddleware`](agent_bench/serving/middleware.py) provides per-IP abuse protection; production layers reverse-proxy authentication. See [DECISIONS.md § Why no authentication on API endpoints](DECISIONS.md#why-no-authentication-on-api-endpoints).
 
 ### LLM09 Misinformation
 
