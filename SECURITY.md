@@ -37,7 +37,7 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Implementation:** Regex PII redaction on every retrieved chunk before it enters the LLM context window (EMAIL, SSN, CREDIT_CARD, PHONE, IP_ADDRESS) with optional spaCy NER for PERSON/ORG; post-generation output validation with an always-on secret-format deny list (OpenAI/Anthropic/Google/AWS/GitHub key prefixes, bearer tokens, env-var assignments) and URL-against-retrieved-chunks check. See [`agent_bench/security/pii_redactor.py`](agent_bench/security/pii_redactor.py), [`agent_bench/security/output_validator.py`](agent_bench/security/output_validator.py), and [DECISIONS.md § Why regex + optional spaCy for PII, not a cloud API](DECISIONS.md#why-regex--optional-spacy-for-pii-not-a-cloud-api).
 
-**Scope limit:** OWASP LLM02 spans access controls, training-data handling, user-consent transparency, and proprietary-information governance. This implementation addresses only response-time data surfaced to users — a narrower, output-side subset that does not cleanly map to any single one of the four; broader concerns would require architectural changes for multi-tenant or authenticated deployment.
+**Scope limit:** OWASP LLM02 mitigations span access controls, training-data handling, user-consent transparency, and proprietary-information governance. This implementation addresses only response-time data surfaced to users — a narrower, output-side subset that does not cleanly map to any single one of the four; broader concerns would require architectural changes for multi-tenant or authenticated deployment.
 
 ### LLM03 Supply Chain
 
@@ -51,7 +51,7 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed directly.
 
-**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs PII detection, secret-format deny list, URL-chunk validation, and configurable blocklist. Text-only — no HTML, SQL, or code execution. See [DECISIONS.md § Why three output validators, not four](DECISIONS.md#why-three-output-validators-not-four).
+**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs three deterministic checks: sensitive-output detection (PII formats + secret-format deny list), URL-chunk validation, and configurable blocklist. Text-only — no HTML, SQL, or code execution. See [DECISIONS.md § Why three output validators, not four](DECISIONS.md#why-three-output-validators-not-four).
 
 ### LLM06 Excessive Agency
 
