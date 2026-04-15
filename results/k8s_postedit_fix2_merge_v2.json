@@ -1,0 +1,203 @@
+[
+  {
+    "question_id": "k8s_pilot_001",
+    "question": "In Kubernetes, does each Pod receive its own IP address, and how do containers inside the same Pod talk to each other?",
+    "category": "retrieval",
+    "difficulty": "easy",
+    "retrieval_precision": 0.4,
+    "retrieval_recall": 1.0,
+    "keyword_hit_rate": 1.0,
+    "has_source_citation": true,
+    "grounded_refusal": true,
+    "citation_accuracy": 1.0,
+    "calculator_used_correctly": true,
+    "tool_calls_made": 2,
+    "latency_ms": 17866.33544403594,
+    "tokens_used": {
+      "input_tokens": 2038,
+      "output_tokens": 153,
+      "estimated_cost_usd": 0.00039749999999999996
+    },
+    "answer": "In Kubernetes, each Pod is assigned a unique IP address for each address family. However, every container within a Pod shares the same network namespace, which includes the IP address and network ports. This means that containers in the same Pod can communicate with each other using `localhost` [source: k8s_pods.md]. \n\nAdditionally, containers within a Pod can also communicate using standard inter-process communications like SystemV semaphores or POSIX shared memory [source: k8s_pods.md].",
+    "retrieved_sources": [
+      "k8s_network_policies.md",
+      "k8s_pods.md",
+      "k8s_pods.md",
+      "k8s_network_policies.md",
+      "k8s_network_policies.md",
+      "k8s_pods.md",
+      "k8s_pods.md",
+      "k8s_pods.md",
+      "k8s_pods.md",
+      "k8s_pods.md",
+      "k8s_pods.md",
+      "k8s_secret.md",
+      "k8s_network_policies.md",
+      "k8s_pods.md"
+    ],
+    "faithfulness": null,
+    "correctness": null
+  },
+  {
+    "question_id": "k8s_pilot_002",
+    "question": "When you update a Deployment's pod template, what mechanism does Kubernetes use to transition Pods from the old version to the new one, and what role does the ReplicaSet play?",
+    "category": "retrieval",
+    "difficulty": "hard",
+    "retrieval_precision": 1.0,
+    "retrieval_recall": 1.0,
+    "keyword_hit_rate": 0.6666666666666666,
+    "has_source_citation": true,
+    "grounded_refusal": true,
+    "citation_accuracy": 1.0,
+    "calculator_used_correctly": true,
+    "tool_calls_made": 1,
+    "latency_ms": 12697.782160015777,
+    "tokens_used": {
+      "input_tokens": 1213,
+      "output_tokens": 198,
+      "estimated_cost_usd": 0.00030074999999999996
+    },
+    "answer": "When you update a Deployment's pod template, Kubernetes uses a rolling update mechanism to transition Pods from the old version to the new one. This process involves creating a new ReplicaSet for the updated Deployment. The Deployment controller gradually scales up the new ReplicaSet while simultaneously scaling down the old ReplicaSet, ensuring that Pods are replaced in a controlled manner. This approach allows for a smooth transition without downtime, as it manages the number of Pods running at any time during the update process [source: k8s_deployment.md]. \n\nThe ReplicaSet plays a crucial role in this mechanism by managing the Pods that match the Deployment's specifications. When a Deployment is updated, the existing ReplicaSet that controls the old Pods is scaled down, and the new ReplicaSet is scaled up to the desired number of replicas specified in the Deployment [source: k8s_deployment.md].",
+    "retrieved_sources": [
+      "k8s_deployment.md",
+      "k8s_replicaset.md",
+      "k8s_deployment.md",
+      "k8s_deployment.md",
+      "k8s_deployment.md",
+      "k8s_deployment.md"
+    ],
+    "faithfulness": null,
+    "correctness": null
+  },
+  {
+    "question_id": "k8s_pilot_003",
+    "question": "What is the key difference between a ConfigMap and a Secret when deciding where to store sensitive application data like database passwords?",
+    "category": "retrieval",
+    "difficulty": "medium",
+    "retrieval_precision": 1.0,
+    "retrieval_recall": 1.0,
+    "keyword_hit_rate": 0.8333333333333334,
+    "has_source_citation": true,
+    "grounded_refusal": true,
+    "citation_accuracy": 1.0,
+    "calculator_used_correctly": true,
+    "tool_calls_made": 1,
+    "latency_ms": 10444.362040958367,
+    "tokens_used": {
+      "input_tokens": 1298,
+      "output_tokens": 123,
+      "estimated_cost_usd": 0.00026849999999999997
+    },
+    "answer": "The key difference between a ConfigMap and a Secret in Kubernetes is that a ConfigMap is used to store non-confidential data, while a Secret is specifically intended to hold confidential data, such as passwords, OAuth tokens, and SSH keys. ConfigMaps do not provide secrecy or encryption, making them unsuitable for sensitive information. Therefore, for storing sensitive application data like database passwords, it is recommended to use a Secret instead of a ConfigMap [source: k8s_configmap.md][source: k8s_secret.md].",
+    "retrieved_sources": [
+      "k8s_configmap.md",
+      "k8s_secret.md",
+      "k8s_secret.md",
+      "k8s_secret.md",
+      "k8s_configmap.md",
+      "k8s_secret.md",
+      "k8s_configmap.md",
+      "k8s_configmap.md"
+    ],
+    "faithfulness": null,
+    "correctness": null
+  },
+  {
+    "question_id": "k8s_pilot_004",
+    "question": "If I set a custom value for one hard eviction threshold on the kubelet (e.g., memory.available) but leave the other thresholds unset, what happens to the defaults for the thresholds I didn't override?",
+    "category": "retrieval",
+    "difficulty": "hard",
+    "retrieval_precision": 1.0,
+    "retrieval_recall": 1.0,
+    "keyword_hit_rate": 0.5,
+    "has_source_citation": true,
+    "grounded_refusal": true,
+    "citation_accuracy": 1.0,
+    "calculator_used_correctly": true,
+    "tool_calls_made": 1,
+    "latency_ms": 9120.96216098871,
+    "tokens_used": {
+      "input_tokens": 1249,
+      "output_tokens": 135,
+      "estimated_cost_usd": 0.00026835
+    },
+    "answer": "If you set a custom value for one hard eviction threshold on the kubelet (e.g., `memory.available`), the default values for the thresholds you didn't override will not be inherited. Instead, the values of the other parameters will be set to zero. To provide custom values, you should specify all the thresholds respectively. Alternatively, you can set the kubelet config `MergeDefaultEvictionSettings` to true in the kubelet configuration file to retain the default values for the thresholds you did not change [source: k8s_node_pressure_eviction.md].",
+    "retrieved_sources": [
+      "k8s_node_pressure_eviction.md",
+      "k8s_node_pressure_eviction.md",
+      "k8s_node_pressure_eviction.md",
+      "k8s_node_pressure_eviction.md",
+      "k8s_node_pressure_eviction.md",
+      "k8s_node_pressure_eviction.md",
+      "k8s_node_pressure_eviction.md"
+    ],
+    "faithfulness": null,
+    "correctness": null
+  },
+  {
+    "question_id": "k8s_pilot_005",
+    "question": "How do I configure a Kubernetes NetworkPolicy to enforce mutual TLS (mTLS) between Pods in the same namespace?",
+    "category": "retrieval",
+    "difficulty": "medium",
+    "retrieval_precision": 1.0,
+    "retrieval_recall": 1.0,
+    "keyword_hit_rate": 0.8333333333333334,
+    "has_source_citation": true,
+    "grounded_refusal": true,
+    "citation_accuracy": 1.0,
+    "calculator_used_correctly": true,
+    "tool_calls_made": 1,
+    "latency_ms": 8491.116772056557,
+    "tokens_used": {
+      "input_tokens": 1509,
+      "output_tokens": 92,
+      "estimated_cost_usd": 0.00028155
+    },
+    "answer": "The Kubernetes documentation does not provide specific instructions on configuring a NetworkPolicy to enforce mutual TLS (mTLS) between Pods in the same namespace. For mTLS, it is generally recommended to use a service mesh or other proxy solutions, as NetworkPolicy alone does not handle TLS configurations directly [source: k8s_network_policies.md].",
+    "retrieved_sources": [
+      "k8s_network_policies.md",
+      "k8s_network_policies.md",
+      "k8s_network_policies.md",
+      "k8s_network_policies.md",
+      "k8s_network_policies.md",
+      "k8s_network_policies.md",
+      "k8s_pods.md",
+      "k8s_network_policies.md",
+      "k8s_network_policies.md"
+    ],
+    "faithfulness": null,
+    "correctness": null
+  },
+  {
+    "question_id": "k8s_pilot_006",
+    "question": "As of the Kubernetes v1.31 snapshot, what is the feature state (alpha, beta, or stable) of the built-in Pod Security admission controller, and in which version did it reach that state?",
+    "category": "retrieval",
+    "difficulty": "easy",
+    "retrieval_precision": 0.4,
+    "retrieval_recall": 1.0,
+    "keyword_hit_rate": 1.0,
+    "has_source_citation": true,
+    "grounded_refusal": true,
+    "citation_accuracy": 1.0,
+    "calculator_used_correctly": true,
+    "tool_calls_made": 1,
+    "latency_ms": 10854.806952062063,
+    "tokens_used": {
+      "input_tokens": 1320,
+      "output_tokens": 54,
+      "estimated_cost_usd": 0.00023040000000000002
+    },
+    "answer": "The built-in Pod Security admission controller reached a stable state in Kubernetes v1.25 [source: k8s_pod_security_admission.md].",
+    "retrieved_sources": [
+      "k8s_pod_security_admission.md",
+      "k8s_replicaset.md",
+      "k8s_deployment.md",
+      "k8s_node_pressure_eviction.md",
+      "k8s_pod_security_admission.md",
+      "k8s_pods.md",
+      "k8s_pod_security_admission.md"
+    ],
+    "faithfulness": null,
+    "correctness": null
+  }
+]

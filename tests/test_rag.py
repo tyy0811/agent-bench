@@ -211,15 +211,15 @@ class TestHybridStore:
 class TestRetriever:
     @pytest.mark.asyncio
     async def test_search_returns_results(self, test_retriever: Retriever):
-        results = await test_retriever.search("path parameters", top_k=3)
-        assert len(results) > 0
-        assert all(isinstance(r, SearchResult) for r in results)
+        result = await test_retriever.search("path parameters", top_k=3)
+        assert len(result.results) > 0
+        assert all(isinstance(r, SearchResult) for r in result.results)
 
     @pytest.mark.asyncio
     async def test_search_strategy_override(self, test_retriever: Retriever):
-        results = await test_retriever.search("Pydantic models", top_k=3, strategy="keyword")
-        assert len(results) > 0
-        assert all(r.retrieval_strategy == "keyword" for r in results)
+        result = await test_retriever.search("Pydantic models", top_k=3, strategy="keyword")
+        assert len(result.results) > 0
+        assert all(r.retrieval_strategy == "keyword" for r in result.results)
 
 
 # --- Reranker tests ---
@@ -248,9 +248,9 @@ class TestCrossEncoderReranker:
         result = reranker.rerank("test query", chunks, top_k=3)
 
         # MockCrossEncoder scores by content length, so longest first
-        assert result[0].content == "longest chunk content here"
-        assert result[1].content == "a medium length chunk"
-        assert result[2].content == "short"
+        assert result[0][0].content == "longest chunk content here"
+        assert result[1][0].content == "a medium length chunk"
+        assert result[2][0].content == "short"
 
     def test_reranker_top_k(self):
         """Reranker returns exactly top_k results from a larger input."""
@@ -274,7 +274,7 @@ class TestCrossEncoderReranker:
         results_b = asyncio.get_event_loop().run_until_complete(
             retriever_with_none.search("path parameters", top_k=3)
         )
-        assert [r.chunk.id for r in results_a] == [r.chunk.id for r in results_b]
+        assert [r.chunk.id for r in results_a.results] == [r.chunk.id for r in results_b.results]
 
     def test_reranker_empty_input(self):
         """Empty chunk list returns empty list."""
@@ -299,11 +299,12 @@ class TestCrossEncoderReranker:
             reranker=reranker,
             reranker_top_k=3,
         )
-        results = await retriever.search("path parameters", top_k=3)
-        assert len(results) > 0
+        result = await retriever.search("path parameters", top_k=3)
+        assert len(result.results) > 0
         # All scores must be positive (preserved from RRF), not 0.0
-        assert all(r.score > 0 for r in results), (
-            f"Reranked scores should be positive RRF scores, got: {[r.score for r in results]}"
+        scores = [r.score for r in result.results]
+        assert all(r.score > 0 for r in result.results), (
+            f"Reranked scores should be positive RRF scores, got: {scores}"
         )
 
     @pytest.mark.asyncio

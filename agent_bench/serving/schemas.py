@@ -15,6 +15,15 @@ class AskRequest(BaseModel):
     top_k: int = 5
     retrieval_strategy: Literal["semantic", "keyword", "hybrid"] = "hybrid"
     session_id: str | None = None  # None = stateless (V1 behavior)
+    # Per-request provider override. Constrained to the set of known
+    # provider names so unknown values are rejected at validation time
+    # with HTTP 422 instead of silently falling back.
+    provider: Literal["openai", "anthropic", "selfhosted", "mock"] | None = None
+    # Per-request corpus selection. None = use default_corpus from config.
+    # Unknown values rejected at validation time with HTTP 422. Names that
+    # pass validation but are not wired on the current server produce a
+    # 400 in the route handler (see _resolve_orchestrator).
+    corpus: Literal["fastapi", "k8s"] | None = None
 
 
 class ResponseMetadata(BaseModel):

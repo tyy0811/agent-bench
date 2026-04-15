@@ -136,6 +136,66 @@ class TestBlocklist:
         assert verdict.passed is True
 
 
+class TestSecretLeakage:
+    """Secret patterns in LLM output must be blocked (fail closed)."""
+
+    @pytest.fixture
+    def validator(self):
+        return OutputValidator(
+            pii_check=False, url_check=False, secret_check=True, blocklist=[],
+        )
+
+    # Google API key format fixture temporarily removed following the
+    # 2026-04-14/15 credential-exposure incident (see DECISIONS.md).
+    # The validator's regex is \bAIza[0-9A-Za-z_\-]{35}\b, which is
+    # identical to GitHub secret-scanning's Google API Key detection
+    # pattern, so any static literal that satisfies the validator also
+    # triggers GitHub push protection. Parallel-tracks item: restore
+    # Google API key format coverage via a runtime-generated fixture
+    # that builds a 35-char AIza-prefixed string at test time, never
+    # landing as a literal in source. Validator regex unchanged.
+    @pytest.mark.parametrize("output", [
+        "Your key is sk-abcdefghijklmnopqrstuvwxyz1234",
+        "here: sk-proj-ABCDEFGHIJKLMNOP0123456789",
+        "key=sk-ant-abcdefghijklmnopqrstuvwxyz",
+        "aws key AKIAIOSFODNN7EXAMPLE",
+        "use Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc",
+        "env: OPENAI_API_KEY=sk-test123",
+        "set ANTHROPIC_API_KEY=sk-ant-xyz",
+    ])
+    def test_blocks_known_secret_formats(self, validator, output):
+        verdict = validator.validate(output=output, retrieved_chunks=[])
+        assert verdict.passed is False, f"Should block: {output!r}"
+        assert any("secret_leakage" in v for v in verdict.violations)
+        assert verdict.action == "block"
+
+    @pytest.mark.parametrize("output", [
+        "FastAPI uses path parameters with curly braces.",
+        "You can store secrets in environment variables.",
+        "To configure the OpenAI client, set your API key in OPENAI_API_KEY env var.",
+        "Use a .env file for local development.",
+        "Kubernetes Secrets store sensitive configuration.",
+    ])
+    def test_allows_benign_credential_adjacent_output(self, validator, output):
+        """Educational content about secrets should pass — only literal
+        key formats and env-var assignments are blocked."""
+        verdict = validator.validate(output=output, retrieved_chunks=[])
+        assert verdict.passed is True, (
+            f"False positive on: {output!r} -> {verdict.violations}"
+        )
+
+    def test_secret_check_can_be_disabled(self):
+        """When secret_check=False, literal keys pass through."""
+        validator = OutputValidator(
+            pii_check=False, url_check=False, secret_check=False, blocklist=[],
+        )
+        verdict = validator.validate(
+            output="sk-abcdefghijklmnopqrstuvwxyz1234",
+            retrieved_chunks=[],
+        )
+        assert verdict.passed is True
+
+
 class TestCombinedChecks:
     def test_multiple_violations(self):
         validator = OutputValidator(

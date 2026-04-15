@@ -1,0 +1,534 @@
+{
+  "corpus": "k8s",
+  "version": "v1.31",
+  "snapshot_date": "2026-04-14",
+  "chunker": {
+    "strategy": "recursive",
+    "chunk_size": 512,
+    "chunk_overlap": 64
+  },
+  "questions": [
+    {
+      "id": "k8s_001",
+      "question": "What identity guarantees does Kubernetes provide to Pods managed by a StatefulSet?",
+      "expected_answer_keywords": ["ordinal", "stable network identity", "stable storage", "sticky"],
+      "expected_sources": ["k8s_statefulset.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "StatefulSet Pods have a unique identity composed of an ordinal index, a stable network identity, and stable persistent storage. The identity sticks to each Pod across (re)scheduling, so a replacement Pod assumes the same identity as the one it replaced \u2014 unlike the interchangeable Pods managed by a Deployment.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["5214c2336b5cd520"],
+      "source_snippets": [
+        "StatefulSet Pods have a unique identity that consists of an ordinal, a stable network identity, and stable storage"
+      ],
+      "source_pages": ["concepts/workloads/controllers/statefulset"],
+      "source_sections": ["Pod Identity"]
+    },
+    {
+      "id": "k8s_002",
+      "question": "How does a StatefulSet differ from a Deployment when managing Pods, and when would you prefer one over the other?",
+      "expected_answer_keywords": ["stateless", "sticky identity", "declarative", "interchangeable", "persistent"],
+      "expected_sources": ["k8s_deployment.md", "k8s_statefulset.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "A Deployment manages a set of Pods for an application workload that does not maintain state and provides declarative updates; its Pods are interchangeable replicas. A StatefulSet, by contrast, maintains a sticky identity for each of its Pods \u2014 stable network identifiers, stable persistent storage, and ordered deployment/scaling \u2014 which makes it the right choice when the workload needs per-Pod identity or per-Pod storage.",
+      "question_type": "comparison",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["2a2ff3b0d4346555", "c0d6f7e3674ad4fb"],
+      "source_snippets": [
+        "A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state",
+        "Unlike a Deployment, a StatefulSet maintains a sticky identity for each of its Pods"
+      ],
+      "source_pages": [
+        "concepts/workloads/controllers/deployment",
+        "concepts/workloads/controllers/statefulset"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_003",
+      "question": "How does external HTTP traffic reach a Pod inside a Kubernetes cluster, from the Ingress edge through the Service layer down to the Pod?",
+      "expected_answer_keywords": ["Ingress", "HTTP", "Service", "selector", "Pod"],
+      "expected_sources": ["k8s_ingress.md", "k8s_service.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "Ingress exposes HTTP and HTTPS routes from outside the cluster and maps them to backend Services based on rules defined on the Ingress resource. A Service is an abstraction that defines a logical set of endpoints (usually Pods) and uses a selector to decide which Pods to target, load-balancing traffic across them. The Service delivers traffic to the container port each Pod exposes.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": [
+        "8f8f44037c2580fc",
+        "398fda53c7ce840a"
+      ],
+      "source_snippets": [
+        "Ingress](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#ingress-v1-networking-k8s-io) exposes HTTP and HTTPS routes from outside the cluster to",
+        "The set of Pods targeted by a Service is usually determined by a"
+      ],
+      "source_pages": [
+        "concepts/services-networking/ingress",
+        "concepts/services-networking/service"
+      ],
+      "source_sections": ["What is Ingress?", ""]
+    },
+    {
+      "id": "k8s_004",
+      "question": "How do I enable Jaeger sidecar injection for distributed tracing in a Kubernetes Deployment?",
+      "expected_answer_keywords": ["does not", "not contain", "Jaeger"],
+      "expected_sources": [],
+      "category": "out_of_scope",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "The Kubernetes documentation in this corpus does not cover Jaeger, distributed tracing sidecar injection, or observability agent integration. Jaeger is a third-party project that lives outside Kubernetes core docs; the right answer is to refuse and cite zero sources.",
+      "question_type": "false_premise",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": [],
+      "source_snippets": [],
+      "source_pages": [],
+      "source_sections": []
+    },
+    {
+      "id": "k8s_005",
+      "question": "As of Kubernetes v1.31, how does Pod Security Admission behave differently when a namespace is labeled with enforce mode versus warn mode?",
+      "expected_answer_keywords": ["enforce", "warn", "rejected", "warning", "namespace"],
+      "expected_sources": ["k8s_pod_security_admission.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "Pod Security Admission (stable since Kubernetes v1.25) applies restrictions at the namespace level based on labels. With enforce mode, policy violations cause the Pod to be rejected at admission. With warn mode, policy violations trigger a user-facing warning but the Pod is still allowed. A namespace can combine modes (for example enforce plus warn) at different levels.",
+      "question_type": "simple_w_condition",
+      "is_multi_hop": false,
+      "time_sensitive": true,
+      "source_chunk_ids": ["e6921b9ccdcf4571", "052a900bb777ec1c"],
+      "source_snippets": [
+        "Policy violations will cause the pod to be rejected",
+        "FEATURE STATE: `Kubernetes v1.25 [stable]"
+      ],
+      "source_pages": [
+        "concepts/security/pod-security-admission",
+        "concepts/security/pod-security-admission"
+      ],
+      "source_sections": ["Pod Security Admission labels for namespaces", ""]
+    },
+    {
+      "id": "k8s_006",
+      "question": "What is a ConfigMap in Kubernetes and what kind of data should you store in it?",
+      "expected_answer_keywords": ["ConfigMap", "non-confidential", "key-value", "configuration"],
+      "expected_sources": ["k8s_configmap.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "A ConfigMap is an API object used to store non-confidential data in key-value pairs. It is intended for application configuration that does not need to be kept secret. Confidential data such as passwords or tokens should live in a Secret, not a ConfigMap.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["b6a867a1906a3ff2"],
+      "source_snippets": [
+        "A ConfigMap is an API object used to store non-confidential data in key-value pairs"
+      ],
+      "source_pages": ["concepts/configuration/configmap"],
+      "source_sections": [""]
+    },
+    {
+      "id": "k8s_007",
+      "question": "What does a Kubernetes Job do, and how does it decide that its task is complete?",
+      "expected_answer_keywords": ["Job", "Pods", "retry", "completions", "terminate"],
+      "expected_sources": ["k8s_job.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As Pods successfully complete, the Job tracks the successful completions; once the specified number is reached, the Job is considered complete. Deleting a Job cleans up the Pods it created.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["b704f9dbc8422835"],
+      "source_snippets": [
+        "A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate"
+      ],
+      "source_pages": ["concepts/workloads/controllers/job"],
+      "source_sections": [""]
+    },
+    {
+      "id": "k8s_008",
+      "question": "What is a Kubernetes Namespace, and which kinds of resources does namespace scoping apply to?",
+      "expected_answer_keywords": ["Namespace", "isolating", "unique", "namespaced", "cluster"],
+      "expected_sources": ["k8s_namespaces.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "Namespaces provide a mechanism for isolating groups of resources within a single cluster. Resource names must be unique within a Namespace but not across Namespaces. Namespace-based scoping applies only to namespaced objects such as Deployments and Services \u2014 cluster-wide objects like Nodes, PersistentVolumes, or StorageClass are not namespaced.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["36dc3e5824f31ef7"],
+      "source_snippets": [
+        "namespaces* provide a mechanism for isolating groups of resources within a single cluster"
+      ],
+      "source_pages": ["concepts/overview/working-with-objects/namespaces"],
+      "source_sections": [""]
+    },
+    {
+      "id": "k8s_009",
+      "question": "What are the four object kinds that the Kubernetes RBAC API declares, and what does each one do?",
+      "expected_answer_keywords": ["Role", "ClusterRole", "RoleBinding", "ClusterRoleBinding"],
+      "expected_sources": ["k8s_rbac.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "The RBAC API declares four object kinds: Role, ClusterRole, RoleBinding, and ClusterRoleBinding. Role and ClusterRole contain rules that represent a set of permissions; RoleBinding and ClusterRoleBinding grant those roles to users, groups, or service accounts. Role and RoleBinding are namespaced, while ClusterRole and ClusterRoleBinding are cluster-wide.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["d01964ca8fd11edc"],
+      "source_snippets": [
+        "The RBAC API declares four kinds of Kubernetes object: *Role*, *ClusterRole*, *RoleBinding* and *ClusterRoleBinding*"
+      ],
+      "source_pages": ["reference/access-authn-authz/rbac"],
+      "source_sections": ["API objects"]
+    },
+    {
+      "id": "k8s_010",
+      "question": "What is a DaemonSet in Kubernetes, and what kind of workload is it designed for?",
+      "expected_answer_keywords": ["DaemonSet", "every node", "copy", "daemon"],
+      "expected_sources": ["k8s_daemonset.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "A DaemonSet ensures that all (or some) Nodes in the cluster run a copy of a given Pod. As nodes are added to the cluster, Pods are added to them; as nodes are removed, those Pods are garbage collected. Typical uses are node-local facilities like cluster storage daemons, log collection, and node monitoring \u2014 anything that should run once per node.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["5c63fa1dc2d8824f"],
+      "source_snippets": [
+        "DaemonSet* ensures that all (or some) Nodes run a copy of a Pod"
+      ],
+      "source_pages": ["concepts/workloads/controllers/daemonset"],
+      "source_sections": [""]
+    },
+    {
+      "id": "k8s_011",
+      "question": "When a Pod consumes a Secret, how does the behavior differ between mounting the Secret as a data volume versus exposing it as environment variables for the container?",
+      "expected_answer_keywords": ["Secret", "environment variable", "volume", "mounted", "update"],
+      "expected_sources": ["k8s_secret.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "A Secret can be consumed either by mounting it as a data volume (each key becomes a file in the mount path) or by exposing it as environment variables on the container. Both modes deliver the same underlying data, but a mounted volume receives in-place updates if the Secret changes, whereas environment variables are evaluated at Pod start and do not update after the Pod is running.",
+      "question_type": "simple_w_condition",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["3ae2b5f6828d7a89"],
+      "source_snippets": [
+        "Secrets can be mounted as data volumes or exposed as"
+      ],
+      "source_pages": ["concepts/configuration/secret"],
+      "source_sections": ["Using Secrets"]
+    },
+    {
+      "id": "k8s_012",
+      "question": "How does an emptyDir volume behave differently when emptyDir.medium is left as the default versus when it is set to Memory?",
+      "expected_answer_keywords": ["emptyDir", "medium", "tmpfs", "Memory", "RAM"],
+      "expected_sources": ["k8s_volumes.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "By default, an emptyDir volume is stored on whatever medium backs the node \u2014 disk, SSD, or network storage, depending on the environment. If you set emptyDir.medium to 'Memory', Kubernetes mounts a tmpfs (RAM-backed filesystem) instead. tmpfs is very fast, but files written there count against the container's memory limit.",
+      "question_type": "simple_w_condition",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["42931a154c8263f2"],
+      "source_snippets": [
+        "If you set the `emptyDir.medium` field to `\"Memory\"`, Kubernetes mounts a tmpfs"
+      ],
+      "source_pages": ["concepts/storage/volumes"],
+      "source_sections": ["emptyDir"]
+    },
+    {
+      "id": "k8s_013",
+      "question": "How does the kubelet respond differently to a failing liveness probe versus a failing readiness probe on a container?",
+      "expected_answer_keywords": ["liveness", "readiness", "restart", "traffic", "Service"],
+      "expected_sources": ["k8s_probes.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "When a liveness probe fails, the kubelet restarts the container to try to recover from a wedged state like a deadlock. When a readiness probe fails, the container is not restarted; instead, the Pod is marked not-ready and removed from Service load balancers, so traffic stops being routed to it until the probe succeeds again.",
+      "question_type": "simple_w_condition",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["b2e141ce1830ae59", "675641157824749c"],
+      "source_snippets": [
+        "uses liveness probes to know when to restart a container",
+        "uses readiness probes to know when a container is ready to start accepting traffic"
+      ],
+      "source_pages": [
+        "tasks/configure-pod-container/configure-liveness-readiness-startup-probes",
+        "tasks/configure-pod-container/configure-liveness-readiness-startup-probes"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_014",
+      "question": "What is the difference between a Service of type NodePort and a Service of type LoadBalancer in Kubernetes?",
+      "expected_answer_keywords": ["NodePort", "LoadBalancer", "Node", "external", "cloud"],
+      "expected_sources": ["k8s_service.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "A Service of type NodePort exposes the Service on each Node's IP at a static port, making it reachable by connecting to any node IP on that port. A Service of type LoadBalancer exposes the Service externally using an external load balancer \u2014 Kubernetes does not directly provide the load balancer, so you must integrate with a cloud provider or supply one yourself. LoadBalancer is typically implemented on top of NodePort in cloud environments.",
+      "question_type": "comparison",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["3257227cc8ef1c68", "3257227cc8ef1c68"],
+      "source_snippets": [
+        "Exposes the Service on each Node",
+        "Exposes the Service externally using an external load balancer"
+      ],
+      "source_pages": [
+        "concepts/services-networking/service",
+        "concepts/services-networking/service"
+      ],
+      "source_sections": ["Publishing Services (ServiceTypes)", "Publishing Services (ServiceTypes)"]
+    },
+    {
+      "id": "k8s_015",
+      "question": "How does a CronJob differ from a Job in Kubernetes, and when would you reach for one over the other?",
+      "expected_answer_keywords": ["Job", "CronJob", "schedule", "repeating", "completion"],
+      "expected_sources": ["k8s_job.md", "k8s_cronjob.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "A Job represents a one-off task that runs to completion and then stops; it creates one or more Pods and retries until a specified number successfully terminate. A CronJob creates Jobs on a repeating schedule written in cron format \u2014 it is meant for regular recurring actions such as backups or report generation. Use a Job for a single batch run, and a CronJob when you need the same Job to run on a recurring schedule.",
+      "question_type": "comparison",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["b704f9dbc8422835", "715c42e9d8a1344e"],
+      "source_snippets": [
+        "Jobs represent one-off tasks that run to completion and then stop",
+        "A CronJob starts one-time Jobs on a repeating schedule"
+      ],
+      "source_pages": [
+        "concepts/workloads/controllers/job",
+        "concepts/workloads/controllers/cron-jobs"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_016",
+      "question": "What is the key scheduling difference between a Deployment and a DaemonSet for running Pods in a cluster?",
+      "expected_answer_keywords": ["DaemonSet", "every node", "Deployment", "replicas", "scheduling"],
+      "expected_sources": ["k8s_deployment.md", "k8s_daemonset.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "A Deployment schedules a configured number of replica Pods onto nodes based on the scheduler's placement decisions; the replica count is fixed by the Deployment spec and is independent of the number of nodes. A DaemonSet instead ensures that all (or some) Nodes run a copy of a Pod, so the effective replica count is tied to the number of matching nodes; as nodes are added the DaemonSet Pods are added with them.",
+      "question_type": "comparison",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["2a2ff3b0d4346555", "5c63fa1dc2d8824f"],
+      "source_snippets": [
+        "A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state",
+        "DaemonSet* ensures that all (or some) Nodes run a copy of a Pod"
+      ],
+      "source_pages": [
+        "concepts/workloads/controllers/deployment",
+        "concepts/workloads/controllers/daemonset"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_017",
+      "question": "When a Pod with init containers starts up, what is the order in which its init containers and regular application containers run, and what guarantees does Kubernetes make about that order?",
+      "expected_answer_keywords": ["init container", "run to completion", "before", "application", "order"],
+      "expected_sources": ["k8s_init_containers.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "Init containers run one at a time, in the order they are defined in the Pod spec, and each must run to completion before the next one starts. Only after all init containers have successfully terminated does the kubelet start the Pod's regular application containers. If any init container fails, the Pod restarts according to its restartPolicy and the init sequence begins again. This makes init containers the right place for one-time setup work that must finish before the app starts.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["48069a8c91f98f5b", "329fd28939ef9a4c"],
+      "source_snippets": [
+        "Init containers are exactly like regular containers",
+        "before the main application container"
+      ],
+      "source_pages": [
+        "concepts/workloads/pods/init-containers",
+        "concepts/workloads/pods/init-containers"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_018",
+      "question": "As of the current Kubernetes snapshot, which autoscaling API version should you use for a HorizontalPodAutoscaler that scales a Deployment on custom or memory metrics, and why?",
+      "expected_answer_keywords": ["HorizontalPodAutoscaler", "autoscaling/v2", "custom metrics", "memory", "stable"],
+      "expected_sources": ["k8s_hpa.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "The current stable HorizontalPodAutoscaler API version is autoscaling/v2, which adds support for scaling on memory and custom metrics beyond the CPU-only autoscaling/v1. The new fields introduced in autoscaling/v2 are preserved as annotations when working with autoscaling/v1, but if you need memory or custom metric scaling for a Deployment or StatefulSet you should use autoscaling/v2 directly.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "time_sensitive": true,
+      "source_chunk_ids": ["eb3877a460c59fb1", "ec57aa3ce82b78a5"],
+      "source_snippets": [
+        "HorizontalPodAutoscaler* automatically updates a workload resource",
+        "The current stable version can be found in the"
+      ],
+      "source_pages": [
+        "tasks/run-application/horizontal-pod-autoscale",
+        "tasks/run-application/horizontal-pod-autoscale"
+      ],
+      "source_sections": ["", "API Object"]
+    },
+    {
+      "id": "k8s_019",
+      "question": "How does a value stored in a ConfigMap become available to an application running inside a Pod \u2014 what are the mechanisms Kubernetes provides?",
+      "expected_answer_keywords": ["ConfigMap", "environment variables", "volume", "mounted", "Pod"],
+      "expected_sources": ["k8s_configmap.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "A ConfigMap can be surfaced to a Pod in two main ways: by exposing specific keys as environment variables on the Pod's containers, or by mounting the ConfigMap as a volume so that each key becomes a file in the mount path. Volume-mounted ConfigMap data can also be updated in place when the ConfigMap changes, whereas environment variables are set at Pod start and do not update until the Pod is restarted.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["b6a867a1906a3ff2"],
+      "source_snippets": [
+        "A ConfigMap is an API object used to store non-confidential data in key-value pairs"
+      ],
+      "source_pages": ["concepts/configuration/configmap"],
+      "source_sections": [""]
+    },
+    {
+      "id": "k8s_020",
+      "question": "By default, is an isolated or non-isolated Pod subject to NetworkPolicy filtering, and how does a NetworkPolicy change that baseline?",
+      "expected_answer_keywords": ["NetworkPolicy", "non-isolated", "podSelector", "ingress", "egress"],
+      "expected_sources": ["k8s_network_policies.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "By default, Pods are non-isolated \u2014 they accept traffic from any source. A Pod becomes isolated as soon as any NetworkPolicy in its namespace selects it via podSelector; at that point, only traffic explicitly allowed by the union of NetworkPolicies that select that Pod is permitted. NetworkPolicy rules can target ingress, egress, or both, and the CNI plugin is what enforces the policy \u2014 Kubernetes itself does not.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["f3630532cd0aacb1", "c5be239e31878572"],
+      "source_snippets": [
+        "non-isolated",
+        "namespaceSelector"
+      ],
+      "source_pages": [
+        "concepts/services-networking/network-policies",
+        "concepts/services-networking/network-policies"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_021",
+      "question": "How does a CronJob get from a cron schedule string to an actual running Pod \u2014 what objects does Kubernetes create along the way?",
+      "expected_answer_keywords": ["CronJob", "schedule", "Job", "Pod", "create"],
+      "expected_sources": ["k8s_cronjob.md", "k8s_job.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "A CronJob is like one line of a crontab \u2014 it creates Jobs on a repeating schedule defined in cron format. At each scheduled time, the CronJob controller instantiates a new Job from the jobTemplate. That Job then creates one or more Pods to run the workload, retrying execution until a specified number of Pods successfully terminate. Deleting the CronJob cleans up the Jobs it created, and deleting a Job cleans up its Pods.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "time_sensitive": false,
+      "source_chunk_ids": ["715c42e9d8a1344e", "b704f9dbc8422835"],
+      "source_snippets": [
+        "A CronJob starts one-time Jobs on a repeating schedule",
+        "A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate"
+      ],
+      "source_pages": [
+        "concepts/workloads/controllers/cron-jobs",
+        "concepts/workloads/controllers/job"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_022",
+      "question": "How do I write an RBAC deny rule that blocks a specific user from deleting Pods in a namespace?",
+      "expected_answer_keywords": ["does not", "deny", "purely additive", "no", "RBAC"],
+      "expected_sources": ["k8s_rbac.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "You can't \u2014 Kubernetes RBAC does not support deny rules. The docs explicitly state that Role and ClusterRole rules are purely additive and there are no 'deny' rules. To prevent a user from deleting Pods you simply do not grant them a Role that contains the delete verb on pods; the absence of permission is the only way to block an action.",
+      "question_type": "false_premise",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["ca6603fcb81b1723"],
+      "source_snippets": [
+        "purely additive (there are no \"deny\" rules)"
+      ],
+      "source_pages": ["reference/access-authn-authz/rbac"],
+      "source_sections": ["Role and ClusterRole"]
+    },
+    {
+      "id": "k8s_023",
+      "question": "Which container-isolation restrictions does the Pod Security Standards 'privileged' profile enforce on a Pod?",
+      "expected_answer_keywords": ["privileged", "unrestricted", "no restrictions", "absence"],
+      "expected_sources": ["k8s_pod_security_standards.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "The privileged profile enforces none \u2014 it is defined by the absence of restrictions. The docs describe the privileged policy as purposely-open and entirely unrestricted: a Pod running under the privileged profile is allowed to bypass typical container isolation mechanisms (for example, access to the node's host network). If you want actual isolation you have to use the baseline or restricted profile instead.",
+      "question_type": "false_premise",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["164541af6b0ebd85"],
+      "source_snippets": [
+        "Unrestricted policy"
+      ],
+      "source_pages": ["concepts/security/pod-security-standards"],
+      "source_sections": ["Privileged"]
+    },
+    {
+      "id": "k8s_024",
+      "question": "How do I configure Envoy xDS aggregated discovery service (ADS) for sidecar proxies managed by a Kubernetes Deployment?",
+      "expected_answer_keywords": ["does not", "not contain", "Envoy"],
+      "expected_sources": [],
+      "category": "out_of_scope",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "The Kubernetes documentation in this corpus does not cover Envoy, xDS, or aggregated discovery service (ADS) configuration. Envoy is a third-party proxy typically managed by a service mesh project (not Kubernetes core). The right answer is to refuse and cite zero sources.",
+      "question_type": "false_premise",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": [],
+      "source_snippets": [],
+      "source_pages": [],
+      "source_sections": []
+    },
+    {
+      "id": "k8s_025",
+      "question": "Which Kubernetes Service types expose an application to traffic from outside the cluster?",
+      "expected_answer_keywords": ["NodePort", "LoadBalancer", "ExternalName", "Ingress"],
+      "expected_sources": ["k8s_service.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "The Service types that expose an application outside the cluster are NodePort (exposes the Service on each Node's IP at a static port), LoadBalancer (exposes the Service externally using an external load balancer supplied by a cloud integration), and ExternalName (maps the Service to an external DNS name via a CNAME record). ClusterIP is the default and is cluster-internal only; for HTTP/HTTPS routing from outside the cluster, Ingress can front a ClusterIP Service as an alternative to NodePort/LoadBalancer.",
+      "question_type": "set",
+      "is_multi_hop": false,
+      "time_sensitive": false,
+      "source_chunk_ids": ["52fd016472117b4b", "3257227cc8ef1c68"],
+      "source_snippets": [
+        "Exposes the Service on a cluster-internal IP",
+        "Exposes the Service externally using an external load balancer"
+      ],
+      "source_pages": [
+        "concepts/services-networking/service",
+        "concepts/services-networking/service"
+      ],
+      "source_sections": ["Publishing Services (ServiceTypes)", "Publishing Services (ServiceTypes)"]
+    }
+  ]
+}

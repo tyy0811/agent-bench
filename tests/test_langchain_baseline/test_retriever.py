@@ -5,6 +5,14 @@ from unittest.mock import AsyncMock, MagicMock
 from agent_bench.langchain_baseline.retriever import AgentBenchRetriever
 
 
+def _make_retrieval_result(results):
+    """Wrap a list of mock SearchResults in a RetrievalResult-like object."""
+    rr = MagicMock()
+    rr.results = results
+    rr.pre_rerank_count = 0
+    return rr
+
+
 def _make_mock_retriever(results=None):
     """Create a mock of agent_bench.rag.retriever.Retriever."""
     retriever = MagicMock()
@@ -17,7 +25,9 @@ def _make_mock_retriever(results=None):
         result.score = 0.85
         result.rank = 1
         results = [result]
-    retriever.search = AsyncMock(return_value=results)
+    retriever.search = AsyncMock(
+        return_value=_make_retrieval_result(results),
+    )
     return retriever
 
 

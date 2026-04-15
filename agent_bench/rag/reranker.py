@@ -36,8 +36,8 @@ class CrossEncoderReranker:
             self._model = CrossEncoder(self._model_name)
         return self._model
 
-    def rerank(self, query: str, chunks: list[Chunk], top_k: int = 5) -> list[Chunk]:
-        """Score each (query, chunk) pair and return top_k by relevance."""
+    def rerank(self, query: str, chunks: list[Chunk], top_k: int = 5) -> list[tuple[Chunk, float]]:
+        """Score each (query, chunk) pair and return top_k by relevance with scores."""
         if not chunks:
             return []
 
@@ -45,14 +45,14 @@ class CrossEncoderReranker:
         scores = self.model.predict(pairs)
 
         scored = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
-        reranked = [chunk for chunk, _ in scored[:top_k]]
-        top_score = float(scored[0][1]) if scored else 0.0
+        top_results = [(chunk, float(score)) for chunk, score in scored[:top_k]]
+        top_score = top_results[0][1] if top_results else 0.0
 
         log.info(
             "reranker_complete",
             query=query,
             input_count=len(chunks),
-            output_count=len(reranked),
+            output_count=len(top_results),
             top_score=top_score,
         )
-        return reranked
+        return top_results

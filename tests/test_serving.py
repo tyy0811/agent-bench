@@ -451,7 +451,7 @@ class TestStreaming:
 
     @pytest.mark.asyncio
     async def test_stream_events_ordered(self, test_app):
-        """Event sequence: sources → chunk* → done."""
+        """Legacy event sequence preserved: sources → chunk* → done."""
         import json as json_mod
 
         async with AsyncClient(
@@ -461,15 +461,18 @@ class TestStreaming:
                 "/ask/stream", json={"question": "How do path parameters work?"}
             )
 
-        events = []
+        all_events = []
         for line in response.text.strip().split("\n"):
             if line.startswith("data: "):
-                events.append(json_mod.loads(line[6:]))
+                all_events.append(json_mod.loads(line[6:]))
 
-        assert len(events) >= 3  # at least sources + 1 chunk + done
-        assert events[0]["type"] == "sources"
-        assert events[-1]["type"] == "done"
-        assert all(e["type"] == "chunk" for e in events[1:-1])
+        # Filter to legacy event types only (stage events are additive)
+        legacy_types = ("sources", "chunk", "done", "_orchestrator_done")
+        legacy = [e for e in all_events if e["type"] in legacy_types]
+        assert len(legacy) >= 3  # at least sources + 1 chunk + done
+        assert legacy[0]["type"] == "sources"
+        assert legacy[-1]["type"] in ("done", "_orchestrator_done")
+        assert all(e["type"] == "chunk" for e in legacy[1:-1])
 
     @pytest.mark.asyncio
     async def test_stream_chunks_assemble(self, test_app):

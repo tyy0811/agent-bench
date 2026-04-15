@@ -130,6 +130,7 @@ class OutputConfig(BaseModel):
     enabled: bool = True
     pii_check: bool = True
     url_check: bool = True
+    secret_check: bool = True
     blocklist: list[str] = []
 
 
@@ -147,6 +148,27 @@ class SecurityConfig(BaseModel):
     audit: AuditConfig = AuditConfig()
 
 
+class CorpusConfig(BaseModel):
+    """Per-corpus configuration: store path, thresholds, iteration limits."""
+
+    label: str
+    store_path: str
+    data_path: str
+    refusal_threshold: float = 0.0
+    top_k: int = 5
+    max_iterations: int = 3
+    # Optional: path to the golden dataset JSON for this corpus. None is
+    # a valid state (corpus has no golden set yet during bring-up). The
+    # evaluation CLI errors clearly if --corpus targets a corpus with
+    # golden_dataset=None rather than requiring the field upfront.
+    golden_dataset: str | None = None
+    # When False, the corpus is kept in YAML for schema visibility but is
+    # not wired into corpus_map at startup. Dashboard can render the
+    # toggle as disabled; /ask requests for the corpus return 400.
+    # Use this for corpora whose docs/store are not yet curated.
+    available: bool = True
+
+
 class AppConfig(BaseModel):
     agent: AgentConfig = AgentConfig()
     provider: ProviderConfig = ProviderConfig()
@@ -157,6 +179,29 @@ class AppConfig(BaseModel):
     serving: ServingConfig = ServingConfig()
     evaluation: EvaluationConfig = EvaluationConfig()
     security: SecurityConfig = SecurityConfig()
+    # Multi-corpus support
+    corpora: dict[str, CorpusConfig] = {}
+    default_corpus: str = "fastapi"
+
+    @model_validator(mode="after")
+    def _validate_default_corpus(self) -> "AppConfig":
+        if not self.corpora:
+            return self
+        if self.default_corpus not in self.corpora:
+            raise ValueError(
+                f"default_corpus={self.default_corpus!r} is not in corpora "
+                f"{sorted(self.corpora.keys())!r}. Configured corpora must "
+                "include the default.",
+            )
+        # The default corpus must also be available — otherwise the app
+        # would boot with no reachable default orchestrator.
+        if not self.corpora[self.default_corpus].available:
+            raise ValueError(
+                f"default_corpus={self.default_corpus!r} has available=False. "
+                "The default corpus must be ready to serve; set available=true "
+                "or point default_corpus at a ready corpus.",
+            )
+        return self
 
 
 # --- Task config ---

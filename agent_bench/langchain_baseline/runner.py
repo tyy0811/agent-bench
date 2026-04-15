@@ -127,9 +127,7 @@ async def run_langchain_evaluation(
                 ),
                 keyword_hit_rate=keyword_hit_rate(answer, q.expected_answer_keywords),
                 has_source_citation=len(deduped_sources) > 0,
-                grounded_refusal=grounded_refusal(
-                    answer, q.category, deduped_sources
-                ),
+                grounded_refusal=grounded_refusal(answer, q.category),
                 citation_accuracy=citation_accuracy(answer, deduped_sources),
                 calculator_used_correctly=(
                     ("calculator" in tools_used) if q.requires_calculator else True

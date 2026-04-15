@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.provider import LLMProvider
@@ -31,6 +31,24 @@ class GoldenQuestion(BaseModel):
     difficulty: str
     requires_calculator: bool
     reference_answer: str = ""
+    # Multi-corpus schema v2 (optional)
+    source_chunk_ids: list[str] = []
+    source_snippets: list[str] = []
+    question_type: str = ""
+    is_multi_hop: bool = False
+    # Version-state flag: true when the correct answer depends on a specific
+    # K8s (or framework) version / feature-state pin. Orthogonal to
+    # question_type — a simple and a simple_w_condition can both be time-
+    # sensitive. Defaults false; the v1.1 K8s plan pins 2–3 time_sensitive
+    # questions out of 25. The pilot file predates this flag and never sets
+    # it, so the default keeps the pilot schema-compatible.
+    time_sensitive: bool = False
+    # Authoring-time anchors for pre-ingestion golden datasets; index-aligned
+    # with source_snippets. source_sections[i] == "" means the snippet lives in
+    # page lede content above the first H2/H3 — this is allowed, not a missing
+    # value. Backfill matches on source_snippets, not on these fields.
+    source_pages: list[str] = Field(default_factory=list)
+    source_sections: list[str] = Field(default_factory=list)
 
 
 class EvalResult(BaseModel):
@@ -58,10 +76,24 @@ class EvalResult(BaseModel):
 
 
 def load_golden_dataset(path: str | Path) -> list[GoldenQuestion]:
-    """Load golden questions from JSON."""
+    """Load golden questions from JSON.
+
+    Supports two formats:
+    - Legacy flat list: [{...}, {...}]
+    - Nested with header: {"corpus": ..., "version": ..., "questions": [...]}
+    """
     with open(path) as f:
         data = json.load(f)
-    return [GoldenQuestion.model_validate(q) for q in data]
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict) and "questions" in data:
+        items = data["questions"]
+    else:
+        raise ValueError(
+            f"Unrecognized golden dataset format at {path}: "
+            "expected list or dict with 'questions' key",
+        )
+    return [GoldenQuestion.model_validate(q) for q in items]
 
 
 async def run_evaluation(
@@ -105,7 +137,7 @@ async def run_evaluation(
             retrieval_recall=retrieval_recall_at_k(ranked_sources, q.expected_sources),
             keyword_hit_rate=keyword_hit_rate(agent_response.answer, q.expected_answer_keywords),
             has_source_citation=source_presence(agent_response),
-            grounded_refusal=grounded_refusal(agent_response.answer, q.category, deduped_sources),
+            grounded_refusal=grounded_refusal(agent_response.answer, q.category),
             citation_accuracy=citation_accuracy(agent_response.answer, deduped_sources),
             calculator_used_correctly=calculator_used_when_expected(
                 agent_response, q.requires_calculator

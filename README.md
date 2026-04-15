@@ -1,10 +1,12 @@
 # agent-bench
 
+**A RAG benchmark built from primitives, with honest evaluation of retrieval, refusal, and grounded citation.**
+
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on the same 27-question golden dataset across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal). Zero hallucinated citations on all API provider configurations. The separate self-hosted Mistral-7B benchmark is included to show the practical model-size floor where agentic retrieval starts to break down.
+Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on matched golden datasets across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal) and two corpora (FastAPI + Kubernetes). Zero hallucinated citations on all API provider configurations. The separate self-hosted Mistral-7B benchmark is included to show the practical model-size floor where agentic retrieval starts to break down.
 
-`288 tests` · `3 providers` · `LangChain comparison` · `K8s + Terraform` · `CI`
+`444 tests` · `3 providers` · `2 corpora` · `LangChain comparison` · `K8s + Terraform` · `CI`
 
 ## Benchmark Results
 
@@ -238,7 +240,7 @@ security:
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
 - **Security — detection & redaction**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
 - **Security — audit & compliance**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 288 deterministic tests with mock providers
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 444 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
 
@@ -291,15 +293,16 @@ make benchmark            # Generate markdown report from results
 make evaluate-langchain   # Run LangChain baseline comparison
 ```
 
-The golden dataset contains 27 hand-crafted questions:
-- 19 retrieval: 8 easy (single chunk), 7 medium (multi-chunk), 4 hard (multi-source)
-- 3 calculation: questions requiring the calculator tool
-- 5 out-of-scope: questions testing grounded refusal (answer not in corpus)
+The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set · 2 time-sensitive). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store — no LLM-judged ground truth, no paraphrase fuzz.
+
+## Methodology Notes
+
+**Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015 — the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
 
 ## Testing
 
 ```bash
-make test    # 288 deterministic tests, no API keys needed
+make test    # 444 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 

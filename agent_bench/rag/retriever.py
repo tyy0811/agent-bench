@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, cast
 
 from agent_bench.rag.embedder import Embedder
@@ -9,6 +10,13 @@ from agent_bench.rag.store import HybridStore, SearchResult
 
 if TYPE_CHECKING:
     from agent_bench.rag.reranker import CrossEncoderReranker
+
+
+@dataclass
+class RetrievalResult:
+    """Retriever output with metadata for stage events."""
+    results: list[SearchResult] = field(default_factory=list)
+    pre_rerank_count: int = 0
 
 
 class Retriever:
@@ -35,7 +43,7 @@ class Retriever:
         query: str,
         top_k: int = 5,
         strategy: str | None = None,
-    ) -> list[SearchResult]:
+    ) -> RetrievalResult:
         """Embed query, search store, optionally rerank."""
         strat: Literal["semantic", "keyword", "hybrid"] = cast(
             Literal["semantic", "keyword", "hybrid"],
@@ -55,12 +63,14 @@ class Retriever:
             candidates_per_system=self._candidates_per_system,
         )
 
+        pre_rerank_count = len(results)
+
         if self._reranker and results:
             # Preserve original RRF scores — the refusal gate needs them
             rrf_scores = {r.chunk.id: r.score for r in results}
 
             chunks = [r.chunk for r in results]
-            reranked_chunks = self._reranker.rerank(
+            reranked = self._reranker.rerank(
                 query, chunks, top_k=self._reranker_top_k,
             )
             # Rebuild SearchResult objects with new ranks but original RRF scores
@@ -70,8 +80,11 @@ class Retriever:
                     score=rrf_scores.get(chunk.id, 0.0),
                     rank=rank + 1,
                     retrieval_strategy="hybrid+reranker",
+                    rerank_score=rerank_score,
                 )
-                for rank, chunk in enumerate(reranked_chunks)
+                for rank, (chunk, rerank_score) in enumerate(reranked)
             ]
+        else:
+            pre_rerank_count = 0  # no reranking happened
 
-        return results
+        return RetrievalResult(results=results, pre_rerank_count=pre_rerank_count)

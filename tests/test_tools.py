@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 
 import pytest
 
@@ -17,12 +18,20 @@ from agent_bench.tools.search import SearchTool
 class MockChunk:
     content: str
     source: str
+    id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
 
 
 @dataclass
 class MockSearchResult:
     chunk: MockChunk
     score: float
+
+
+class MockRetrievalResult:
+    """Mimics RetrievalResult for test mocks."""
+    def __init__(self, results: list, pre_rerank_count: int = 0) -> None:
+        self.results = results
+        self.pre_rerank_count = pre_rerank_count
 
 
 class MockRetriever:
@@ -33,8 +42,8 @@ class MockRetriever:
 
     async def search(
         self, query: str, top_k: int = 5, strategy: str | None = None
-    ) -> list[MockSearchResult]:
-        return self._results[:top_k]
+    ) -> MockRetrievalResult:
+        return MockRetrievalResult(results=self._results[:top_k])
 
 
 # --- Registry tests ---
@@ -212,6 +221,36 @@ class TestSearchTool:
         assert defn.parameters["type"] == "object"
         assert "query" in defn.parameters["properties"]
         assert "query" in defn.parameters["required"]
+
+
+class TestSearchToolSpecSnapshot:
+    """Frozen snapshot of SearchTool's LLM-facing contract.
+
+    Any silent change to the tool name, description, or parameter schema
+    that reaches the LLM invalidates invariants that callers rely on —
+    for example, an attempt to expose internal SearchTool state (such as
+    a Fix-2-style expansion flag) as an LLM-visible parameter would
+    break the "one LLM-facing tool call per execute() invocation"
+    iteration-budget guarantee. These assertions fail loudly if the
+    contract drifts.
+    """
+
+    def test_tool_name(self):
+        assert SearchTool.name == "search_documents"
+
+    def test_tool_description(self):
+        assert SearchTool.description == (
+            "Search the technical documentation corpus for relevant passages. "
+            "Returns the most relevant document chunks with source attribution."
+        )
+
+    def test_tool_parameters_schema(self):
+        params = SearchTool.parameters
+        assert params["type"] == "object"
+        assert set(params["properties"].keys()) == {"query", "top_k"}
+        assert params["properties"]["query"]["type"] == "string"
+        assert params["properties"]["top_k"]["type"] == "integer"
+        assert params["required"] == ["query"]
 
 
 # --- Refusal gate tests ---

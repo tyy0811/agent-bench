@@ -8,6 +8,9 @@ provider:
     gpt-4o-mini:
       input_cost_per_mtok: 0.15
       output_cost_per_mtok: 0.60
+    gpt-4o-mini-2024-07-18:  # dated pin used by OpenAIProvider.model at runtime
+      input_cost_per_mtok: 0.15
+      output_cost_per_mtok: 0.60
     claude-sonnet-4-20250514:
       input_cost_per_mtok: 3.0
       output_cost_per_mtok: 15.0
@@ -74,9 +77,43 @@ security:
     enabled: true
     pii_check: true
     url_check: true
+    secret_check: true
     blocklist: []
   audit:
     enabled: true
     path: logs/audit.jsonl
     max_size_mb: 100
     rotate: true
+
+# --- Multi-corpus ---
+# Per-corpus store paths, refusal thresholds, and iteration limits.
+# Default_corpus must be a key in corpora (enforced by AppConfig validator).
+#
+# NOTE: rag.refusal_threshold above is ignored when corpora is non-empty.
+# Each corpus declares its own refusal_threshold below; a startup warning
+# fires if the legacy field is non-default to surface drift.
+default_corpus: fastapi
+
+corpora:
+  fastapi:
+    label: "FastAPI Docs"
+    store_path: .cache/store
+    data_path: data/tech_docs
+    refusal_threshold: 0.02  # matches legacy rag.refusal_threshold
+    top_k: 5
+    max_iterations: 3
+    golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json
+  k8s:
+    label: "Kubernetes"
+    store_path: .cache/store_k8s
+    data_path: data/k8s_docs
+    refusal_threshold: 0.015  # Validated against 25Q set 2026-04-14 — see DECISIONS.md
+                              # (K8s refusal_threshold sweep). 0.020 and 0.025 both break
+                              # simple-question retrieval (k8s_006 ConfigMap, k8s_007 Job).
+                              # LLM-driven query variance makes any value > 0.015 fragile.
+                              # observed on pilot_005 (see DECISIONS.md). 0.30 launch-intent
+                              # still holds; full sweep lands with the 25-question golden set.
+    top_k: 5
+    max_iterations: 3
+    golden_dataset: agent_bench/evaluation/datasets/k8s_golden.json
+    available: true

@@ -23,6 +23,7 @@ class SearchResult(BaseModel):
     score: float  # RRF score for hybrid, raw score for single-strategy
     rank: int
     retrieval_strategy: str
+    rerank_score: float | None = None  # cross-encoder score (set after reranking)
 
 
 class StoreStats(BaseModel):

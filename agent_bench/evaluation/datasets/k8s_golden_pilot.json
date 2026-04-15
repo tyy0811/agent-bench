@@ -1,0 +1,134 @@
+{
+  "corpus": "k8s",
+  "version": "v1.31",
+  "snapshot_date": "2026-04-13",
+  "chunker": {
+    "strategy": "recursive",
+    "chunk_size": 512,
+    "chunk_overlap": 64
+  },
+  "questions": [
+    {
+      "id": "k8s_pilot_001",
+      "question": "In Kubernetes, does each Pod receive its own IP address, and how do containers inside the same Pod talk to each other?",
+      "expected_answer_keywords": ["unique", "IP address", "shared", "localhost"],
+      "expected_sources": ["k8s_pods.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "Yes. Each Pod is assigned a unique IP address for each address family, and every container in the Pod shares that network namespace \u2014 containers within a Pod communicate with each other via localhost.",
+      "question_type": "simple_fact",
+      "is_multi_hop": false,
+      "source_chunk_ids": [],
+      "source_snippets": [
+        "Each Pod is assigned a unique IP address for each address family"
+      ],
+      "source_pages": ["concepts/workloads/pods"],
+      "source_sections": ["Pod networking"]
+    },
+    {
+      "id": "k8s_pilot_002",
+      "question": "When you update a Deployment's pod template, what mechanism does Kubernetes use to transition Pods from the old version to the new one, and what role does the ReplicaSet play?",
+      "expected_answer_keywords": ["ReplicaSet", "new ReplicaSet", "old ReplicaSet", "controlled rate", "replicas", "selector"],
+      "expected_sources": [
+        "k8s_deployment.md",
+        "k8s_replicaset.md"
+      ],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "When a Deployment's pod template changes, a new ReplicaSet is created and the Deployment controller moves Pods from the old ReplicaSet to the new one at a controlled rate. ReplicaSets are the underlying workload objects that maintain a stable set of replica Pods \u2014 each ReplicaSet has a selector, a replica count, and a pod template, and ensures the configured number of matching Pods is running. The Deployment orchestrates the rollout by scaling the new ReplicaSet up and the old one down.",
+      "question_type": "multi_hop",
+      "is_multi_hop": true,
+      "source_chunk_ids": [],
+      "source_snippets": [
+        "A new ReplicaSet is created, and the Deployment gradually scales it up while scaling down the old ReplicaSet, ensuring Pods are replaced at a controlled rate",
+        "A ReplicaSet is defined with fields, including a selector that specifies how to identify Pods it can acquire, a number of replicas indicating how many Pods it should be maintaining"
+      ],
+      "source_pages": [
+        "concepts/workloads/controllers/deployment",
+        "concepts/workloads/controllers/replicaset"
+      ],
+      "source_sections": ["Use Case", "How a ReplicaSet works"]
+    },
+    {
+      "id": "k8s_pilot_003",
+      "question": "What is the key difference between a ConfigMap and a Secret when deciding where to store sensitive application data like database passwords?",
+      "expected_answer_keywords": ["non-confidential", "confidential", "Secret", "ConfigMap", "encryption", "etcd"],
+      "expected_sources": [
+        "k8s_configmap.md",
+        "k8s_secret.md"
+      ],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "ConfigMaps are intended for non-confidential configuration data and do not provide secrecy or encryption \u2014 the docs explicitly tell you to use a Secret for anything confidential. Secrets are specifically intended to hold confidential data such as passwords, tokens, or keys, and Kubernetes takes additional precautions with them (like avoiding writing sensitive data to nonvolatile storage). Note that Secrets are stored unencrypted in etcd by default unless you enable Encryption at Rest.",
+      "question_type": "comparison",
+      "is_multi_hop": true,
+      "source_chunk_ids": [],
+      "source_snippets": [
+        "A ConfigMap is an API object used to store non-confidential data in key-value pairs",
+        "specifically intended to hold confidential data"
+      ],
+      "source_pages": [
+        "concepts/configuration/configmap",
+        "concepts/configuration/secret"
+      ],
+      "source_sections": ["", ""]
+    },
+    {
+      "id": "k8s_pilot_004",
+      "question": "If I set a custom value for one hard eviction threshold on the kubelet (e.g., memory.available) but leave the other thresholds unset, what happens to the defaults for the thresholds I didn't override?",
+      "expected_answer_keywords": ["zero", "default", "not inherited", "custom", "all thresholds", "explicit"],
+      "expected_sources": ["k8s_node_pressure_eviction.md"],
+      "category": "retrieval",
+      "difficulty": "hard",
+      "requires_calculator": false,
+      "reference_answer": "If you change the value of any hard eviction threshold parameter, the defaults for the other thresholds are not inherited \u2014 they are set to zero. To preserve protection on the unchanged resources, you must explicitly provide values for all the thresholds (memory.available, nodefs.available, imagefs.available, nodefs.inodesFree, imagefs.inodesFree on Linux, and the Windows equivalent).",
+      "question_type": "conditional",
+      "is_multi_hop": false,
+      "source_chunk_ids": [],
+      "source_snippets": [
+        "These default values of hard eviction thresholds will only be set if none of the parameters is changed"
+      ],
+      "source_pages": ["concepts/scheduling-eviction/node-pressure-eviction"],
+      "source_sections": ["Hard eviction thresholds"]
+    },
+    {
+      "id": "k8s_pilot_005",
+      "question": "How do I configure a Kubernetes NetworkPolicy to enforce mutual TLS (mTLS) between Pods in the same namespace?",
+      "expected_answer_keywords": ["not", "does not", "NetworkPolicy", "service mesh", "TLS", "ingress controller"],
+      "expected_sources": ["k8s_network_policies.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "NetworkPolicy cannot enforce mTLS. As of Kubernetes v1.31, the NetworkPolicy API explicitly does not support anything TLS-related \u2014 the docs direct you to use a service mesh or ingress controller for that. NetworkPolicy operates at OSI layer 3/4 (IP addresses, ports, and protocols like TCP/UDP/SCTP) and has no notion of application-layer encryption or identity.",
+      "question_type": "false_premise",
+      "is_multi_hop": false,
+      "source_chunk_ids": [],
+      "source_snippets": [
+        "Anything TLS related (use a service mesh or ingress controller for this)"
+      ],
+      "source_pages": ["concepts/services-networking/network-policies"],
+      "source_sections": ["What you can't do with network policies (at least, not yet)"]
+    },
+    {
+      "id": "k8s_pilot_006",
+      "question": "As of the Kubernetes v1.31 snapshot, what is the feature state (alpha, beta, or stable) of the built-in Pod Security admission controller, and in which version did it reach that state?",
+      "expected_answer_keywords": ["stable", "v1.25", "Pod Security", "admission controller"],
+      "expected_sources": ["k8s_pod_security_admission.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "The built-in Pod Security admission controller has been stable since Kubernetes v1.25, and that status holds in the v1.31 snapshot. It is the built-in replacement for the removed PodSecurityPolicy and enforces the Pod Security Standards (privileged, baseline, restricted) at the namespace level via labels.",
+      "question_type": "version_specific",
+      "is_multi_hop": false,
+      "source_chunk_ids": [],
+      "source_snippets": [
+        "FEATURE STATE: `Kubernetes v1.25 [stable]`"
+      ],
+      "source_pages": ["concepts/security/pod-security-admission"],
+      "source_sections": [""]
+    }
+  ]
+}

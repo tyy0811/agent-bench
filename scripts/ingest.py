@@ -34,7 +34,11 @@ def ingest(
         print(f"Error: document directory {doc_dir} does not exist")
         sys.exit(1)
 
-    md_files = sorted(doc_path.glob("*.md"))
+    # Exclude curation metadata files that live alongside corpus content.
+    # SOURCES.md and QUESTION_PLAN.md are version-controlled curation
+    # artifacts, not corpus content.
+    _EXCLUDED = {"SOURCES.md", "QUESTION_PLAN.md", "README.md"}
+    md_files = sorted(f for f in doc_path.glob("*.md") if f.name not in _EXCLUDED)
     if not md_files:
         print(f"Error: no markdown files found in {doc_dir}")
         sys.exit(1)

@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest evaluate-fast evaluate-full benchmark evaluate-langchain docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -18,6 +18,9 @@ serve:
 
 ingest:
 	$(PYTHON) scripts/ingest.py --config configs/tasks/tech_docs.yaml
+
+ingest-k8s:  ## Ingest Kubernetes docs into .cache/store_k8s
+	$(PYTHON) scripts/ingest.py --doc-dir data/k8s_docs --store-path .cache/store_k8s
 
 evaluate-fast:
 	$(PYTHON) scripts/evaluate.py --config configs/default.yaml --mode deterministic

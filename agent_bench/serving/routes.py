@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.responses import Response
 
 from agent_bench.agents.orchestrator import Orchestrator
+from agent_bench.core.config import AppConfig
+from agent_bench.core.prompts import format_system_prompt
 from agent_bench.serving.middleware import MetricsCollector
 from agent_bench.serving.schemas import (
     AskRequest,
@@ -21,61 +23,155 @@ from agent_bench.serving.schemas import (
 router = APIRouter()
 
 
+def _resolve_orchestrator(
+    request: Request, body: AskRequest,
+) -> tuple[Orchestrator, str, str]:
+    """Resolve (orchestrator, corpus_name, provider_name) for a request.
+
+    Multi-corpus mode: look up corpus_map[corpus][provider]. If the
+    request explicitly names a provider that isn't wired for the
+    resolved corpus, raise 400 instead of silently falling back —
+    silent fallback makes the provider comparison telemetry
+    untrustworthy and hides config drift.
+
+    Legacy single-corpus mode: use the flat orchestrators dict keyed by
+    provider name. Same strict rule: explicit body.provider that isn't
+    in orchestrators → 400. Implicit (None) → fall through to default.
+
+    Raises:
+        HTTPException(400): body.corpus names a corpus not in corpus_map,
+            OR body.provider names a provider not wired for the resolved
+            corpus. Pydantic Literal catches unknown names at 422; this
+            catches "known per schema but not deployed at runtime" at 400.
+
+    Returns:
+        (orchestrator, corpus_name, provider_name). provider_name is
+        the actual provider key used to reach the orchestrator — it
+        may differ from body.provider when body.provider is None and
+        the corpus default is used.
+    """
+    config: AppConfig = request.app.state.config
+    corpus_map: dict = getattr(request.app.state, "corpus_map", {})
+    default_corpus: str = getattr(config, "default_corpus", "") or ""
+    provider_default: str = config.provider.default
+
+    # Fail loud on unwired corpus.
+    if corpus_map and body.corpus is not None and body.corpus not in corpus_map:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Corpus {body.corpus!r} is not configured on this server. "
+                f"Available corpora: {sorted(corpus_map.keys())}"
+            ),
+        )
+
+    corpus_name: str = body.corpus or default_corpus
+
+    if corpus_map and corpus_name in corpus_map:
+        inner = corpus_map[corpus_name]
+        # Explicit body.provider must be wired for this corpus. No silent
+        # fallback — we'd mislabel telemetry and lie in the meta event.
+        if body.provider is not None:
+            if body.provider not in inner:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Provider {body.provider!r} is not available for "
+                        f"corpus {corpus_name!r}. Available providers: "
+                        f"{sorted(inner.keys())}"
+                    ),
+                )
+            return inner[body.provider], corpus_name, body.provider
+        # Implicit — use the corpus's copy of the config default provider.
+        # If even the default isn't wired (misconfig), 500 is appropriate;
+        # we let KeyError propagate as a loud server error.
+        return inner[provider_default], corpus_name, provider_default
+
+    # Legacy single-corpus mode: flat per-provider dict.
+    orchestrators: dict = getattr(request.app.state, "orchestrators", {})
+    if body.provider is not None:
+        if body.provider not in orchestrators:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Provider {body.provider!r} is not available. "
+                    f"Available providers: {sorted(orchestrators.keys())}"
+                ),
+            )
+        return orchestrators[body.provider], corpus_name, body.provider
+    return request.app.state.orchestrator, corpus_name, provider_default
+
+
+def _resolve_system_prompt(
+    request: Request, corpus_name: str,
+) -> tuple[str, str]:
+    """Return (system_prompt, corpus_label) for the active corpus.
+
+    In multi-corpus mode the prompt is formatted from the shared template
+    with the corpus's label substituted in. In legacy mode, the prompt
+    from the task config (app.state.system_prompt) is returned unchanged
+    and corpus_label is empty.
+    """
+    config: AppConfig = request.app.state.config
+    corpora = getattr(config, "corpora", None) or {}
+    if corpus_name and corpus_name in corpora:
+        label = corpora[corpus_name].label
+        return format_system_prompt(label), label
+    return request.app.state.system_prompt, ""
+
+
+_LANDING_HTML_TEMPLATE: str | None = None
+
+
+def _get_landing_html_template() -> str:
+    """Read and cache the raw index.html template on first call."""
+    global _LANDING_HTML_TEMPLATE  # noqa: PLW0603
+    if _LANDING_HTML_TEMPLATE is None:
+        from pathlib import Path
+
+        html_path = Path(__file__).parent / "static" / "index.html"
+        _LANDING_HTML_TEMPLATE = html_path.read_text()
+    return _LANDING_HTML_TEMPLATE
+
+
+def _render_landing_html(config: AppConfig) -> str:
+    """Inject per-server corpus availability into the cached HTML.
+
+    The dashboard reads the JSON from a <script id="corpus-config">
+    block to decide which corpus toggles to enable. Injection uses a
+    literal string replace rather than a template engine to keep the
+    landing page a single static file.
+    """
+    import json as _json
+
+    template = _get_landing_html_template()
+    corpora_data = {
+        name: {"label": cfg.label, "available": cfg.available}
+        for name, cfg in config.corpora.items()
+    }
+    payload = _json.dumps({
+        "corpora": corpora_data,
+        "default_corpus": config.default_corpus,
+    })
+    # Escape </script> to avoid HTML injection if a config value ever
+    # contains one. json.dumps already escapes backslashes and quotes.
+    payload = payload.replace("</", "<\\/")
+    return template.replace("{{CORPUS_CONFIG_JSON}}", payload)
+
+
 @router.get("/")
-async def root() -> Response:
-    """Human-friendly landing page for recruiters clicking the live URL."""
+async def root(request: Request) -> Response:
+    """Showcase landing page with live RAG dashboard."""
     from starlette.responses import HTMLResponse
 
-    html = (  # noqa: E501
-        "<!DOCTYPE html>"
-        "<html lang='en'><head><meta charset='utf-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>agent-bench</title><style>"
-        "body{font-family:system-ui,sans-serif;max-width:640px;"
-        "margin:60px auto;padding:0 20px;color:#1a1a1a;line-height:1.6}"
-        "h1{margin-bottom:4px}.sub{color:#666;margin-top:0}"
-        "code{background:#f4f4f4;padding:2px 6px;border-radius:3px}"
-        "pre{background:#f4f4f4;padding:16px;border-radius:6px;"
-        "overflow-x:auto}a{color:#0066cc}"
-        "table{border-collapse:collapse;width:100%;margin:12px 0}"
-        "th,td{text-align:left;padding:8px 12px;"
-        "border-bottom:1px solid #e0e0e0}th{font-weight:600}"
-        "</style></head><body>"
-        "<h1>agent-bench</h1>"
-        "<p class='sub'>RAG agent evaluation benchmark"
-        " &mdash; built from API primitives</p>"
-        "<table>"
-        "<tr><th>Endpoint</th><th>Description</th></tr>"
-        "<tr><td><code>POST /ask</code></td>"
-        "<td>Ask a question, get answer with sources</td></tr>"
-        "<tr><td><code>POST /ask/stream</code></td>"
-        "<td>SSE streaming</td></tr>"
-        "<tr><td><code>GET /health</code></td>"
-        "<td>Health check and store stats</td></tr>"
-        "<tr><td><code>GET /metrics</code></td>"
-        "<td>Request count, latency, cost</td></tr>"
-        "</table>"
-        "<h3>Try it</h3>"
-        "<pre>curl -X POST "
-        "https://nomearod-agentbench.hf.space/ask \\\n"
-        "  -H 'Content-Type: application/json' \\\n"
-        "  -d '{\"question\": "
-        "\"How do I add auth to FastAPI?\"}'</pre>"
-        "<p><strong>169 tests</strong> &middot; "
-        "<strong>2 providers</strong> (OpenAI + Anthropic)"
-        " &middot; <strong>27-question benchmark</strong></p>"
-        "<p><a href='https://github.com/tyy0811/agent-bench'>"
-        "GitHub</a></p>"
-        "</body></html>"
-    )
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=_render_landing_html(request.app.state.config))
 
 
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     """Ask a question and get an answer with sources."""
-    orchestrator: Orchestrator = request.app.state.orchestrator
-    system_prompt: str = request.app.state.system_prompt
+    orchestrator, corpus_name, _provider_name = _resolve_orchestrator(request, body)
+    system_prompt, _corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
 
@@ -173,11 +269,21 @@ async def ask(body: AskRequest, request: Request) -> AskResponse:
 
 @router.post("/ask/stream")
 async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
-    """Stream an answer via Server-Sent Events."""
-    orchestrator: Orchestrator = request.app.state.orchestrator
-    system_prompt: str = request.app.state.system_prompt
+    """Stream an answer via Server-Sent Events with per-stage instrumentation."""
+    orchestrator, corpus_name, provider_name = _resolve_orchestrator(request, body)
+    system_prompt, corpus_label = _resolve_system_prompt(request, corpus_name)
     metrics: MetricsCollector = request.app.state.metrics
     request_id: str = getattr(request.state, "request_id", "unknown")
+    config: AppConfig = request.app.state.config
+
+    # --- Meta event data (resolved from the actual orchestrator, not
+    # from config.provider.default — otherwise a dashboard request with
+    # provider="anthropic" would see "openai" in the meta event).
+    # All real providers store the dated model snapshot on self.model
+    # (OpenAI/Anthropic/SelfHosted); the fallback covers test doubles
+    # like MockProvider that don't set it.
+    provider_obj = orchestrator.provider
+    model_name = getattr(provider_obj, "model", provider_name)
 
     # --- Security: injection detection (pre-retrieval) ---
     injection_detector = getattr(request.app.state, "injection_detector", None)
@@ -214,18 +320,40 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
         history = conversation_store.get_history(body.session_id, max_turns=max_turns)
 
     start = time.perf_counter()
-
     output_validator = getattr(request.app.state, "output_validator", None)
 
     async def event_generator():
         from agent_bench.serving.schemas import StreamEvent
 
-        # Buffer all events so we can validate before sending to client.
-        # The orchestrator emits the final answer as a single chunk (not
-        # token-by-token), so buffering adds no latency penalty.
-        buffered_events: list = []
+        # --- Meta event (first, before any stages) ---
+        yield StreamEvent(type="meta", metadata={
+            "provider": provider_name,
+            "model": model_name,
+            "corpus": corpus_name,
+            "corpus_label": corpus_label,
+            "config": {
+                "top_k": body.top_k,
+                "max_iterations": (
+                    config.agent.max_iterations
+                    if getattr(config, "agent", None) else 3
+                ),
+                "strategy": body.retrieval_strategy,
+            },
+        }).to_sse()
+
+        # --- Injection check stage ---
+        yield StreamEvent(type="stage", metadata={
+            "stage": "injection_check",
+            "status": "done",
+            "verdict": injection_verdict_data,
+        }).to_sse()
+
+        # Stream orchestrator events live. Stage events are yielded
+        # immediately so the dashboard can animate in real time.
+        # Only the chunk content is accumulated for post-stream
+        # output validation (monitor mode).
         full_answer: list[str] = []
-        cost_usd = 0.0
+        done_meta: dict = {}
         async for event in orchestrator.run_stream(
             question=body.question,
             system_prompt=system_prompt,
@@ -233,21 +361,28 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             strategy=body.retrieval_strategy,
             history=history,
         ):
-            buffered_events.append(event)
+            if event.type == "_orchestrator_done":
+                # Extract metadata, don't yield to client
+                if event.metadata:
+                    done_meta = event.metadata
+                continue
             if event.type == "chunk" and event.content:
                 full_answer.append(event.content)
-            if event.type == "done" and event.metadata:
-                cost_usd = event.metadata.get("estimated_cost_usd", 0.0)
+                # Don't yield chunk yet — validate first
+                continue
+            # Yield stage and sources events live
+            yield event.to_sse()
 
-        # --- Security: output validation (post-generation, pre-send) ---
+        # --- Security: output validation (post-generation, monitor mode) ---
         answer_text = "".join(full_answer)
         filtered_answer = answer_text
         output_verdict_data: dict = {"passed": True, "violations": []}
         output_blocked = False
+        source_chunks = done_meta.get("source_chunks", [])
         if output_validator:
             out_verdict = output_validator.validate(
                 output=answer_text,
-                retrieved_chunks=[],  # chunks already redacted by SearchTool
+                retrieved_chunks=source_chunks,
             )
             output_verdict_data = {
                 "passed": out_verdict.passed,
@@ -260,22 +395,45 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
                     "The output was filtered for safety."
                 )
 
-        # Now yield events to the client — safe content only
-        for event in buffered_events:
-            if output_blocked and event.type == "chunk":
-                yield StreamEvent(type="chunk", content=filtered_answer).to_sse()
-            else:
-                yield event.to_sse()
+        # Yield the (possibly filtered) answer chunk
+        yield StreamEvent(
+            type="chunk",
+            content=filtered_answer if output_blocked else answer_text,
+        ).to_sse()
 
-        # Record metrics and persist session after streaming completes
+        # --- Output validation stage (monitor mode, after chunk) ---
+        yield StreamEvent(type="stage", metadata={
+            "stage": "output_validation",
+            "status": "done",
+            "mode": "monitor",
+            "verdict": {
+                "passed": output_verdict_data["passed"],
+                "violations": output_verdict_data.get("violations", []),
+            },
+        }).to_sse()
+
+        # --- Enriched done event with latency ---
         latency_ms = (time.perf_counter() - start) * 1000
-        metrics.record(latency_ms=latency_ms, cost_usd=cost_usd)
+        yield StreamEvent(type="done", metadata={
+            "latency_ms": latency_ms,
+            "tokens_in": done_meta.get("tokens_in", 0),
+            "tokens_out": done_meta.get("tokens_out", 0),
+            "cost": done_meta.get("estimated_cost_usd", 0.0),
+            "iterations": done_meta.get("iterations", 1),
+            "pii_redactions_count": done_meta.get(
+                "pii_redactions_count", 0,
+            ),
+        }).to_sse()
+
+        # Record metrics and persist session
+        cost = done_meta.get("estimated_cost_usd", 0.0)
+        metrics.record(latency_ms=latency_ms, cost_usd=cost)
 
         if body.session_id and conversation_store:
             conversation_store.append(body.session_id, "user", body.question)
             conversation_store.append(body.session_id, "assistant", filtered_answer)
 
-        # --- Security: audit log for streaming ---
+        # Audit log
         _write_audit(
             request, body, request_id, injection_verdict_data,
             endpoint="/ask/stream",
