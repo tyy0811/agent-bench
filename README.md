@@ -199,7 +199,7 @@ jq 'select(.session_id == "abc123")' logs/audit.jsonl
 
 This is an application-layer security pipeline — it does not replace network-level security, authentication, or infrastructure hardening.
 
-See [DECISIONS.md](DECISIONS.md) for why we chose two-tier detection over three, regex-only PII by default, JSONL over SQLite for audit, and HMAC over plain SHA-256 for IP hashing.
+See [SECURITY.md](SECURITY.md) for the OWASP LLM Top 10 (2025) mapping. See [DECISIONS.md](DECISIONS.md) for why we chose two-tier detection over three, regex-only PII by default, JSONL over SQLite for audit, and HMAC over plain SHA-256 for IP hashing.
 
 <details><summary>Security configuration</summary>
 
