@@ -27,7 +27,7 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed directly with a named residual risk.
 
-**Implementation:** Two-tier detection — Tier 1 heuristic regex (local, <1ms) with ~20 pattern families covering role/identity hijacking, instruction override, system-prompt extraction, credential/env-var extraction, jailbreak keywords, and base64-nested payloads; Tier 2 optional DeBERTa classifier on Modal GPU for high-confidence arbitration. Deployments without GPU run Tier 1 only; the two-tier design degrades to heuristic-only rather than failing closed. Grounded refusal via the retrieval-threshold gate bounds indirect injection through retrieved content. Static corpus + bounded `ToolRegistry` (only `search` + `calculator`, no side-effectful tools) + `max_iterations` cap bound the blast radius. See [`agent_bench/security/injection_detector.py`](agent_bench/security/injection_detector.py), [`agent_bench/tools/registry.py`](agent_bench/tools/registry.py), and [DECISIONS.md § Why two-tier injection detection, not three](DECISIONS.md#why-two-tier-injection-detection-not-three).
+**Implementation:** Two-tier detection — Tier 1 heuristic regex (local, <1ms) with ~20 pattern families covering role/identity hijacking, instruction override, system-prompt extraction, credential/env-var extraction, jailbreak keywords, and base64-nested payloads; Tier 2 optional DeBERTa classifier on Modal GPU for high-confidence arbitration. Deployments without GPU run Tier 1 only; the two-tier design degrades to heuristic-only rather than failing closed. Grounded refusal via the retrieval-threshold gate bounds indirect injection through retrieved content. Static corpus + bounded `ToolRegistry` (only `search_documents` + `calculator`, no side-effectful tools) + `max_iterations` cap bound the blast radius. See [`agent_bench/security/injection_detector.py`](agent_bench/security/injection_detector.py), [`agent_bench/tools/registry.py`](agent_bench/tools/registry.py), and [DECISIONS.md § Why two-tier injection detection, not three](DECISIONS.md#why-two-tier-injection-detection-not-three).
 
 **Residual risk:** novel injection patterns not caught by heuristics or classifier. OWASP notes that RAG and fine-tuning do not fully mitigate prompt injection; indirect injection through retrieved content remains a core risk class.
 
@@ -43,7 +43,7 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed at the infrastructure layer with a named gap.
 
-**Implementation:** Dependencies pinned in [`pyproject.toml`](pyproject.toml); container via [`Dockerfile`](Dockerfile); models from official upstreams in [`agent_bench/security/injection_detector.py`](agent_bench/security/injection_detector.py).
+**Implementation:** Dependencies pinned in [`pyproject.toml`](pyproject.toml); container via [`Dockerfile`](Dockerfile); models from official upstreams.
 
 **Named gap:** no SBOM or signed model provenance.
 
@@ -51,33 +51,33 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed directly.
 
-**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs four checks: PII detection, secret-format deny list, URL-chunk validation, configurable blocklist. Text-only — no HTML, SQL, or code execution. See [DECISIONS.md § Why three output validators, not four](DECISIONS.md#why-three-output-validators-not-four).
+**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs four checks: PII detection, secret-format deny list, URL-chunk validation, configurable blocklist. Text-only — no HTML, SQL, or code execution.
 
 ### LLM06 Excessive Agency
 
 **Verdict:** Addressed directly.
 
-**Implementation:** `max_iterations` cap bounds tool-use depth; [`ToolRegistry`](agent_bench/tools/registry.py) contains only `search_documents` (read-only) and `calculator` (pure arithmetic) — no write, no network, no code execution.
+**Implementation:** `max_iterations` cap bounds tool-use depth; [`ToolRegistry`](agent_bench/tools/registry.py) contains only `search_documents` (read-only) and `calculator` (pure arithmetic) — no write, network, or code execution.
 
 ### LLM07 System Prompt Leakage
 
 **Verdict:** Addressed directly.
 
-**Implementation:** System prompt: no credentials, auth tokens, or multi-tenant structure — docs-Q&A instruction with corpus-label substitution. [`RateLimitMiddleware`](agent_bench/serving/middleware.py) provides per-IP protection. See [DECISIONS.md § Why no authentication on API endpoints](DECISIONS.md#why-no-authentication-on-api-endpoints).
+**Implementation:** System prompt holds no credentials, no auth tokens, and no multi-tenant structure — a docs-Q&A instruction with corpus-label substitution. Access control is enforced outside the LLM: [`RateLimitMiddleware`](agent_bench/serving/middleware.py) provides per-IP abuse protection, and production deployments add authentication at the reverse-proxy or API-gateway level. See [DECISIONS.md § Why no authentication on API endpoints](DECISIONS.md#why-no-authentication-on-api-endpoints).
 
 ### LLM09 Misinformation
 
 **Verdict:** Addressed directly.
 
-**Implementation:** RRF retrieval-threshold gate — below `refusal_threshold`, the [orchestrator](agent_bench/agents/orchestrator.py) emits a grounded refusal. Benchmarked at citation-accuracy=1.00 (27 FastAPI, 25 Kubernetes). See [DECISIONS.md § Why a relevance threshold for grounded refusal](DECISIONS.md#why-a-relevance-threshold-for-grounded-refusal).
+**Implementation:** RRF retrieval-threshold gate — below `refusal_threshold`, the [orchestrator](agent_bench/agents/orchestrator.py) emits a grounded refusal. See [DECISIONS.md § Why a relevance threshold for grounded refusal](DECISIONS.md#why-a-relevance-threshold-for-grounded-refusal).
 
 ### LLM10 Unbounded Consumption
 
 **Verdict:** Addressed at the infrastructure layer with a named gap.
 
-**Implementation:** Per-IP rate limit via [`RateLimitMiddleware`](agent_bench/serving/middleware.py) (10 req/min, configurable); `max_iterations` cap; provider timeouts (`ProviderTimeoutError`/`ProviderRateLimitError`).
+**Implementation:** Per-IP rate limit via [`RateLimitMiddleware`](agent_bench/serving/middleware.py) (10 req/min); `max_iterations` cap; provider timeouts.
 
-**Named gap:** per-IP only, no per-user quota, no session budget ceiling.
+**Named gap:** per-IP only; no per-user quota or budget ceiling.
 
 ## What this doc is not
 
