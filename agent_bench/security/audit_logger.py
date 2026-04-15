@@ -51,20 +51,33 @@ class AuditLogger:
     def log(self, record: dict) -> None:
         """Append a record to the audit log.
 
-        Adds a timestamp if not present. Thread-safe.
+        Adds a timestamp if not present. Thread-safe. Best-effort: any
+        exception during the write is caught and logged via structlog,
+        never raised. Audit writes must not be able to crash the request
+        path — a misconfigured filesystem, a rotation bug, or a
+        serialization issue should degrade gracefully to "audit missed,
+        request served," not "audit failed, 500 to user."
         """
         if "timestamp" not in record:
             record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
-        with self._lock:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with self._lock:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
 
-            if self.rotate and self.path.exists():
-                if self.path.stat().st_size >= self.max_size_bytes:
-                    self._do_rotate()
+                if self.rotate and self.path.exists():
+                    if self.path.stat().st_size >= self.max_size_bytes:
+                        self._do_rotate()
 
-            with open(self.path, "a") as f:
-                f.write(json.dumps(record, default=str) + "\n")
+                with open(self.path, "a") as f:
+                    f.write(json.dumps(record, default=str) + "\n")
+        except Exception as exc:
+            logger.error(
+                "audit_write_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                path=str(self.path),
+            )
 
     def hash_ip(self, ip: str) -> str:
         """HMAC-SHA256 hash an IP address. Keyed and irreversible."""
