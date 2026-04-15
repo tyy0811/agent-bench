@@ -2,7 +2,7 @@
 
 This document maps the agent-bench implementation against the OWASP LLM Applications Top 10 (2025). It is an honest mapping, not a coverage claim — every verdict cell for a guardrail we run carries a named residual risk or scope limit when OWASP's own 2025 text makes the limits explicit. The scope is a docs Q&A bot serving static curated corpora (FastAPI + Kubernetes) with no user ingestion, no fine-tuning, no authenticated sessions, and no side-effectful tools.
 
-The implementation maps to the OWASP Appendix 1 reference architecture: user input → input guardrails → retrieval/tools → LLM → output guardrails → response. The agent-bench realization is diagrammed in the [README Security Architecture section](README.md#security-architecture); verdict cells below cross-link to the source files that implement each guardrail.
+The implementation maps to the OWASP Appendix 1 reference architecture: user input → input guardrails → retrieval/tools → LLM → output guardrails → response. The agent-bench realization is diagrammed in the [README Security Architecture section](README.md#security-architecture); verdict cells below cross-link to the source files that implement each guardrail. These scope facts are referenced in the verdict cells below where they constrain what each guardrail must do.
 
 ## Mapping summary
 
@@ -43,7 +43,7 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed at the infrastructure layer with a named gap.
 
-**Implementation:** Dependencies pinned in [`pyproject.toml`](pyproject.toml); container via [`Dockerfile`](Dockerfile); models from official upstreams.
+**Implementation:** Dependencies pinned in [`pyproject.toml`](pyproject.toml); container via [`Dockerfile`](Dockerfile); models from official upstreams loaded in [`agent_bench/security/injection_detector.py`](agent_bench/security/injection_detector.py).
 
 **Named gap:** no SBOM or signed model provenance.
 
@@ -51,31 +51,31 @@ The implementation maps to the OWASP Appendix 1 reference architecture: user inp
 
 **Verdict:** Addressed directly.
 
-**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs four checks: PII detection, secret-format deny list, URL-chunk validation, configurable blocklist. Text-only — no HTML, SQL, or code execution. See [DECISIONS.md § Why three output validators, not four](DECISIONS.md#why-three-output-validators-not-four).
+**Implementation:** [`OutputValidator`](agent_bench/security/output_validator.py) runs PII detection, secret-format deny list, URL-chunk validation, and configurable blocklist. Text-only — no HTML, SQL, or code execution. See [DECISIONS.md § Why three output validators, not four](DECISIONS.md#why-three-output-validators-not-four).
 
 ### LLM06 Excessive Agency
 
 **Verdict:** Addressed directly.
 
-**Implementation:** `max_iterations` caps tool-use depth; [`ToolRegistry`](agent_bench/tools/registry.py) contains only `search_documents` and `calculator` (pure arithmetic) — no write, network, or code execution.
+**Implementation:** `max_iterations` caps tool-use depth; [`ToolRegistry`](agent_bench/tools/registry.py) contains only `search_documents` and `calculator` — no write, network, or code execution.
 
 ### LLM07 System Prompt Leakage
 
 **Verdict:** Addressed directly.
 
-**Implementation:** System prompt holds no credentials, no auth tokens, and no multi-tenant structure — a docs-Q&A instruction with corpus-label substitution. Access control is enforced outside the LLM: [`RateLimitMiddleware`](agent_bench/serving/middleware.py) provides per-IP abuse protection; production layers reverse-proxy authentication. See [DECISIONS.md § Why no authentication on API endpoints](DECISIONS.md#why-no-authentication-on-api-endpoints).
+**Implementation:** System prompt holds no credentials, auth tokens, or multi-tenant structure — docs-Q&A instruction with corpus-label substitution. Access control sits outside the LLM via [`RateLimitMiddleware`](agent_bench/serving/middleware.py) per-IP rate limiting. See [DECISIONS.md § Why no authentication on API endpoints](DECISIONS.md#why-no-authentication-on-api-endpoints).
 
 ### LLM09 Misinformation
 
 **Verdict:** Addressed directly.
 
-**Implementation:** RRF retrieval-threshold gate — below `refusal_threshold`, the [orchestrator](agent_bench/agents/orchestrator.py) emits a grounded refusal. See [DECISIONS.md § Why a relevance threshold for grounded refusal](DECISIONS.md#why-a-relevance-threshold-for-grounded-refusal).
+**Implementation:** RRF retrieval-threshold gate — below `refusal_threshold`, [orchestrator](agent_bench/agents/orchestrator.py) emits grounded refusal. See [DECISIONS.md § Why a relevance threshold for grounded refusal](DECISIONS.md#why-a-relevance-threshold-for-grounded-refusal).
 
 ### LLM10 Unbounded Consumption
 
 **Verdict:** Addressed at the infrastructure layer with a named gap.
 
-**Implementation:** Per-IP rate limit via [`RateLimitMiddleware`](agent_bench/serving/middleware.py) (10 req/min); `max_iterations` cap; provider timeouts.
+**Implementation:** Per-IP rate limit via [`RateLimitMiddleware`](agent_bench/serving/middleware.py); `max_iterations` cap; provider timeouts.
 
 **Named gap:** per-IP only; no per-user quota or budget ceiling.
 
