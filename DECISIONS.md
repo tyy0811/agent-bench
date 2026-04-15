@@ -374,7 +374,7 @@ both are on record** — one per prompt path:
 
 | Baseline file | Invocation | Prompt source | In-scope P@5 | In-scope R@5 | Citation | Mean calls |
 |---|---|---|---|---|---|---|
-| `results/fastapi_preedit.json` @ `e6d9675` | `--corpus fastapi` | `format_system_prompt("FastAPI")` | 0.718 | 0.833 | 1.000 | 1.14 |
+| `results/fastapi_preedit.json` @ `213da36` | `--corpus fastapi` | `format_system_prompt("FastAPI")` | 0.718 | 0.833 | 1.000 | 1.14 |
 | `results/fastapi_legacy_baseline_pinned.json` @ this commit | `make evaluate-fast` (no `--corpus`) | `tech_docs.yaml` `task.system_prompt` | 0.655 | 0.849 | 1.000 | 1.45 |
 
 Citation accuracy holds at 1.000 on both paths, both in-scope and
@@ -856,7 +856,7 @@ Applied identically to FastAPI and K8s:
 - Answer does NOT begin with refusal phrasing ("The ... documentation does not provide", "I cannot answer")
 
 **Baseline reference:** K8s pre-edit numbers from `results/k8s_preedit.json`
-at commit `c1d8163` — P@5 0.80, R@5 1.00, citation 1.00 (all 6),
+at commit `125dac0` — P@5 0.80, R@5 1.00, citation 1.00 (all 6),
 mean tool_calls 1.167. FastAPI pre-edit reference established by
 `results/fastapi_preedit.json` in the next step of this session,
 same pinned ID, same refusal threshold (0.02).
@@ -952,13 +952,13 @@ snapshot in this session:
 - `k8s_preedit_pinned.json` — 6 pilots, HEAD prompt, 0.015 threshold
 - `k8s_postedit.json` — 6 pilots, clause prompt, 0.015 threshold (**gate-passing run, pilot_005 strict flip confirmed**)
 
-The previously-committed `results/k8s_preedit.json` (from `c1d8163`)
+The previously-committed `results/k8s_preedit.json` (from `125dac0`)
 is also a valid K8s-pinned measurement at the session-equivalent
 snapshot and remains the canonical threshold-commit evidence.
 
 **Held DECISIONS.md drafts stay held.** The counterfactual-query
 finding draft (to be updated when Fix 2 lands) and the threshold-
-calibration entry already committed at `c1d8163` are both correct
+calibration entry already committed at `125dac0` are both correct
 in scope. The narrowed serving-migration deferral entry (tied to
 any external reference to the counterfactual-query fix) also stays
 deferred until Fix 2 lands, since the production/eval-harness
@@ -1023,7 +1023,7 @@ requires an A/B comparison.
 
 **Baseline reuse.** The Fix 1 session's pre-edit JSONs
 (`results/fastapi_preedit.json`, `results/k8s_preedit_pinned.json`,
-both committed at `e6d9675`) were measured under the currently-
+both committed at `213da36`) were measured under the currently-
 committed state of the repo: pinned `gpt-4o-mini-2024-07-18`, K8s
 threshold 0.015, FastAPI threshold 0.02, HEAD `prompts.py` with no
 clause, HEAD `search.py` with no expansion. The working tree
@@ -1065,8 +1065,8 @@ gate):**
 
 | Corpus | Pre-edit source | P@5 | R@5 | Citation | Mean tool_calls |
 |---|---|---|---|---|---|
-| FastAPI (27) | `results/fastapi_preedit.json` @ `e6d9675` | 0.585 | 0.679 | 1.000 | 1.111 |
-| K8s (6 pilots) | `results/k8s_preedit_pinned.json` @ `e6d9675` | 0.800 | 1.000 | 1.000 | 1.167 |
+| FastAPI (27) | `results/fastapi_preedit.json` @ `213da36` | 0.585 | 0.679 | 1.000 | 1.111 |
+| K8s (6 pilots) | `results/k8s_preedit_pinned.json` @ `213da36` | 0.800 | 1.000 | 1.000 | 1.167 |
 
 **Post-edit filenames (to be produced).**
 - `results/fastapi_postedit_fix2.json`
@@ -1155,7 +1155,7 @@ a technical reviewer, like the system failed to find the answer
 and is papering over the gap, even though the facts and citation
 are present. The criterion fired as designed.
 
-**Compare to Fix 1 post-edit answer (from `e6d9675` evidence):**
+**Compare to Fix 1 post-edit answer (from `213da36` evidence):**
 
 > *"Kubernetes NetworkPolicy does not support enforcing mutual TLS
 > (mTLS) directly. The documentation states that anything TLS
@@ -1221,9 +1221,9 @@ Reverting, same Fix-1 pattern.
 `agent_bench/tools/search.py`, `agent_bench/core/prompts.py`, or
 `configs/default.yaml`. Both Fix 1 (prompt clause) and Fix 2
 (SearchTool expansion) have been attempted and reverted this
-session. Three commits of progress nonetheless: `c1d8163`
-(threshold calibration, empirical), `740c9d5` (prep bundle: model
-pin + fastapi wire + Fix 1 pre-committed tolerances), `e6d9675`
+session. Three commits of progress nonetheless: `125dac0`
+(threshold calibration, empirical), `5c1f49f` (prep bundle: model
+pin + fastapi wire + Fix 1 pre-committed tolerances), `213da36`
 (Fix 1 revert narrative). The threshold calibration and model pin
 are real, shipped, measurement-grounded infrastructure changes.
 The two fix attempts are documented learning that shapes the
@@ -1284,7 +1284,7 @@ refactor could silently widen the matcher back to substring and pass
 all existing tests. The negative test pins design intent.
 
 **Scope bound.** This is a metric correctness fix, not a threshold
-change. The 0.015 refusal-gate threshold (calibrated in `c1d8163`
+change. The 0.015 refusal-gate threshold (calibrated in `125dac0`
 against the 6-question pilot) is unchanged by this commit. Whether
 the corrected metric shifts the optimal threshold against the full
 25-question set is a question for the threshold-sweep session, not
@@ -1359,7 +1359,7 @@ and decision criteria before measuring.
    follow-up commit when the rename happens.
 
 6. **OpenAI snapshot drift bisection.** Mar 25 → Apr 12 P@5 slide;
-   the model pin at `740c9d5` (`gpt-4o-mini-2024-07-18`) removed
+   the model pin at `5c1f49f` (`gpt-4o-mini-2024-07-18`) removed
    the ongoing drift risk, so any future measurement is apples-to-
    apples. The original bisection is still unresolved but cheap at
    this point — tractable whenever there is session capacity, low
@@ -1369,7 +1369,7 @@ and decision criteria before measuring.
    The "Fix 2 outcome — mechanism works, response-style criterion
    fired, reverted" DECISIONS.md entry describes the revert
    narratively but does not cite the revert commit's SHA
-   (post-rewrite: `8c836f5` — `docs(eval): Fix 2 SearchTool query
+   (post-rewrite: `27c2e17` — `docs(eval): Fix 2 SearchTool query
    expansion — attempted and reverted`). Add retroactive SHA
    reference in the next docs pass. Not urgent; noted so the
    narrative-without-SHA pattern does not spread to other entries.
@@ -1381,7 +1381,7 @@ and decision criteria before measuring.
 ## K8s refusal_threshold sweep against 25-question golden — 2026-04-14
 
 **Override notice.** This sweep ran in the same session as the
-25-question authoring + grounded_refusal metric fix (`6d177ba`),
+25-question authoring + grounded_refusal metric fix (`4454894`),
 after I explicitly flagged that the parallel-tracks guidance from
 earlier in the session recommended waiting for a fresh session with
 pre-commitment discipline. The user issued an explicit override:
@@ -1392,12 +1392,12 @@ locked before the first data point was observed, not retrofitted.
 
 **Sweep grid.** 4 threshold values: `0.010`, `0.015` (already
 measured in `.cache/eval_k8s_full25_postfix.json`, the post-metric-
-fix run from `6d177ba`), `0.020`, `0.025`.
+fix run from `4454894`), `0.020`, `0.025`.
 - `0.010`: one tick below current calibration; sanity-check floor.
 - `0.015`: current calibration (pilot-floor, one tick below
   pilot_005's 0.01639 max_score).
 - `0.020`: matches legacy FastAPI threshold and the original
-  provisional K8s default before the `c1d8163` calibration.
+  provisional K8s default before the `125dac0` calibration.
 - `0.025`: one tick above legacy; exploration of whether aggressive
   OOS short-circuiting is worth the correctness risk.
 
@@ -1437,7 +1437,7 @@ phrasing; that's the Fix 2 + prompt guidance stacked experiment
 the parallel-tracks list already defers.
 
 **Measured results.** All four runs use the post-metric-fix pipeline
-(grounded_refusal metric from `6d177ba`), deterministic mode,
+(grounded_refusal metric from `4454894`), deterministic mode,
 `gpt-4o-mini-2024-07-18`, same retriever config.
 
 | threshold | avg R@5 | OOS refusal | gate fired on                     | broken retrieval       |
@@ -1512,7 +1512,7 @@ other corpora. (b) Tuning FastAPI's threshold against its golden
 set — the FastAPI default was empirically fine on its own 30Q set
 and is not a documented regression. (c) Fixing the `k8s_015`
 R@5=0.50 value observed across all threshold runs — pre-existing
-authoring state from `6d177ba`, tracked separately if it becomes
+authoring state from `4454894`, tracked separately if it becomes
 a concern on future runs.
 
 **Narrative summary.** Session hypothesis: pilot_005 is a
@@ -1652,10 +1652,10 @@ credentials to a public repo) did not occur.
 
    | OLD (pre-rewrite) | NEW (post-rewrite) | Commit role |
    |---|---|---|
-   | `bd2b913` | `e6d9675` | Fix 1 counterfactual prompt clause revert |
-   | `b97f00f` | `c1d8163` | K8s refusal_threshold 0.02 → 0.015 calibration |
-   | `77017db` | `740c9d5` | pin gpt-4o-mini snapshot + wire fastapi golden |
-   | `526be18` | `6d177ba` | Week 1 step 5 — 25Q golden + grounded_refusal fix |
+   | `bd2b913` | `213da36` | Fix 1 counterfactual prompt clause revert |
+   | `b97f00f` | `125dac0` | K8s refusal_threshold 0.02 → 0.015 calibration |
+   | `77017db` | `5c1f49f` | pin gpt-4o-mini snapshot + wire fastapi golden |
+   | `526be18` | `4454894` | Week 1 step 5 — 25Q golden + grounded_refusal fix |
 
    Every message matched exactly across the old→new pairing; no
    new SHA prefix collides with any old SHA prefix; post-remap
@@ -1699,5 +1699,146 @@ or "commit above" — positional references do not survive history
 rewrites as robustly as explicit SHAs do. The "Fix 2 outcome"
 entry above was identified during this incident as missing an
 explicit SHA reference to the Fix 2 revert commit (post-rewrite
-SHA `8c836f5`); this is tracked as parallel-tracks item #7 for a
+SHA `27c2e17`); this is tracked as parallel-tracks item #7 for a
 retroactive fix in the next docs pass.
+
+### Round 2 — Google API key format in a test fixture
+
+After the round-1 rewrite was complete and the feature branch had
+been pushed to `origin` for the first time, GitHub secret scanning
+raised a second alert (alert #1, `secret_type: google_api_key`)
+against `tests/test_output_validator.py` line 152 at pre-round-2
+commit `8ebe3964af7d` (`security: fail-closed on secret extraction
+and env var leakage`). The alert was on a test fixture inside a
+`@pytest.mark.parametrize` list, structurally consistent with the
+other fake fixtures in the same list (OpenAI `sk-test123`,
+Anthropic `sk-ant-xyz`, AWS `AKIAIOSFODNN7EXAMPLE`). The Google
+fixture, however, was 35 chars after the `AIza` prefix and matched
+both GitHub's detection pattern and the output validator's own
+detection regex exactly.
+
+**Disambiguation.** Asked whether the string was a hand-typed fake
+or a real-leaked Google API key, the developer confirmed: (1) yes,
+a Google API key had been created at some point in a GCP or
+Google AI Studio context unrelated to this project, and (2) no,
+the string on line 152 was not recognizably hand-typed. Combined
+with the structural inconsistency against the other clearly-fake
+fixtures in the same parametrize list, the safe interpretation
+was to treat it as potentially real and rotate + rewrite rather
+than dismiss as false positive.
+
+**Actions, in order.**
+
+1. **Google API key rotation.** All Google API keys on the
+   developer's GCP and Google AI Studio accounts rotated at the
+   provider dashboards, regardless of which specific key matched
+   line 152, because the specific match was not known with
+   certainty. Rotation confirmed before any git operation.
+
+2. **Billing/activity check.** Verified Google Cloud billing and
+   API activity on every project for the window since commit
+   `8ebe3964af7d` landed (2026-04-12 18:18). No unauthorized
+   activity observed.
+
+3. **Why the validator regex and GitHub's detector are identical.**
+   The output validator's regex at `agent_bench/security/output_validator.py`
+   line 23 is `\bAIza[0-9A-Za-z_\-]{35}\b` — byte-for-byte identical
+   to GitHub's secret-scanning Google API Key detection pattern.
+   This means there is no static test fixture that satisfies the
+   validator's test assertion (the validator must block the input)
+   without also triggering GitHub's push protection. Any replacement
+   with a fixture that matches the validator's regex is immediately
+   re-flagged; any replacement with a fixture that does not match
+   the validator's regex breaks the test assertion. The cleanest
+   resolution is to remove the Google fixture from the static
+   parametrize list entirely and restore Google API key format
+   coverage via a runtime-generated fixture that constructs a
+   35-char `AIza`-prefixed string at test time and never lands as
+   a literal in source code. Tracked as a parallel-tracks item.
+   The output validator's regex is NOT weakened; the test loses
+   one of seven parametrize cases but continues to verify OpenAI,
+   Anthropic, AWS, JWT, and env-var-assignment detection.
+
+4. **Round-2 filter-repo.** Ran
+   `git filter-repo --replace-text <file> --force` with the pattern
+   file containing `regex:AIza[A-Za-z0-9_\-]{35}==>AIzaFIXTUREREDACTED`.
+   This replaced the Google API key format anywhere it appeared
+   in any historical blob across the entire repository. Every
+   commit from `8ebe3964af7d` forward was rewritten, which
+   cascaded through the full post-round-1 history including all
+   round-1-remapped SHAs and tonight's 5 commits. Total commits
+   processed: 186. filter-repo's internal commit-map wrote 152
+   changed entries and 35 unchanged entries (commits before
+   `8ebe3964af7d` that never touched the pattern).
+
+5. **Working-tree fixture removal.** After the filter-repo rewrite,
+   `tests/test_output_validator.py` line 152 read
+   `"google says AIzaFIXTUREREDACTED"` (15 chars after `AIza`,
+   below the validator's 35-char regex threshold). Removed the
+   line entirely from the parametrize list and added a block
+   comment explaining the removal, the regex-collision reason,
+   the parallel-tracks item to restore via runtime-generated
+   fixture, and an explicit note that the validator's regex
+   remains unchanged. Committed as a separate new commit on top
+   of the rewritten history.
+
+6. **Round-2 verification sweep.** Re-ran the same six-check
+   sweep: `git log`, `git rev-list --all --objects`, reflog,
+   fsck, stash, and a precise regex scan across all blobs for
+   the `\bAIza[0-9A-Za-z_\-]{35}\b` pattern. **Zero blobs** in
+   the post-round-2 object database contain a 35-char `AIza`
+   pattern. The scrub is complete across all history.
+
+7. **Round-2 DECISIONS.md SHA remap.** The round-1 remap table
+   above uses SHAs `213da36`, `125dac0`, `5c1f49f`, `4454894`
+   as the "NEW (post-rewrite)" column. These are the
+   **post-round-2** SHAs; they were `e6d9675`, `c1d8163`,
+   `740c9d5`, `6d177ba` after round 1 and got rewritten again by
+   round 2. To avoid a three-column mapping table showing
+   intermediate round-1 SHAs, the table above reads as a direct
+   pre-rewrite → current-state mapping. The round-1-only
+   intermediate SHAs are preserved in this narrative as
+   "round-1 SHAs" for audit completeness but are not the
+   canonical SHAs anyone looking up a commit should use. The
+   canonical SHAs are the post-round-2 values.
+
+   **Additional round-2 SHA update:** parallel-tracks item #7
+   (Fix 2 revert commit SHA missing from the Fix 2 outcome entry)
+   was updated from `8c836f5` (post-round-1) to `27c2e17`
+   (post-round-2).
+
+**Exposure scope, round 2.** The branch had been pushed to origin
+exactly once before round-2 was discovered (the first push at the
+end of round 1, which landed commit `3167b59` at origin). The
+feature branch was the only affected ref — `main` was not updated,
+and no PR had been merged. The round-2 cleanup requires a
+force-push with `--force-with-lease` to overwrite the pushed
+round-1 history with the round-2 history. Force-push is normally a
+discipline concern, but here it is safe: the branch was published
+less than one hour before round-2 was discovered, no other work
+was based on the pushed round-1 history, and the force-push is
+scoped to this specific branch (not `main` or any long-lived ref).
+
+**Alert dismissal.** GitHub alert #1 was dismissed as
+`false_positive` via `gh api` after the force-push, with the
+resolution comment noting that the pre-round-2 commit SHA the
+alert referenced (`8ebe3964af7d`) no longer exists in the
+rewritten history and the test fixture has been removed from
+`tests/test_output_validator.py` pending a runtime-generated
+replacement.
+
+**Round-2 procedural lesson.** The validator-regex ↔ detector-regex
+identity is a structural finding worth noting for future security
+test design. Any test fixture that verifies detection of a
+specific secret format will, by construction, match the format
+it is testing. If the format is one GitHub (or any upstream
+detector) also scans for, the fixture will trigger an alert on
+every push where it is introduced. The three durable mitigations
+are: (a) generate fixtures at runtime so they never land in source,
+(b) use an isolated regex that is a proper subset of the production
+detector's regex so fixtures fall below the detector's match
+threshold, or (c) mark the file explicitly in a
+`.github/secret-scanning.yml` allowlist. This project is adopting
+option (a) as the follow-up, because it preserves the production
+detector regex without weakening and keeps the test's fidelity to
+the actual attack surface.
