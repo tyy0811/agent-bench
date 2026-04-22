@@ -45,7 +45,7 @@ API providers are directly comparable (same config). The self-hosted row uses `m
 
 ## Live Demo
 
-**https://nomearod-agentbench.hf.space** (Hugging Face Spaces — first request after idle may take ~30s for cold start)
+**https://nomearod-agentbench.hf.space** (Hugging Face Spaces — cold wake on idle takes ~2 minutes, warm queries respond in ~5s; see [DECISIONS.md](DECISIONS.md) for the bounded measurement and v1.1 contingency)
 
 ```bash
 # In-scope question (expect answer with sources)
