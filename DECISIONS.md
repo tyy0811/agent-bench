@@ -333,6 +333,18 @@ before validation catches it. For this use case (FastAPI docs, no real
 PII in corpus), the risk is near-zero. The dashboard labels this
 "monitored" (not "gated") to be explicit about the posture.
 
+## Why named residual risks and scope limits, not "fully mitigated" verdicts?
+
+The OWASP LLM Top 10 (2025) mapping could have been written as a 10-row table where LLM01 and LLM02 read as "addressed" without qualifiers — shorter and cleaner-looking. Rejected because OWASP's own 2025 text is explicit about what an input guardrail can and cannot do, and writing a verdict that contradicts the source the mapping cites would be compliance theater.
+
+LLM01 Prompt Injection — OWASP 2025 states that RAG and fine-tuning do not fully mitigate prompt injection, and that indirect injection through retrieved content remains a core risk class. "Fully mitigated" is unsupportable for any system retrieving untrusted content into an LLM context window, which is every RAG system including this one. The LLM01 verdict reads "addressed directly with named residual risk"; the residual-risk cell cites OWASP's own "do not fully mitigate" language verbatim.
+
+LLM02 Sensitive Information Disclosure — OWASP 2025's LLM02 mitigations span four concern classes: access controls, training-data handling, user-consent transparency, and proprietary-information governance. This implementation addresses a narrower output-side subset (output validation for PII leakage, secret formats, and URL hallucination) — not cleanly one of the four concern classes, but a narrower scope than any of them. The verdict reads "addressed directly for the applicable scope"; the scope-limit cell enumerates the four concern classes verbatim and names what addressing the broader concerns would require (multi-tenant or authenticated architecture).
+
+The tension the entry resolves is honesty-vs-scannability: a mapping that surfaces named residual risks and scope limits is longer and harder to skim than one with uniform "addressed" verdicts, but the scannable version over-claims relative to the cited source. Honest evaluation is the brand. Every verdict cell in SECURITY.md must survive a reviewer reading OWASP 2025 in a second tab.
+
+See [SECURITY.md § LLM01 Prompt Injection](SECURITY.md#llm01-prompt-injection) and [§ LLM02 Sensitive Information Disclosure](SECURITY.md#llm02-sensitive-information-disclosure) for the verdict cells; this entry covers why the verdict discipline takes the form it does. The LLM01 "do not fully mitigate" phrasing and the LLM02 four-concern-class enumeration are canonical in SECURITY.md; the README tail and landing-page subtitle paraphrase but must preserve the named-residual-risk and scope-limit structure.
+
 ## Why additive SSE stage events?
 
 The enhanced `/ask/stream` adds `meta` and `stage` event types alongside

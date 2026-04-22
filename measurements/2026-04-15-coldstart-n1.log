@@ -1,0 +1,26 @@
+# HF Spaces cold-start measurement N=1
+# Source: HF Spaces runtime log, container startup trace
+# Container: huggingface.co/spaces/Nomearod/agentbench
+# Build: first v1 deploy (commit 6955d72 on hf/main, main at 8974e47 + frontmatter injection)
+# Cold-start delta: 09:40:34 − 09:38:41 = 113 seconds
+
+===== Application Startup at 2026-04-15 09:38:41 =====
+
+2026-04-15 09:40:22 [warning  ] injection_classifier_no_url    msg="Tier 'classifier' configured but classifier_url is empty; classifier tier will be skipped at runtime."
+2026-04-15 09:40:22 [warning  ] injection_classifier_no_url    msg="Tier 'classifier' configured but classifier_url is empty; classifier tier will be skipped at runtime."
+2026-04-15 09:40:31 [warning  ] audit_hmac_key_missing         msg='No HMAC key provided; using random per-process key. IP hashes will not be stable across restarts or instances. Set AUDIT_HMAC_KEY env var or pass hmac_key for stable audit correlation.'
+2026-04-15 09:40:31 [info     ] corpus_loaded                  label='FastAPI Docs' name=fastapi providers=['openai', 'anthropic'] rss_delta_mb=0.9 rss_mb=810.8 store_path=.cache/store
+2026-04-15 09:40:31 [info     ] corpus_loaded                  label=Kubernetes name=k8s providers=['openai', 'anthropic'] rss_delta_mb=25.8 rss_mb=835.6 store_path=.cache/store_k8s
+2026-04-15 09:40:31 [info     ] multi_corpus_mode              corpora=['fastapi', 'k8s'] default=fastapi providers=['openai', 'anthropic']
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+2026-04-15 09:40:31 [info     ] warmup_start
+2026-04-15 09:40:32 [info     ] reranker_loading               model=cross-encoder/ms-marco-MiniLM-L-6-v2
+2026-04-15 09:40:34 [info     ] warmup_complete
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7860 (Press CTRL+C to quit)
+
+# Phase breakdown:
+#   Silent Python init:    09:38:41 → 09:40:22 = 101s (interpreter start, module imports, initial model weights)
+#   Visible phase:          09:40:22 → 09:40:34 = 12s (injection classifier warnings + corpus loads + reranker warmup)
+#   Cold-start total:                              113s
