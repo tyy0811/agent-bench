@@ -620,6 +620,147 @@ numbers needed to make the decision; the decision is documented here
 so future-me remembers the threshold and doesn't optimize prematurely
 on a hunch.
 
+## Cold-start gate fired — assumption falsified, fix deferred to v1.1 at the right cause
+
+The preceding "Cold-start contingency" entry pre-committed a lazy-load
+fix (FastAPI eager, K8s lazy on first request) if the measured cold
+start exceeded 60 seconds. Measurement falsified the entry's core
+assumption: **corpus loading is not the dominant cold-start cost**.
+The committed fix addresses ~1 % of the observed overshoot. Executing
+it verbatim would honor the gate's letter but not its intent — theater
+dressed as discipline. This entry documents the measurement, the
+falsified assumption, and the new contingency pre-committed at the
+actual cause.
+
+**Measurement (N=3, 2026-04-15, HF Spaces target deployment):**
+
+| Sample | Cold start | Silent Python init | Visible phase |
+|---|---|---|---|
+| N=1 | 113 s | ~101 s | ~12 s |
+| N=2 |  89 s |  ~70 s | ~19 s |
+| N=3 | 129 s | ~115 s | ~14 s |
+
+- Median 113 s, mean ~110 s, range 89–129 s (spread ~40 s)
+- **Gate fire is unambiguous at both tails.** Even the fastest sample
+  (89 s) is ~48 % over the 60 s threshold; the slowest (129 s) is
+  ~115 % over. No boundary ambiguity.
+- **Sample-size justification.** N=3 is acknowledged as a small sample.
+  It is adequate here because (a) the gate-fire conclusion is stable
+  across both tails, (b) the "silent Python init dominates variance"
+  finding is stable across all three samples (silent phase varies
+  70 → 115 s across runs; visible phase varies only 12 → 19 s), and
+  (c) the cost of additional samples (manual HF Space restart + ~2 min
+  wait + log extraction per sample) exceeds the marginal information
+  gain once both tails fire the gate and the variance pattern is stable.
+  N=4 would tighten the confidence interval on the median but does not
+  change either the gate-fire conclusion or the falsified-assumption
+  finding.
+- **Variance source named.** HF Spaces shared-infrastructure CPU / IO
+  contention during Python module imports. The silent-init phase
+  varies 45 s across samples (70 → 115 s); the visible phase is stable
+  (12–19 s). That is the signature of host-level contention on a
+  shared physical node, not code-level variability. An
+  exclusively-owned container would plausibly show a tighter bound.
+- **Raw log captures** (preserved so this entry can be cross-checked
+  against the underlying evidence without re-running the measurement):
+  `measurements/2026-04-15-coldstart-n1.log`, `-n2.log`, `-n3.log`.
+
+**Where the cost lives.** At the median (113 s):
+
+- **Silent Python init phase — ~90 s (≈ 80 % of total):** interpreter
+  start, module imports (`torch`, `transformers`, `langchain`, `faiss`,
+  `fastapi`, `httpx`, the full dependency closure), and initial model
+  weight loading (`all-MiniLM-L6-v2` embedder, cross-encoder
+  reranker). Not logged — no observability inside the import chain.
+- **Visible startup phase — ~15 s (≈ 15 % of total):** injection
+  classifier init (~10 s, includes the "classifier skipped" warning),
+  FastAPI corpus load (< 1 s, +0.9 MB RSS), K8s corpus load (< 1 s,
+  +25.8 MB RSS), reranker warmup (~2 s).
+
+**The K8s corpus load — which the pre-committed fix was designed to
+defer — contributes under 1 second of the 113-second median.**
+Deferring it saves roughly 1 % of the overshoot. FastAPI corpus load
+is the same order of magnitude. Corpus loading is simply not where the
+cost lives on this deployment.
+
+**Why we are not executing the pre-committed fix.** The preceding
+contingency was written under an empirical assumption about cost
+attribution (corpus loading is the dominant cost). Measurement
+falsified the assumption. Implementing the fix anyway would be a
+mechanical execution of a recipe whose premise has been disproven —
+it checks the gate-honoring box while failing to address the cause.
+That is structurally identical to relaxing-by-redefinition ("60 s was
+too tight"), just in the opposite direction: **relaxing by execution**.
+The pre-commitment rule's purpose is to prevent motivated reasoning
+about the gate, not to mandate mechanical compliance with a recipe
+whose empirical foundation has collapsed.
+
+The honest action is (1) accept the measurement as the v1 baseline,
+(2) document the falsified assumption explicitly (this entry),
+(3) re-pre-commit a new contingency at the actual dominant cost with
+an explicit trigger condition so the decision is not relitigated at
+review time, and (4) update the user-facing README surface to reflect
+the measured cold-wake number rather than the optimistic pre-deploy
+estimate.
+
+**v1.1 contingency — pre-committed:**
+
+> **If HF Spaces traffic produces more than N cold wakes per day**
+> (N to be determined from observed usage patterns after launch, **not
+> estimated in advance**), defer eager loading of (a) the cross-encoder
+> reranker, (b) the sentence-transformers embedder, and (c) the
+> injection classifier tier to first-relevant-request.
+>
+> **Estimated work:** 4–6 hours (lazy-init wrappers + first-request
+> caching + integration tests for the warm/cold transition).
+>
+> **Expected tradeoff:** cold wake ~113 s → ~50–60 s (approaches the
+> original 60 s target); **first request after any cold wake incurs
+> +8–15 s** additional latency (model weights load synchronously in
+> the request path), after which subsequent warm requests return to
+> normal ~5 s latency.
+>
+> **Trigger is usage-justified, not estimate-justified.** Until real
+> traffic data justifies the work, there is nothing to optimize — a
+> recruiter demo that gets one cold wake per day does not pay for
+> 4–6 hours of engineering plus the new first-request-latency failure
+> mode. The trigger threshold N is left unnamed deliberately: naming a
+> number in advance would invite the same falsification pattern this
+> entry is documenting.
+
+**Methodology lesson.** When a pre-committed contingency is written
+under an empirical assumption, the contingency only holds if the
+assumption survives measurement. If measurement falsifies the
+assumption, the correct action is to document the falsification,
+accept the observed baseline, and re-pre-commit at the actual cause.
+The wrong action is to execute the original recipe anyway, which
+trades one form of motivated reasoning (threshold relaxation) for
+another (recipe compliance). The underlying discipline — "pre-commit
+your gates and honor them" — does not mean "mechanically run the
+pre-committed fix regardless of what it addresses." It means "honor
+the gate's *intent*, which is to prevent motivated reasoning about
+pass/fail."
+
+**Post-hoc refinement (2026-04-22) — three latency regimes observed.**
+Follow-up warm-latency measurements after the initial cold-start
+characterization distinguish a middle regime that the README's
+"~2 min cold / ~5 s warm" phrasing collapses:
+
+| Regime | Latency | Cause |
+|---|---|---|
+| Cold-start (container spin-up) | 89–129 s | Python imports, model load (per the table above) |
+| Wake-from-idle (first `/ask` after container is up) | ~6.7 s (≈ +2 s over warm) | Residual lazy init on first request |
+| Steady-state warm | ~5 s (mean 4.74 s, n=5) | LLM API round-trip + retrieval |
+
+Source: n=1 first-hit-after-cold-wake @ 6.7 s, then n=5 steady-state
+warm @ 4.07, 4.69, 4.78, 5.06, 5.11 s (2026-04-22). The README claim
+captures regimes 1 and 3; the ~2 s first-hit penalty between them is
+a refinement of the warm-cold boundary, not a contradiction. The
+v1.1 projection of "+8–15 s first request after any cold wake"
+measures the delta from this ~2 s current baseline, not from a
+zero-penalty starting point — the true v1.1 UX cost over current
+behavior is closer to +6–13 s.
+
 ## False-premise questions come in two flavors
 
 When authoring golden-dataset questions whose premise is wrong, the
@@ -1854,3 +1995,124 @@ threshold, or (c) mark the file explicitly in a
 option (a) as the follow-up, because it preserves the production
 detector regex without weakening and keeps the test's fidelity to
 the actual attack surface.
+
+## Audit-path bug — streams masked a request-crashing failure (2026-04-15)
+
+During v1 deploy smoke testing, every non-stream `POST /ask` request
+and every injection-blocked request on the HF Space returned
+`{"detail": "Internal server error"}` (HTTP 500) instead of the
+intended 200 / 403. Normal queries via `POST /ask/stream` appeared to
+work correctly from the dashboard, so the bug was invisible until a
+direct curl hit a non-stream endpoint. Discovered and fixed same-day.
+
+**Root cause.** `agent_bench/security/audit_logger.py:60` called
+`self.path.parent.mkdir(parents=True, exist_ok=True)` the first time
+a request wrote an audit record. The default path `logs/audit.jsonl`
+resolved to `/home/user/app/logs/audit.jsonl` at runtime. The
+Dockerfile's `WORKDIR /home/user/app` creates that directory as
+**root:root mode 0755** because Docker's WORKDIR directive does not
+honor `--chown`. Subsequent `COPY --chown=user` lines only change
+ownership of the copied files, not the directory itself. At runtime
+under `USER user` (uid 1000), the process had `r-x` on WORKDIR — it
+could read and execute, but not create new subdirectories. First
+audit write → `PermissionError: [Errno 13] Permission denied: 'logs'`.
+
+**Why `.cache/` worked and `logs/` didn't.** `.cache/` is created at
+build time by the two `RUN python scripts/ingest.py ...` steps
+(running as root) and then explicitly chowned by
+`RUN chown -R user:user .cache/`. `logs/` was created lazily at
+runtime by the audit logger, as a non-root user, in a directory owned
+by root. Directory-creation permission wall.
+
+**Why the streaming endpoint masked it.** `/ask/stream` calls
+`_write_audit` at the *end* of the event generator
+(`routes.py:438`), after all stage events and the final answer have
+already been yielded over SSE. A failure there is already too late
+to affect the client's view of the response — the client sees the
+answer, the stream ends, and the audit entry is silently missing.
+Non-stream `/ask` calls `_write_audit` synchronously before `return`
+(line 263), so the failure propagates up through the middleware
+exception handler and becomes a visible 500. Injection-blocked
+requests on both endpoints also audit synchronously before returning
+(lines 193, 302) and produce the same visible 500. Normal dashboard
+use hits `/ask/stream` → symptom invisible; smoke testing
+non-stream `/ask` → symptom obvious.
+
+**Traceback confirmed from the HF Space runtime log:**
+
+```
+File "/home/user/app/agent_bench/serving/routes.py", line 302, in ask_stream
+    _write_audit(
+File "/home/user/app/agent_bench/serving/routes.py", line 558, in _write_audit
+    audit_logger.log(record)
+File "/home/user/app/agent_bench/security/audit_logger.py", line 60, in log
+    self.path.parent.mkdir(parents=True, exist_ok=True)
+PermissionError: [Errno 13] Permission denied: 'logs'
+```
+
+**Two-fix patch.** Both applied in the same deploy cycle:
+
+1. **Dockerfile (proximate).** Commit `ca34ccb`:
+   `RUN mkdir -p logs && chown -R user:user .cache/ logs/` at build
+   time, before `USER user`. Ensures the runtime user owns the
+   audit-log directory from container start.
+2. **`AuditLogger.log()` (architectural, defense-in-depth).** Commit
+   `25e0f1b`: wrap the entire write body in `try/except Exception`,
+   log the failure via structlog as `audit_write_failed` with the
+   exception type and path, return normally.
+
+**Why both, not either alone.**
+
+- **Only fix 1:** unblocks the Space but leaves the architectural
+  bug — an audit logger that can crash the app is misdesigned
+  regardless of filesystem permissions. The SECURITY.md OWASP LLM10
+  writeup would be structurally weak.
+- **Only fix 2:** stops the crashes, but audit writes would still
+  silently fail on HF Spaces because `logs/` remains unwritable. The
+  OWASP LLM10 claim would be *live-untrue* on the demo surface.
+- **Both:** demo is honest (audit log actually written on HF Space),
+  architecture is sound (audit failures degrade gracefully), and the
+  OWASP LLM10 writeup has live evidence backing both claims.
+
+**Verification on the live Space after the patch.** `GET /health`
+flipped from `"degraded"` to `"healthy"` with `provider_available:
+true`; `POST /ask` normal returned 200 with grounded answers citing
+real sources from both corpora (was 500); `POST /ask` with the
+`ignore_previous` injection pattern returned 403
+`"Request blocked: potential prompt injection detected"` (was 500);
+the runtime log shows `injection_detected pattern=ignore_previous
+tier=heuristic` followed by a 403 status and no `audit_write_failed`
+entries, confirming the audit write succeeded end-to-end.
+
+**Methodology lesson — streaming endpoints can hide backend failures.**
+Any request-path side effect (audit logging, metrics, cache write,
+persistence) that runs at the end of a streaming generator will fail
+silently from the client's perspective, because content is already
+committed to the wire before the failure fires. Testing such side
+effects against their failure modes *through* a streaming happy path
+is not sufficient — the happy path masks the failure. Every
+request-path side effect needs at least one test that verifies it
+fails loudly (or, where the design says graceful, degrades loudly)
+when its underlying dependency is broken, **exercised synchronously,
+not via the streaming code path.**
+
+For this project, `AuditLogger.log()` should gain a unit test that
+asserts it returns normally (not raises) when its target directory is
+unwritable — i.e., a regression test for the `try/except` fix above.
+And the dependency injection of the audit logger in the route
+handlers should get an integration test that exercises both the
+streaming and non-streaming paths against the same failure injection,
+to assert the streaming path does not hide what the non-streaming
+path surfaces. Tracked as a v1.1 test-coverage follow-up.
+
+**Why this wasn't caught locally.** Existing
+`tests/test_audit_logger.py` tests use pytest's `tmp_path` fixture,
+which is always writable by the test process. The failure mode only
+manifests when the runtime user cannot create the log directory, a
+deployment-environment condition not reproducible in a unit test
+against a local filesystem owned by the developer. An integration
+test that runs the Docker image end-to-end and hits `/ask` against
+the actual container filesystem would have caught it pre-deploy.
+Such a test is out of scope for v1 (adds ~5 min to CI plus Docker
+build infrastructure) but is the right long-term mitigation for this
+class of bug.
