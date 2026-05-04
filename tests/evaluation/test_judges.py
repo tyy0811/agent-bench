@@ -491,3 +491,145 @@ class TestCompletenessJudge:
         assert result.judge_id == "m_completeness"
         sent_prompt = provider.complete.await_args.args[0][0].content
         assert "The default port is 8080." in sent_prompt
+
+
+class TestCitationFaithfulnessJudge:
+    def test_extract_claims_with_citations(self):
+        from agent_bench.evaluation.judges.citation_faithfulness import (
+            _extract_claims_with_citations,
+        )
+
+        answer = "The port is 8080. [source: a.md] TLS is enabled. [source: b.md]"
+        pairs = _extract_claims_with_citations(answer)
+        assert len(pairs) == 2
+        assert pairs[0] == ("The port is 8080.", "a.md")
+        assert pairs[1] == ("TLS is enabled.", "b.md")
+
+    @pytest.mark.asyncio
+    async def test_aggregate_all_faithful(self):
+        from agent_bench.agents.orchestrator import AgentResponse, SourceReference
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.citation_faithfulness import (
+            CitationFaithfulnessJudge,
+        )
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/citation_faithfulness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = [
+            _mk_response(_valid_json(1)),
+            _mk_response(_valid_json(1)),
+        ]
+
+        judge = CitationFaithfulnessJudge(
+            judge_provider=provider, rubric=rubric, model_id="m"
+        )
+        item = GoldenQuestion(
+            id="i1",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        output = AgentResponse(
+            answer="Fact one. [source: a.md] Fact two. [source: b.md]",
+            sources=[SourceReference(source="a.md"), SourceReference(source="b.md")],
+            source_chunks=["chunk for a", "chunk for b"],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+        assert result.score == 1
+        assert provider.complete.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_aggregate_one_unfaithful_makes_zero(self):
+        from agent_bench.agents.orchestrator import AgentResponse, SourceReference
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.citation_faithfulness import (
+            CitationFaithfulnessJudge,
+        )
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/citation_faithfulness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = [
+            _mk_response(_valid_json(1)),
+            _mk_response(_valid_json(0)),
+        ]
+
+        judge = CitationFaithfulnessJudge(
+            judge_provider=provider, rubric=rubric, model_id="m"
+        )
+        item = GoldenQuestion(
+            id="i1",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        output = AgentResponse(
+            answer="Good. [source: a.md] Bad. [source: b.md]",
+            sources=[SourceReference(source="a.md"), SourceReference(source="b.md")],
+            source_chunks=["chunk for a", "chunk for b"],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+        assert result.score == 0
+
+    @pytest.mark.asyncio
+    async def test_no_citations_vacuously_faithful(self):
+        from agent_bench.agents.orchestrator import AgentResponse
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.citation_faithfulness import (
+            CitationFaithfulnessJudge,
+        )
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/citation_faithfulness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        judge = CitationFaithfulnessJudge(
+            judge_provider=provider, rubric=rubric, model_id="m"
+        )
+        item = GoldenQuestion(
+            id="i1",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        output = AgentResponse(
+            answer="No citations here.",
+            sources=[],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+        assert result.score == 1
+        # No provider calls when no citations
+        assert provider.complete.await_count == 0
