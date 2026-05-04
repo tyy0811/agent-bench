@@ -88,6 +88,9 @@ class MemoryConfig(BaseModel):
 class EvaluationConfig(BaseModel):
     judge_provider: str = "openai"
     golden_dataset: str = "agent_bench/evaluation/datasets/tech_docs_golden.json"
+    # New in judge-layer v1: which dimensions to score with L2 LLM judges.
+    # citation_faithfulness is opt-in v1 (default-on v1.1).
+    judge_dimensions: list[str] = ["groundedness", "relevance", "completeness"]
 
 
 _VALID_TIERS = {"heuristic", "classifier"}
