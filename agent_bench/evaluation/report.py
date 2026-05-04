@@ -52,9 +52,16 @@ def generate_report(
     total_cost = sum(r.tokens_used.estimated_cost_usd for r in results)
     avg_cost = total_cost / max(len(results), 1)
 
-    # Optional faithfulness
-    faith_scores = [r.faithfulness for r in positive if r.faithfulness is not None]
-    avg_faith = _safe_avg(faith_scores) if faith_scores else None
+    # Optional groundedness (replaces continuous faithfulness in v1).
+    # Discrete-anchored binary 0/1; abstain ('Unknown' score) is excluded
+    # from the average. See agent_bench/evaluation/judges/groundedness.py.
+    grounded_scores = [
+        r.judge_scores["groundedness"].score
+        for r in positive
+        if "groundedness" in r.judge_scores
+        and not r.judge_scores["groundedness"].abstained
+    ]
+    avg_grounded = _safe_avg(grounded_scores) if grounded_scores else None
 
     lines.append("| Metric | Value |")
     lines.append("|--------|-------|")
@@ -65,8 +72,8 @@ def generate_report(
     lines.append(f"| Citation Accuracy | {avg_citation:.2f} |")
     lines.append(f"| Grounded Refusal Rate | {refusal_rate}/{len(negative)} |")
     lines.append(f"| Calculator Accuracy | {calc_correct}/{len(calc_qs)} |")
-    if avg_faith is not None:
-        lines.append(f"| Answer Faithfulness (LLM) | {avg_faith:.2f} |")
+    if avg_grounded is not None:
+        lines.append(f"| Answer Groundedness (LLM judge) | {avg_grounded:.2f} |")
     lines.append(f"| Latency p50 | {p50:,.0f} ms |")
     lines.append(f"| Latency p95 | {p95:,.0f} ms |")
     lines.append(f"| Cost per query | ${avg_cost:.4f} |")

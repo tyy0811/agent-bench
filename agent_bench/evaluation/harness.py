@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from agent_bench.agents.orchestrator import Orchestrator
 from agent_bench.core.provider import LLMProvider
 from agent_bench.core.types import TokenUsage
+from agent_bench.evaluation.judges.base import ScoreResult
 from agent_bench.evaluation.metrics import (
     calculator_used_when_expected,
     citation_accuracy,
@@ -70,9 +71,9 @@ class EvalResult(BaseModel):
     # Raw answer for reporting
     answer: str = ""
     retrieved_sources: list[str] = []
-    # LLM judge (None if not run)
-    faithfulness: float | None = None
-    correctness: float | None = None
+    # New in judge-layer v1: per-dimension judge scores. Empty when no
+    # judge_provider configured or item.category == "out_of_scope".
+    judge_scores: dict[str, ScoreResult] = Field(default_factory=dict)
 
 
 def load_golden_dataset(path: str | Path) -> list[GoldenQuestion]:
@@ -149,21 +150,35 @@ async def run_evaluation(
             retrieved_sources=ranked_sources,
         )
 
-        # Optional LLM judge
+        # Optional L2 LLM-judge layer (per-dimension; gated as before).
+        # The judge_provider != None gate is preserved (existing harness
+        # behavior); the q.category != 'out_of_scope' gate is preserved
+        # (L2 doesn't apply to refusals — that's L1's job).
         if judge_provider is not None and q.category != "out_of_scope":
-            from agent_bench.evaluation.metrics import answer_correctness, answer_faithfulness
+            from agent_bench.core.config import load_config
+            from agent_bench.evaluation.judges.base import Rubric
+            from agent_bench.evaluation.judges.completeness import CompletenessJudge
+            from agent_bench.evaluation.judges.groundedness import GroundednessJudge
+            from agent_bench.evaluation.judges.relevance import RelevanceJudge
 
-            result.faithfulness = await answer_faithfulness(
-                answer=agent_response.answer,
-                source_chunks=agent_response.source_chunks,
-                judge_provider=judge_provider,
-            )
-            if q.reference_answer:
-                result.correctness = await answer_correctness(
-                    answer=agent_response.answer,
-                    reference_answer=q.reference_answer,
+            cfg = load_config()
+            rubric_dir = Path(__file__).resolve().parent / "rubrics"
+            judge_class = {
+                "groundedness": GroundednessJudge,
+                "relevance": RelevanceJudge,
+                "completeness": CompletenessJudge,
+            }
+            for dim in cfg.evaluation.judge_dimensions:
+                if dim not in judge_class:
+                    continue  # citation_faithfulness opt-in; not in default loop
+                rubric = Rubric.from_markdown_file(rubric_dir / f"{dim}.md")
+                judge = judge_class[dim](
                     judge_provider=judge_provider,
+                    rubric=rubric,
+                    model_id=getattr(judge_provider, "model", "unknown"),
                 )
+                score_result = await judge.score(q, agent_response)
+                result.judge_scores[dim] = score_result
 
         results.append(result)
 

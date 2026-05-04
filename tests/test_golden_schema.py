@@ -70,10 +70,13 @@ def test_existing_fastapi_dataset_still_loads():
     path = Path("agent_bench/evaluation/datasets/tech_docs_golden.json")
     qs = load_golden_dataset(path)
     assert len(qs) >= 20
-    # All questions get default empty lists for new fields
+    # source_chunk_ids is still empty across the FastAPI corpus (no
+    # multi-corpus chunk-id schema). source_snippets is populated for the
+    # 8 items in calibration_v1 (Phase 5 of judge-layer v1) and empty for
+    # the rest — schema-validate that the field at minimum loads as a list.
     for q in qs:
         assert q.source_chunk_ids == []
-        assert q.source_snippets == []
+        assert isinstance(q.source_snippets, list)
 
 
 def test_unknown_format_raises(tmp_path):
