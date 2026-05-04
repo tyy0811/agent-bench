@@ -1,0 +1,13 @@
+# Ablation: same as baseline but the judge prompt does NOT request reasoning
+# before the score. Used to measure the contribution of CoT-before-score.
+
+label: baseline_no_cot
+provider: anthropic
+model_id: claude-haiku-4-5
+dimensions: [groundedness, relevance, completeness]
+strategy: single
+options:
+  use_cot: false
+  use_anchors: true
+  abstain_allowed: true
+output_path: results/calibration_v1_judge_baseline_no_cot.json

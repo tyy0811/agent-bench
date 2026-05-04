@@ -1,0 +1,13 @@
+# Ablation: rubric anchored examples stripped from the prompt; only the
+# level descriptions are sent. Measures the contribution of anchored examples.
+
+label: baseline_no_anchors
+provider: anthropic
+model_id: claude-haiku-4-5
+dimensions: [groundedness, relevance, completeness]
+strategy: single
+options:
+  use_cot: true
+  use_anchors: false
+  abstain_allowed: true
+output_path: results/calibration_v1_judge_baseline_no_anchors.json

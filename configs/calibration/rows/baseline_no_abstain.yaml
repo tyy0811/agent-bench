@@ -1,0 +1,14 @@
+# Ablation: rubric.abstain_allowed forced false at scoring time. Measures
+# the contribution of the abstain option. Out-of-range schema violations
+# (model returns "Unknown" anyway) abstain via ABSTAIN_REASON_OUT_OF_RANGE.
+
+label: baseline_no_abstain
+provider: anthropic
+model_id: claude-haiku-4-5
+dimensions: [groundedness, relevance, completeness]
+strategy: single
+options:
+  use_cot: true
+  use_anchors: true
+  abstain_allowed: false
+output_path: results/calibration_v1_judge_baseline_no_abstain.json

@@ -1,0 +1,14 @@
+# Rubric permutation: N=2 seeded prompt-level permutations per item, mean-
+# aggregated. Per-permutation results land in the sidecar JSONL.
+
+label: permute
+provider: anthropic
+model_id: claude-haiku-4-5
+dimensions: [groundedness, relevance, completeness]
+strategy: rubric_permute
+options:
+  n_permutations: 2
+  seeds: [1, 2]
+  abstain_allowed: true
+output_path: results/calibration_v1_judge_permute.json
+sidecar_path: results/calibration_v1_judge_permute_members.jsonl
