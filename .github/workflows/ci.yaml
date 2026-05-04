@@ -9,6 +9,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Explicit empty env: prevents accidental dependency on injected
+    # secrets. Tests use MockProvider and require no API keys; if a
+    # future test imports a provider that needs a key, it will fail
+    # in CI and in any contributor fork the same way (no silent
+    # divergence based on whether secrets are present).
+    env: {}
     steps:
       - uses: actions/checkout@v4
 
