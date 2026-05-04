@@ -449,3 +449,45 @@ class TestRelevanceJudge:
         assert result.score == 2
         sent_prompt = provider.complete.await_args.args[0][0].content
         assert "What's the default kubelet port?" in sent_prompt
+
+
+class TestCompletenessJudge:
+    @pytest.mark.asyncio
+    async def test_reference_answer_in_prompt(self):
+        from agent_bench.agents.orchestrator import AgentResponse
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.completeness import CompletenessJudge
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/completeness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response(_valid_json(2))
+
+        judge = CompletenessJudge(judge_provider=provider, rubric=rubric, model_id="m")
+        item = GoldenQuestion(
+            id="k8s_003",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+            reference_answer="The default port is 8080.",
+        )
+        output = AgentResponse(
+            answer="Port 8080.",
+            sources=[],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+        assert result.score == 2
+        assert result.judge_id == "m_completeness"
+        sent_prompt = provider.complete.await_args.args[0][0].content
+        assert "The default port is 8080." in sent_prompt
