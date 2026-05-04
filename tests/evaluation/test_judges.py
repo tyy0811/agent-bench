@@ -409,3 +409,43 @@ class TestGroundednessJudge:
         sent_prompt = provider.complete.await_args.args[0][0].content
         assert "StatefulSet pods receive ordinal indices." in sent_prompt
         assert "Ordinal indices." in sent_prompt
+
+
+class TestRelevanceJudge:
+    @pytest.mark.asyncio
+    async def test_three_point_scale_and_question_in_prompt(self):
+        from agent_bench.agents.orchestrator import AgentResponse
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.relevance import RelevanceJudge
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/relevance.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response(_valid_json(2))
+
+        judge = RelevanceJudge(judge_provider=provider, rubric=rubric, model_id="m")
+        item = GoldenQuestion(
+            id="k8s_002",
+            question="What's the default kubelet port?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        output = AgentResponse(
+            answer="Port 10250.",
+            sources=[],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+        assert result.score == 2
+        sent_prompt = provider.complete.await_args.args[0][0].content
+        assert "What's the default kubelet port?" in sent_prompt
