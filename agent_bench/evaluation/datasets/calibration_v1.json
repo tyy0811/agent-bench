@@ -1,0 +1,158 @@
+{
+  "version": "v1",
+  "system_config_git_sha": "3a2ed359eb16437cf95987b1fca47281a37fb74c",
+  "sample_seed": 20260504,
+  "notes": "30-item stratified calibration set per the design doc. Spare slots filled from K8s simple_w_condition and multi_hop (typically highest-variance R@5 strata).",
+  "items": [
+    {
+      "id": "q021",
+      "corpus": "fastapi",
+      "stratum": "calculation"
+    },
+    {
+      "id": "q010",
+      "corpus": "fastapi",
+      "stratum": "out_of_scope"
+    },
+    {
+      "id": "q027",
+      "corpus": "fastapi",
+      "stratum": "out_of_scope"
+    },
+    {
+      "id": "q006",
+      "corpus": "fastapi",
+      "stratum": "retrieval"
+    },
+    {
+      "id": "q011",
+      "corpus": "fastapi",
+      "stratum": "retrieval"
+    },
+    {
+      "id": "q012",
+      "corpus": "fastapi",
+      "stratum": "retrieval"
+    },
+    {
+      "id": "q023",
+      "corpus": "fastapi",
+      "stratum": "retrieval"
+    },
+    {
+      "id": "q025",
+      "corpus": "fastapi",
+      "stratum": "retrieval"
+    },
+    {
+      "id": "k8s_002",
+      "corpus": "k8s",
+      "stratum": "comparison"
+    },
+    {
+      "id": "k8s_014",
+      "corpus": "k8s",
+      "stratum": "comparison"
+    },
+    {
+      "id": "k8s_016",
+      "corpus": "k8s",
+      "stratum": "comparison"
+    },
+    {
+      "id": "k8s_004",
+      "corpus": "k8s",
+      "stratum": "false_premise"
+    },
+    {
+      "id": "k8s_022",
+      "corpus": "k8s",
+      "stratum": "false_premise"
+    },
+    {
+      "id": "k8s_024",
+      "corpus": "k8s",
+      "stratum": "false_premise"
+    },
+    {
+      "id": "k8s_003",
+      "corpus": "k8s",
+      "stratum": "multi_hop"
+    },
+    {
+      "id": "k8s_017",
+      "corpus": "k8s",
+      "stratum": "multi_hop"
+    },
+    {
+      "id": "k8s_018",
+      "corpus": "k8s",
+      "stratum": "multi_hop"
+    },
+    {
+      "id": "k8s_019",
+      "corpus": "k8s",
+      "stratum": "multi_hop"
+    },
+    {
+      "id": "k8s_025",
+      "corpus": "k8s",
+      "stratum": "set"
+    },
+    {
+      "id": "k8s_001",
+      "corpus": "k8s",
+      "stratum": "simple"
+    },
+    {
+      "id": "k8s_006",
+      "corpus": "k8s",
+      "stratum": "simple"
+    },
+    {
+      "id": "k8s_007",
+      "corpus": "k8s",
+      "stratum": "simple"
+    },
+    {
+      "id": "k8s_009",
+      "corpus": "k8s",
+      "stratum": "simple"
+    },
+    {
+      "id": "k8s_005",
+      "corpus": "k8s",
+      "stratum": "simple_w_condition"
+    },
+    {
+      "id": "k8s_012",
+      "corpus": "k8s",
+      "stratum": "simple_w_condition"
+    },
+    {
+      "id": "k8s_013",
+      "corpus": "k8s",
+      "stratum": "simple_w_condition"
+    },
+    {
+      "id": "k8s_015",
+      "corpus": "k8s",
+      "stratum": "spare_comparison"
+    },
+    {
+      "id": "k8s_023",
+      "corpus": "k8s",
+      "stratum": "spare_false_premise"
+    },
+    {
+      "id": "k8s_020",
+      "corpus": "k8s",
+      "stratum": "spare_multi_hop"
+    },
+    {
+      "id": "k8s_011",
+      "corpus": "k8s",
+      "stratum": "spare_simple_w_condition"
+    }
+  ]
+}
