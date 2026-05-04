@@ -104,10 +104,16 @@ class Jury:
             mean = weighted_sum / weight_total if weight_total > 0 else 0.0
             agg = _aggregate_scores([int(round(mean))], scale)
 
+        weights_str = (
+            list(self.weights.values())
+            if self.aggregation == "kappa_weighted"
+            else "n/a"
+        )
         return ScoreResult(
             reasoning=(
-                f"jury_{self.aggregation}: members={[r.score for r in successful]}, "
-                f"weights={list(self.weights.values()) if self.aggregation == 'kappa_weighted' else 'n/a'}"
+                f"jury_{self.aggregation}: "
+                f"members={[r.score for r in successful]}, "
+                f"weights={weights_str}"
             ),
             evidence_quotes=[],
             score=agg,

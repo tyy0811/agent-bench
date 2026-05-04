@@ -9,19 +9,30 @@ rationale and the six-axis comparison table.
 from __future__ import annotations
 
 import hashlib
+import json as _json
 import random
 import re
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Self
 
+import structlog
 import yaml
 from pydantic import BaseModel, Field
+
+from agent_bench.core.provider import (
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+)
+from agent_bench.core.types import Message, Role
 
 if TYPE_CHECKING:
     from agent_bench.agents.orchestrator import AgentResponse
     from agent_bench.core.provider import LLMProvider
     from agent_bench.evaluation.harness import GoldenQuestion
+
+logger = structlog.get_logger()
 
 # --- Abstain-reason constants ---
 #
@@ -281,19 +292,6 @@ class MockJudge(Judge):
 
 
 # --- _call_judge_with_retry helper ---
-
-import json as _json
-import time
-
-import structlog
-
-from agent_bench.core.provider import (
-    ProviderRateLimitError,
-    ProviderTimeoutError,
-)
-from agent_bench.core.types import Message, Role
-
-logger = structlog.get_logger()
 
 _STRICT_REPROMPT_SUFFIX = (
     "\n\nSTRICT FORMATTING NOTE: respond ONLY with a JSON object matching "

@@ -2,14 +2,24 @@
 
 from __future__ import annotations
 
+import json
+from abc import ABC
+from pathlib import Path
+from unittest.mock import AsyncMock
+
 import pytest
 
+from agent_bench.core.provider import LLMProvider, ProviderRateLimitError
+from agent_bench.core.types import CompletionResponse, TokenUsage
 from agent_bench.evaluation.judges.base import (
     ABSTAIN_REASON_GENUINE,
     ABSTAIN_REASON_OUT_OF_RANGE,
     ABSTAIN_REASON_PROVIDER_EXHAUSTED,
     ABSTAIN_REASON_SCHEMA_PARSE,
+    Judge,
+    MockJudge,
     ScoreResult,
+    _call_judge_with_retry,
 )
 
 
@@ -71,12 +81,6 @@ class TestScoreResult:
             ScoreResult(score="maybe", **self._base_kwargs())  # type: ignore[arg-type]
 
 
-from abc import ABC
-from pathlib import Path
-
-from agent_bench.evaluation.judges.base import Judge
-
-
 class TestJudgeABC:
     def test_judge_is_abstract(self):
         assert issubclass(Judge, ABC)
@@ -97,9 +101,6 @@ class TestJudgeABC:
         )
         j = _ConcreteJudge(judge_provider=None, rubric=rubric, model_id="claude-haiku-4-5")  # type: ignore[arg-type]
         assert j.judge_id == "claude-haiku-4-5_groundedness"
-
-
-from agent_bench.evaluation.judges.base import MockJudge
 
 
 class TestMockJudge:
@@ -174,17 +175,6 @@ class TestMockJudge:
         )
         with pytest.raises(LookupError, match="item_999_NOT_PRESENT"):
             await mj.score(item, output)
-
-
-import json
-from unittest.mock import AsyncMock
-
-from agent_bench.core.provider import (
-    LLMProvider,
-    ProviderRateLimitError,
-)
-from agent_bench.core.types import CompletionResponse, TokenUsage
-from agent_bench.evaluation.judges.base import _call_judge_with_retry
 
 
 def _mk_response(content: str) -> CompletionResponse:
