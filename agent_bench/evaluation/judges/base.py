@@ -8,8 +8,13 @@ rationale and the six-axis comparison table.
 
 from __future__ import annotations
 
-from typing import Literal
+import hashlib
+import random
+import re
+from pathlib import Path
+from typing import Literal, Self
 
+import yaml
 from pydantic import BaseModel, Field
 
 # --- Abstain-reason constants ---
@@ -53,3 +58,144 @@ class ScoreResult(BaseModel):
     @property
     def abstained(self) -> bool:
         return self.score == "Unknown"
+
+
+class RubricLevel(BaseModel):
+    """One score level in a rubric, with anchored examples.
+
+    Parsed from markdown sections under `## Score N` headers. The
+    `examples` list contains the H3 sub-sections (`### Example X`)
+    each with a thinking-trace explanation of why that output got
+    that score.
+    """
+
+    score: int
+    description: str
+    examples: list[str]  # raw markdown of `### Example` sections
+
+
+class Rubric(BaseModel):
+    """A scoring rubric loaded from a markdown file with YAML frontmatter.
+
+    Construction validates aggressively: scale ∈ {binary, three_point},
+    levels arity matches scale, every level has at least one anchored
+    example. ValidationError raises with file path + field path so a
+    Day-1 rubric typo doesn't surface as a Day-2 judge.score crash with
+    API budget already spent.
+    """
+
+    dimension: Literal[
+        "groundedness", "relevance", "completeness", "citation_faithfulness"
+    ]
+    scale: Literal["binary", "three_point"]
+    reference_based: bool
+    abstain_allowed: bool
+    levels: list[RubricLevel]
+    body_markdown: str
+
+    @property
+    def source_hash(self) -> str:
+        """SHA-256 of the canonical body. Immutable per file content,
+        independent of git state. Used as ScoreResult.rubric_version.
+        """
+        return hashlib.sha256(self.body_markdown.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def from_markdown_file(cls, path: Path | str) -> Self:
+        path = Path(path)
+        body = path.read_text(encoding="utf-8")
+
+        # Parse YAML frontmatter delimited by --- ... ---
+        fm_match = re.match(r"^---\n(.+?)\n---\n(.*)$", body, re.DOTALL)
+        if not fm_match:
+            raise ValueError(
+                f"Rubric {path.name}: missing YAML frontmatter "
+                f"(expected --- ... --- block at top of file)"
+            )
+        try:
+            frontmatter = yaml.safe_load(fm_match.group(1)) or {}
+        except yaml.YAMLError as e:
+            raise ValueError(
+                f"Rubric {path.name}: frontmatter YAML parse error: {e}"
+            ) from e
+
+        required = {"dimension", "scale", "reference_based", "abstain_allowed"}
+        missing = required - frontmatter.keys()
+        if missing:
+            raise ValueError(
+                f"Rubric {path.name}: frontmatter missing fields: {sorted(missing)}"
+            )
+
+        scale = frontmatter["scale"]
+        if scale not in ("binary", "three_point"):
+            raise ValueError(
+                f"Rubric {path.name}: invalid scale {scale!r}; "
+                f"must be 'binary' or 'three_point'"
+            )
+
+        # Parse levels by ## Score N headers
+        body_no_fm = fm_match.group(2)
+        level_pattern = re.compile(
+            r"^## Score (\d+)\n(.*?)(?=^## Score |\Z)", re.MULTILINE | re.DOTALL
+        )
+        raw_levels: list[tuple[int, str]] = [
+            (int(m.group(1)), m.group(2)) for m in level_pattern.finditer(body_no_fm)
+        ]
+
+        expected_arity = 2 if scale == "binary" else 3
+        if len(raw_levels) != expected_arity:
+            raise ValueError(
+                f"Rubric {path.name}: arity mismatch — scale {scale!r} "
+                f"requires {expected_arity} levels, found {len(raw_levels)}"
+            )
+
+        # Parse examples (### Example) per level
+        levels: list[RubricLevel] = []
+        for score, level_body in raw_levels:
+            example_pattern = re.compile(
+                r"^### (Example .+?)\n(.*?)(?=^### |\Z)", re.MULTILINE | re.DOTALL
+            )
+            examples = [m.group(0) for m in example_pattern.finditer(level_body)]
+            if not examples:
+                raise ValueError(
+                    f"Rubric {path.name}: level Score {score} has no "
+                    f"anchored example (expected at least one ### Example header)"
+                )
+            description = level_body.split("###", 1)[0].strip()
+            levels.append(
+                RubricLevel(score=score, description=description, examples=examples)
+            )
+
+        return cls(
+            dimension=frontmatter["dimension"],
+            scale=scale,
+            reference_based=bool(frontmatter["reference_based"]),
+            abstain_allowed=bool(frontmatter["abstain_allowed"]),
+            levels=levels,
+            body_markdown=body,
+        )
+
+    def render_prompt(self, *, level_permutation_seed: int = 0) -> str:
+        """Render the rubric body for inclusion in a judge prompt.
+
+        If level_permutation_seed > 0, levels are reordered deterministically
+        using a seeded PRNG. seed=0 returns the canonical order.
+        """
+        if level_permutation_seed == 0:
+            return self.body_markdown
+        rng = random.Random(level_permutation_seed)
+        permuted_levels = list(self.levels)
+        rng.shuffle(permuted_levels)
+        # Reconstruct: keep frontmatter + intro paragraphs intact;
+        # reorder the ## Score N sections.
+        fm_match = re.match(r"^(---\n.+?\n---\n)(.*)$", self.body_markdown, re.DOTALL)
+        if not fm_match:
+            return self.body_markdown  # defensive — should never happen post-construction
+        head = fm_match.group(1)
+        rest = fm_match.group(2)
+        intro = re.split(r"^## Score ", rest, maxsplit=1, flags=re.MULTILINE)[0]
+        permuted_body = head + intro + "\n".join(
+            f"## Score {lvl.score}\n{lvl.description}\n" + "\n".join(lvl.examples)
+            for lvl in permuted_levels
+        )
+        return permuted_body
