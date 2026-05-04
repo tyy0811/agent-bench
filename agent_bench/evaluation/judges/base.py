@@ -240,3 +240,41 @@ class Judge(ABC):
         retryable errors raise (caller bug, not noise).
         """
         ...
+
+
+class MockJudge(Judge):
+    """Pre-baked-verdict judge for deterministic tests. No API calls.
+
+    Constructor takes verdicts: dict[item_id, ScoreResult]. score()
+    raises LookupError on missing keys — never returns a default —
+    so test fixtures are self-checking. A separate fixture-validation
+    test (test_mockjudge_coverage.py) walks item.id across all goldens
+    and asserts every MockJudge instance has coverage for the items
+    its tests reference.
+
+    Mirrors the MockProvider pattern at agent_bench/core/provider.py.
+    """
+
+    def __init__(self, verdicts: dict[str, ScoreResult]) -> None:
+        # MockJudge does not need provider/rubric/model_id; supply
+        # placeholder values so the ABC's __init__ doesn't matter.
+        self.judge_provider = None  # type: ignore[assignment]
+        self.rubric = None  # type: ignore[assignment]
+        self.model_id = "mock"
+        self.judge_id = "mock_judge"
+        self._verdicts = verdicts
+
+    async def score(
+        self,
+        item: "GoldenQuestion",
+        output: "AgentResponse",
+        *,
+        prompt_seed: int = 0,
+    ) -> ScoreResult:
+        if item.id not in self._verdicts:
+            raise LookupError(
+                f"MockJudge has no pre-baked verdict for item_id {item.id!r}; "
+                f"available: {sorted(self._verdicts.keys())[:5]}"
+                + (" ..." if len(self._verdicts) > 5 else "")
+            )
+        return self._verdicts[item.id]

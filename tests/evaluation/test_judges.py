@@ -97,3 +97,80 @@ class TestJudgeABC:
         )
         j = _ConcreteJudge(judge_provider=None, rubric=rubric, model_id="claude-haiku-4-5")  # type: ignore[arg-type]
         assert j.judge_id == "claude-haiku-4-5_groundedness"
+
+
+from agent_bench.evaluation.judges.base import MockJudge
+
+
+class TestMockJudge:
+    def _verdict(self, item_id: str, score: int = 1) -> ScoreResult:
+        return ScoreResult(
+            reasoning=f"prebaked for {item_id}",
+            evidence_quotes=[],
+            score=score,
+            judge_id="mock_groundedness",
+            rubric_version="abc",
+            system_output_hash="def",
+            cost_usd=0.0,
+            latency_ms=0.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_prebaked_verdict(self, monkeypatch):
+        from agent_bench.agents.orchestrator import AgentResponse, SourceReference
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+
+        verdict = self._verdict("item_001", score=1)
+        mj = MockJudge(verdicts={"item_001": verdict})
+
+        item = GoldenQuestion(
+            id="item_001",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        output = AgentResponse(
+            answer="x",
+            sources=[SourceReference(source="a.md")],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await mj.score(item, output)
+        assert result.score == 1
+        assert result.reasoning == "prebaked for item_001"
+
+    @pytest.mark.asyncio
+    async def test_raises_lookuperror_on_missing_key(self):
+        from agent_bench.agents.orchestrator import AgentResponse
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+
+        mj = MockJudge(verdicts={"item_001": self._verdict("item_001")})
+
+        item = GoldenQuestion(
+            id="item_999_NOT_PRESENT",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        output = AgentResponse(
+            answer="x",
+            sources=[],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        with pytest.raises(LookupError, match="item_999_NOT_PRESENT"):
+            await mj.score(item, output)
