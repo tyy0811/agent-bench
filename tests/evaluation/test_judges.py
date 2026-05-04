@@ -363,3 +363,49 @@ class TestCallJudgeWithRetry:
         assert not result.reasoning.startswith(ABSTAIN_REASON_PROVIDER_EXHAUSTED)
         assert not result.reasoning.startswith(ABSTAIN_REASON_SCHEMA_PARSE)
         assert provider.complete.await_count == 1
+
+
+class TestGroundednessJudge:
+    @pytest.mark.asyncio
+    async def test_calls_helper_with_correct_prompt_and_valid_scores(self):
+        from agent_bench.agents.orchestrator import AgentResponse, SourceReference
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.groundedness import GroundednessJudge
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/groundedness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response(_valid_json(1))
+
+        judge = GroundednessJudge(judge_provider=provider, rubric=rubric, model_id="m")
+
+        item = GoldenQuestion(
+            id="k8s_001",
+            question="What does StatefulSet guarantee?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+            source_snippets=["StatefulSet pods receive ordinal indices."],
+        )
+        output = AgentResponse(
+            answer="Ordinal indices.",
+            sources=[SourceReference(source="k8s_statefulset.md")],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+
+        assert result.score == 1
+        assert result.judge_id == "m_groundedness"
+        # Prompt sent must contain the gold snippet and the answer
+        sent_prompt = provider.complete.await_args.args[0][0].content
+        assert "StatefulSet pods receive ordinal indices." in sent_prompt
+        assert "Ordinal indices." in sent_prompt
