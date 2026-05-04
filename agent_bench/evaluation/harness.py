@@ -8,9 +8,13 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from agent_bench.agents.orchestrator import Orchestrator
+from agent_bench.core.config import load_config
 from agent_bench.core.provider import LLMProvider
 from agent_bench.core.types import TokenUsage
-from agent_bench.evaluation.judges.base import ScoreResult
+from agent_bench.evaluation.judges.base import Rubric, ScoreResult
+from agent_bench.evaluation.judges.completeness import CompletenessJudge
+from agent_bench.evaluation.judges.groundedness import GroundednessJudge
+from agent_bench.evaluation.judges.relevance import RelevanceJudge
 from agent_bench.evaluation.metrics import (
     calculator_used_when_expected,
     citation_accuracy,
@@ -21,6 +25,12 @@ from agent_bench.evaluation.metrics import (
     source_presence,
     tool_call_count,
 )
+
+_JUDGE_CLASS_BY_DIMENSION = {
+    "groundedness": GroundednessJudge,
+    "relevance": RelevanceJudge,
+    "completeness": CompletenessJudge,
+}
 
 
 class GoldenQuestion(BaseModel):
@@ -155,24 +165,19 @@ async def run_evaluation(
         # behavior); the q.category != 'out_of_scope' gate is preserved
         # (L2 doesn't apply to refusals — that's L1's job).
         if judge_provider is not None and q.category != "out_of_scope":
-            from agent_bench.core.config import load_config
-            from agent_bench.evaluation.judges.base import Rubric
-            from agent_bench.evaluation.judges.completeness import CompletenessJudge
-            from agent_bench.evaluation.judges.groundedness import GroundednessJudge
-            from agent_bench.evaluation.judges.relevance import RelevanceJudge
-
             cfg = load_config()
             rubric_dir = Path(__file__).resolve().parent / "rubrics"
-            judge_class = {
-                "groundedness": GroundednessJudge,
-                "relevance": RelevanceJudge,
-                "completeness": CompletenessJudge,
-            }
             for dim in cfg.evaluation.judge_dimensions:
-                if dim not in judge_class:
+                if dim not in _JUDGE_CLASS_BY_DIMENSION:
                     continue  # citation_faithfulness opt-in; not in default loop
+                # CompletenessJudge is reference-based on q.reference_answer;
+                # scoring an empty reference is guaranteed-noisy and burns
+                # tokens. Pre-supersession code had the same gate (correctness
+                # was conditional on reference_answer being non-empty).
+                if dim == "completeness" and not q.reference_answer:
+                    continue
                 rubric = Rubric.from_markdown_file(rubric_dir / f"{dim}.md")
-                judge = judge_class[dim](
+                judge = _JUDGE_CLASS_BY_DIMENSION[dim](
                     judge_provider=judge_provider,
                     rubric=rubric,
                     model_id=getattr(judge_provider, "model", "unknown"),

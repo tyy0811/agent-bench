@@ -166,6 +166,96 @@ class TestJury:
             jury(judges=[j1], aggregation="kappa_weighted")
 
     @pytest.mark.asyncio
+    async def test_kappa_weighted_with_equal_weights_matches_mean(self, tmp_path):
+        """Regression for ties-to-lower divergence between mean and
+        kappa_weighted paths. Two judges score [1, 2] with equal weights;
+        weighted mean == 1.5. The mean path returns 1 (ties-to-lower); the
+        kappa_weighted path must also return 1 — banker's rounding would
+        return 2 and silently violate the policy.
+        """
+        from agent_bench.evaluation.variance.jury import jury
+
+        j1 = _relevance_judge_with_responses([_vj(1)])
+        j1.judge_id = "claude-haiku_relevance"
+        j2 = _relevance_judge_with_responses([_vj(2)])
+        j2.judge_id = "gpt-4o-mini_relevance"
+
+        weights = {"claude-haiku_relevance": 1.0, "gpt-4o-mini_relevance": 1.0}
+        ju = jury(
+            judges=[j1, j2],
+            aggregation="kappa_weighted",
+            weights=weights,
+            sidecar_path=tmp_path / "jury.jsonl",
+        )
+        result = await ju.score(_item(), _output())
+        assert result.score == 1, (
+            f"kappa_weighted with equal weights on [1, 2] returned "
+            f"{result.score}; expected 1 (ties-to-lower per "
+            f"_aggregate_scores policy). banker's-rounding bug?"
+        )
+
+    @pytest.mark.asyncio
+    async def test_kappa_weighted_reasoning_reports_applied_weights_not_dict(
+        self, tmp_path
+    ):
+        """Regression: when the weights dict is missing a member's judge_id,
+        the runtime applies 1.0 silently. The reasoning string MUST report
+        the per-member weights actually used (so the fallback is visible),
+        not the constructor's dict (which would conceal it).
+        """
+        from agent_bench.evaluation.variance.jury import jury
+
+        j1 = _relevance_judge_with_responses([_vj(2)])
+        j1.judge_id = "claude-haiku_relevance"
+        j2 = _relevance_judge_with_responses([_vj(2)])
+        j2.judge_id = "gpt-4o-mini_relevance"
+
+        # weights dict only covers j1 — j2 should fall back to 1.0
+        weights = {"claude-haiku_relevance": 5.0}
+        ju = jury(
+            judges=[j1, j2],
+            aggregation="kappa_weighted",
+            weights=weights,
+            sidecar_path=tmp_path / "jury.jsonl",
+        )
+        result = await ju.score(_item(), _output())
+        # Reasoning must surface BOTH applied weights (5.0 and 1.0)
+        assert "5.0" in result.reasoning, (
+            f"applied weight 5.0 missing from reasoning: {result.reasoning!r}"
+        )
+        assert "1.0" in result.reasoning, (
+            f"fallback weight 1.0 missing from reasoning: {result.reasoning!r}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_kappa_weighted_logs_warning_on_missing_weight(self, tmp_path):
+        """Regression: silent 1.0 substitution for a missing judge_id should
+        emit a structlog WARN so the operator notices a contract violation.
+        """
+        import structlog
+
+        from agent_bench.evaluation.variance.jury import jury
+
+        j1 = _relevance_judge_with_responses([_vj(1)])
+        j1.judge_id = "claude-haiku_relevance"
+        j2 = _relevance_judge_with_responses([_vj(1)])
+        j2.judge_id = "gpt-4o-mini_relevance"
+
+        weights = {"claude-haiku_relevance": 1.0}  # j2 missing
+        ju = jury(
+            judges=[j1, j2],
+            aggregation="kappa_weighted",
+            weights=weights,
+            sidecar_path=tmp_path / "jury.jsonl",
+        )
+        with structlog.testing.capture_logs() as logs:
+            await ju.score(_item(), _output())
+        assert any(
+            entry.get("event") == "jury_missing_weight_fallback_to_one"
+            for entry in logs
+        ), f"no missing-weight warning in {logs!r}"
+
+    @pytest.mark.asyncio
     async def test_cancel_on_non_retryable(self, tmp_path):
         """Non-retryable exception in any member must propagate immediately."""
         from agent_bench.evaluation.judges.base import Rubric

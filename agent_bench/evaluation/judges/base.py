@@ -77,6 +77,22 @@ class ScoreResult(BaseModel):
         return self.score == "Unknown"
 
 
+_FENCE_PATTERN = re.compile(r"^```[^\n]*\n.*?^```\n?", re.MULTILINE | re.DOTALL)
+
+
+def _mask_code_fences(text: str) -> str:
+    """Replace fenced code blocks (``` ... ```) with same-length whitespace,
+    preserving newlines so byte offsets align with the original. Used by
+    the rubric loader to skip fenced ``## Score N`` literals when scanning
+    for structural level headers.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        return "".join("\n" if c == "\n" else " " for c in match.group(0))
+
+    return _FENCE_PATTERN.sub(_replace, text)
+
+
 class RubricLevel(BaseModel):
     """One score level in a rubric, with anchored examples.
 
@@ -150,14 +166,25 @@ class Rubric(BaseModel):
                 f"must be 'binary' or 'three_point'"
             )
 
-        # Parse levels by ## Score N headers
+        # Parse levels by ## Score N headers. Mask fenced code blocks first
+        # so a literal "## Score N" inside an example's code fence is not
+        # interpreted as a structural level header. The mask preserves byte
+        # offsets (replacing non-newline chars with spaces) so we can slice
+        # the original `body_no_fm` at the masked-text header positions to
+        # recover level bodies with their fenced content intact.
         body_no_fm = fm_match.group(2)
-        level_pattern = re.compile(
-            r"^## Score (\d+)\n(.*?)(?=^## Score |\Z)", re.MULTILINE | re.DOTALL
-        )
-        raw_levels: list[tuple[int, str]] = [
-            (int(m.group(1)), m.group(2)) for m in level_pattern.finditer(body_no_fm)
-        ]
+        masked_body = _mask_code_fences(body_no_fm)
+        header_pattern = re.compile(r"^## Score (\d+)\n", re.MULTILINE)
+        header_matches = list(header_pattern.finditer(masked_body))
+        raw_levels: list[tuple[int, str]] = []
+        for i, m in enumerate(header_matches):
+            start = m.end()
+            end = (
+                header_matches[i + 1].start()
+                if i + 1 < len(header_matches)
+                else len(body_no_fm)
+            )
+            raw_levels.append((int(m.group(1)), body_no_fm[start:end]))
 
         expected_arity = 2 if scale == "binary" else 3
         if len(raw_levels) != expected_arity:

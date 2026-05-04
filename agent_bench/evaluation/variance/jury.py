@@ -6,6 +6,8 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+import structlog
+
 from agent_bench.evaluation.judges.base import Judge, ScoreResult
 from agent_bench.evaluation.variance.rubric_permute import _aggregate_scores
 
@@ -14,6 +16,21 @@ if TYPE_CHECKING:
     from agent_bench.evaluation.harness import GoldenQuestion
 
 _DEFAULT_SIDECAR_TEMPLATE = "results/calibration_v1_judge_{aggregation}_members.jsonl"
+
+logger = structlog.get_logger()
+
+
+def _discretize_mean(mean: float, scale: str) -> int:
+    """Discretize a float mean to a discrete level per scale, ties → lower
+    (mirrors `_aggregate_scores`'s policy without going through int(round())
+    which would invoke Python's banker's rounding and silently violate the
+    tie-breaking contract).
+    """
+    if scale == "binary":
+        return 1 if mean > 0.5 else 0
+    floor = int(mean)
+    frac = mean - floor
+    return floor + 1 if frac > 0.5 else floor
 
 
 class Jury:
@@ -94,21 +111,38 @@ class Jury:
         # Aggregate over successful members
         scores = [int(r.score) for r in successful]
         scale = self.judges[0].rubric.scale
+        applied_weights: list[float] = []
         if self.aggregation == "mean":
             agg = _aggregate_scores(scores, scale)
         else:  # kappa_weighted
-            # Weight successful members by judge_id; missing weights → 1.0 (mean fallback)
-            ws = [self.weights.get(r.judge_id, 1.0) for r in successful]
-            weighted_sum = sum(s * w for s, w in zip(scores, ws))
-            weight_total = sum(ws)
-            mean = weighted_sum / weight_total if weight_total > 0 else 0.0
-            agg = _aggregate_scores([int(round(mean))], scale)
+            # Weight successful members by judge_id; missing weights → 1.0
+            # (mean fallback). Warn loudly when this fallback fires —
+            # `kappa_weighted` is supposed to use explicit weights, and
+            # silently substituting 1.0 violates that contract.
+            for r in successful:
+                if r.judge_id not in self.weights:
+                    logger.warning(
+                        "jury_missing_weight_fallback_to_one",
+                        judge_id=r.judge_id,
+                        aggregation=self.aggregation,
+                        configured_weights=sorted(self.weights.keys()),
+                    )
+                applied_weights.append(self.weights.get(r.judge_id, 1.0))
+            weighted_sum = sum(s * w for s, w in zip(scores, applied_weights))
+            weight_total = sum(applied_weights)
+            weighted_mean = (
+                weighted_sum / weight_total if weight_total > 0 else 0.0
+            )
+            # Discretize via the shared ties-to-lower policy (NOT int(round())
+            # which uses banker's rounding and would diverge from the `mean`
+            # path on half-integer aggregates).
+            agg = _discretize_mean(weighted_mean, scale)
 
-        weights_str = (
-            list(self.weights.values())
-            if self.aggregation == "kappa_weighted"
-            else "n/a"
-        )
+        # Reasoning string reports the per-member weights actually applied
+        # (not the constructor's dict — the dict may be missing entries that
+        # silently fell back to 1.0; printing the constructor's dict would
+        # conceal that fallback from anyone debugging a calibration row).
+        weights_str = applied_weights if self.aggregation == "kappa_weighted" else "n/a"
         return ScoreResult(
             reasoning=(
                 f"jury_{self.aggregation}: "

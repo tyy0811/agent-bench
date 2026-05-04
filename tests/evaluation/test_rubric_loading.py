@@ -26,6 +26,21 @@ class TestRubricLoading:
         assert r.scale == "three_point"
         assert len(r.levels) == 3
 
+    def test_fenced_code_examples_do_not_break_level_count(self):
+        """Regression: the level-pattern regex must skip ``## Score N`` strings
+        that appear inside fenced code blocks. A binary rubric whose
+        Example A contains a code-fenced ``## Score 7`` literal should still
+        load as a 2-level binary rubric, not be rejected with arity mismatch.
+        """
+        r = Rubric.from_markdown_file(
+            FIXTURES / "rubrics_valid_with_fenced_examples.md"
+        )
+        assert r.dimension == "groundedness"
+        assert r.scale == "binary"
+        assert len(r.levels) == 2, (
+            f"fenced ## Score 7 leaked into level count; got {len(r.levels)} levels"
+        )
+
 
 class TestRubricValidationErrors:
     @pytest.mark.parametrize(
