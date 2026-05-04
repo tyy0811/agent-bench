@@ -52,15 +52,66 @@ def _resolve_concurrency(cli_value: int | None) -> int:
 # --- Subcommand: generate-outputs (Step A) ---
 
 
+def _build_corpus_orchestrator(cfg, corpus_name: str, embedder, provider):
+    """Build a per-corpus Orchestrator wired to that corpus's HybridStore.
+
+    Mirrors the per-corpus construction in scripts/evaluate.py so calibration
+    runs use the same retrieval stack as production evaluation. The embedder
+    and provider are shared across corpora — only the store/retriever/
+    SearchTool differ.
+    """
+    from agent_bench.agents.orchestrator import Orchestrator
+    from agent_bench.rag.retriever import Retriever
+    from agent_bench.rag.store import HybridStore
+    from agent_bench.tools.calculator import CalculatorTool
+    from agent_bench.tools.registry import ToolRegistry
+    from agent_bench.tools.search import SearchTool
+
+    corpus_cfg = cfg.corpora[corpus_name]
+    store = HybridStore.load(corpus_cfg.store_path, rrf_k=cfg.rag.retrieval.rrf_k)
+    reranker = None
+    if cfg.rag.reranker.enabled:
+        from agent_bench.rag.reranker import CrossEncoderReranker
+
+        reranker = CrossEncoderReranker(model_name=cfg.rag.reranker.model_name)
+    retriever = Retriever(
+        embedder=embedder,
+        store=store,
+        default_strategy=cfg.rag.retrieval.strategy,
+        candidates_per_system=cfg.rag.retrieval.candidates_per_system,
+        reranker=reranker,
+        reranker_top_k=cfg.rag.reranker.top_k,
+    )
+    registry = ToolRegistry()
+    registry.register(
+        SearchTool(
+            retriever=retriever,
+            default_top_k=cfg.rag.retrieval.top_k,
+            refusal_threshold=corpus_cfg.refusal_threshold,
+        )
+    )
+    registry.register(CalculatorTool())
+    return Orchestrator(
+        provider=provider,
+        registry=registry,
+        max_iterations=cfg.agent.max_iterations,
+        temperature=cfg.agent.temperature,
+    )
+
+
 async def cmd_generate_outputs(concurrency: int) -> None:
     """Run the orchestrator against the 30 calibration items with a frozen
     configuration; write results/calibration_v1_system_outputs.json.
+
+    The calibration spec is mixed-corpus (k8s + fastapi). Each item carries a
+    `corpus` field; we build one Orchestrator per corpus and route by that
+    field. A KeyError on an unrecognized corpus is preferable to silently
+    misrouting an item to the wrong store.
     """
-    from agent_bench.agents.orchestrator import Orchestrator
     from agent_bench.core.config import load_config
     from agent_bench.core.provider import AnthropicProvider
     from agent_bench.evaluation.harness import load_golden_dataset
-    from agent_bench.tools.registry import build_default_registry
+    from agent_bench.rag.embedder import Embedder
 
     spec = json.loads(CALIBRATION_SPEC.read_text())
     target_ids = {i["id"]: i for i in spec["items"]}
@@ -80,14 +131,33 @@ async def cmd_generate_outputs(concurrency: int) -> None:
 
     cfg = load_config()
     provider = AnthropicProvider(cfg)
-    registry = build_default_registry(cfg)
-    orchestrator = Orchestrator(provider=provider, registry=registry)
+    embedder = Embedder(model_name=cfg.embedding.model, cache_dir=cfg.embedding.cache_dir)
+
+    item_corpus = {it.id: target_ids[it.id]["corpus"] for it in items}
+    unknown: dict[str, list[str]] = {}
+    for it_id, corpus in item_corpus.items():
+        if corpus not in cfg.corpora:
+            unknown.setdefault(corpus, []).append(it_id)
+    if unknown:
+        examples = "; ".join(
+            f"{cor!r}: {sorted(ids)[:3]}" for cor, ids in sorted(unknown.items())
+        )
+        raise KeyError(
+            f"calibration spec references corpora not in cfg.corpora — "
+            f"{examples}; configured corpora: {sorted(cfg.corpora)!r}"
+        )
+
+    corpora_needed = sorted(set(item_corpus.values()))
+    orchestrators = {
+        name: _build_corpus_orchestrator(cfg, name, embedder, provider)
+        for name in corpora_needed
+    }
 
     sem = asyncio.Semaphore(concurrency)
 
     async def _run_one(item):
         async with sem:
-            response = await orchestrator.run(
+            response = await orchestrators[item_corpus[item.id]].run(
                 question=item.question,
                 system_prompt="You are a helpful assistant.",
             )
