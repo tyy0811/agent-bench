@@ -61,6 +61,18 @@ class TestGwetsAC2HandComputed:
         assert -1.0 <= result <= 1.0
         assert result > 0
 
+    def test_weighted_variant_raises_not_implemented(self):
+        """v1 ships unweighted AC1 only. Weighted AC2 has multiple
+        inconsistent literature definitions; without a fixture to pin
+        the formula choice, shipping silently is a methodology hazard.
+        """
+        y1 = [0, 1, 2, 0, 1, 2]
+        y2 = [0, 1, 2, 1, 1, 2]
+        with pytest.raises(NotImplementedError, match=r"[Ww]eighted Gwet"):
+            gwets_ac2(y1, y2, weights="linear")  # type: ignore[arg-type]
+        with pytest.raises(NotImplementedError, match=r"[Ww]eighted Gwet"):
+            gwets_ac2(y1, y2, weights="quadratic")  # type: ignore[arg-type]
+
 
 class TestBootstrapCI:
     def test_returns_point_lo_hi_tuple(self):

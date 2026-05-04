@@ -623,3 +623,103 @@ class TestCitationFaithfulnessJudge:
         assert result.score == 1
         # No provider calls when no citations
         assert provider.complete.await_count == 0
+
+    @pytest.mark.asyncio
+    async def test_leading_citation_empty_claim_vacuously_faithful(self):
+        """Regression: when the answer starts with a citation (no prior
+        sentence), the extractor produces an empty claim. The judge must
+        not burn an API call on empty content; treat as vacuously faithful.
+        """
+        from agent_bench.agents.orchestrator import AgentResponse, SourceReference
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.citation_faithfulness import (
+            CitationFaithfulnessJudge,
+        )
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/citation_faithfulness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        judge = CitationFaithfulnessJudge(
+            judge_provider=provider, rubric=rubric, model_id="m"
+        )
+        item = GoldenQuestion(
+            id="i1",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        # Answer starts with a citation — no prior content
+        output = AgentResponse(
+            answer="[source: a.md] No prior content.",
+            sources=[SourceReference(source="a.md")],
+            source_chunks=["chunk a"],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        result = await judge.score(item, output)
+        # Empty-claim pair → vacuously faithful, no API call
+        assert result.score == 1
+        assert provider.complete.await_count == 0
+
+    @pytest.mark.asyncio
+    async def test_duplicate_source_warns_about_lossy_lookup(self):
+        """Regression: source_to_chunk uses dict.setdefault, so when the
+        same source name appears multiple times with distinct chunks, only
+        the first chunk is associated with the name. Warn the operator.
+        """
+        import structlog
+
+        from agent_bench.agents.orchestrator import AgentResponse, SourceReference
+        from agent_bench.core.types import TokenUsage
+        from agent_bench.evaluation.harness import GoldenQuestion
+        from agent_bench.evaluation.judges.base import Rubric
+        from agent_bench.evaluation.judges.citation_faithfulness import (
+            CitationFaithfulnessJudge,
+        )
+
+        rubric = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/citation_faithfulness.md"
+        )
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response(_valid_json(1))
+        judge = CitationFaithfulnessJudge(
+            judge_provider=provider, rubric=rubric, model_id="m"
+        )
+        item = GoldenQuestion(
+            id="i1",
+            question="?",
+            expected_answer_keywords=[],
+            expected_sources=[],
+            category="retrieval",
+            difficulty="easy",
+            requires_calculator=False,
+        )
+        # Same source name twice with distinct chunks → lossy lookup
+        output = AgentResponse(
+            answer="A claim here. [source: a.md]",
+            sources=[
+                SourceReference(source="a.md"),
+                SourceReference(source="a.md"),
+            ],
+            source_chunks=["chunk one", "chunk two"],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0
+            ),
+            latency_ms=0,
+        )
+        with structlog.testing.capture_logs() as logs:
+            await judge.score(item, output)
+        assert any(
+            entry.get("event") == "citation_faithfulness_lossy_source_lookup"
+            for entry in logs
+        ), f"no lossy-lookup warning in {logs!r}"

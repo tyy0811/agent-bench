@@ -182,6 +182,46 @@ class TestAbstainRateFlag:
         assert "schema parse" in text
 
 
+class TestSidecarSkipped:
+    def test_members_json_sidecar_excluded_from_table(self, tmp_path):
+        """Regression: per-member sidecar files (matching '_members.*' in
+        basename) must not contaminate the κ table even when their extension
+        matches the predictions glob. The contract is keyed off the basename
+        marker, not the extension.
+        """
+        # Real prediction file
+        preds = [_pred("i1", "groundedness", 1)]
+        labels = [_lbl("i1", "groundedness", 1)]
+        _write_predictions(
+            tmp_path / "results" / "calibration_v1_judge_baseline.json", preds
+        )
+
+        # Hypothetical sidecar file that happens to end in .json (would
+        # normally be .jsonl but the contract should not depend on that).
+        # If the report didn't skip this file, the per-member records inside
+        # would be parsed as aggregate predictions and skew the κ stats.
+        sidecar_pred_shape = [_pred("i1", "groundedness", 0)]  # opposite score
+        _write_predictions(
+            tmp_path / "results" / "calibration_v1_judge_jury_members.json",
+            sidecar_pred_shape,
+        )
+
+        _write_labels(tmp_path / "labels.jsonl", labels)
+        out = tmp_path / "kappa.md"
+        generate_kappa_table(
+            predictions_glob=str(
+                tmp_path / "results" / "calibration_v1_judge_*.json"
+            ),
+            labels_path=str(tmp_path / "labels.jsonl"),
+            output_path=str(out),
+        )
+        text = out.read_text()
+        # Aggregate row from baseline.json should appear; sidecar's "jury_members"
+        # label should NOT appear as a row in the table.
+        assert "baseline" in text
+        assert "jury_members" not in text
+
+
 class TestKappaUndefined:
     def test_renders_dash_with_footnote(self, tmp_path):
         # All same label → degenerate; report renders ' — '

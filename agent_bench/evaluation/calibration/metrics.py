@@ -83,14 +83,30 @@ def cohen_kappa(
 def gwets_ac2(
     y1: list,
     y2: list,
-    weights: Literal[None, "linear", "quadratic"] = None,
+    weights: Literal[None] = None,
 ) -> float:
-    """Gwet's AC2 — chance-corrected agreement using mean marginals.
+    """Gwet's AC1 — chance-corrected agreement using mean marginals.
 
-    AC2 = (P_o - P_e_AC2) / (1 - P_e_AC2)
-    where P_e_AC2 = (1/(q-1)) * Σ p_k * (1 - p_k)
-    and p_k is the mean marginal probability for category k.
+    AC1 = (P_o - P_e) / (1 - P_e)
+    where P_e = (1/(q-1)) * Σ pi_k * (1 - pi_k)
+    and pi_k is the mean marginal probability for category k.
+
+    Despite the function name, v1 only supports the *unweighted* (AC1)
+    formula. The weighted AC2 variant has multiple inconsistent definitions
+    in the literature (Gwet 2008 vs Gwet 2014); without a sklearn analogue
+    to cross-check against (sklearn ships κ but not AC1/AC2), shipping a
+    weighted formula without a fixture is a methodology hazard. Pass
+    weights=None or omit; passing 'linear' or 'quadratic' raises
+    NotImplementedError. Fix the formula + fixture in v1.1 (out of scope
+    per the design's Out-of-Scope section).
     """
+    if weights is not None:
+        raise NotImplementedError(
+            "Weighted Gwet's AC2 is not implemented in v1. The unweighted "
+            "AC1 formula is correct and tested; the weighted variant has "
+            "literature inconsistency that needs a pinned fixture before "
+            "shipping. Pass weights=None or use cohen_kappa(weights=...)."
+        )
     if len(y1) != len(y2):
         raise ValueError("y1 and y2 length mismatch")
     if not y1:
@@ -105,26 +121,7 @@ def gwets_ac2(
         cm[label_idx[a]][label_idx[b]] += 1
     n = len(y1)
 
-    if weights is None:
-        w = [[1.0 if i == j else 0.0 for j in range(k)] for i in range(k)]
-    elif weights == "linear":
-        if k <= 1:
-            w = [[1.0]]
-        else:
-            w = [
-                [1.0 - abs(i - j) / (k - 1) for j in range(k)] for i in range(k)
-            ]
-    elif weights == "quadratic":
-        if k <= 1:
-            w = [[1.0]]
-        else:
-            w = [
-                [1.0 - ((i - j) / (k - 1)) ** 2 for j in range(k)] for i in range(k)
-            ]
-    else:
-        raise ValueError(f"Invalid weights {weights!r}")
-
-    p_o = sum(w[i][j] * cm[i][j] for i in range(k) for j in range(k)) / n
+    p_o = sum(cm[i][i] for i in range(k)) / n  # diagonal sum (unweighted)
 
     row_marg = [sum(cm[i][j] for j in range(k)) / n for i in range(k)]
     col_marg = [sum(cm[i][j] for i in range(k)) / n for j in range(k)]
@@ -132,15 +129,12 @@ def gwets_ac2(
 
     if k <= 1:
         return 1.0
-    # Gwet's chance term: P_e = (1/(q-1)) * Σ pi_k * (1 - pi_k)
-    # (the standard AC1 formula on mean marginals; weighted variant is
-    # achieved by passing weights to P_o while keeping the unweighted
-    # chance term — sufficient for v1's binary/three-point use).
-    p_e_ac2 = sum(pi[i] * (1 - pi[i]) for i in range(k)) / (k - 1)
+    # AC1 chance term: (1/(q-1)) * Σ pi_k * (1 - pi_k)
+    p_e_ac1 = sum(pi[i] * (1 - pi[i]) for i in range(k)) / (k - 1)
 
-    if p_e_ac2 >= 1.0:
+    if p_e_ac1 >= 1.0:
         return 1.0
-    return (p_o - p_e_ac2) / (1.0 - p_e_ac2)
+    return (p_o - p_e_ac1) / (1.0 - p_e_ac1)
 
 
 def bootstrap_ci(

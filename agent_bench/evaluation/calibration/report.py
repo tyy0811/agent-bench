@@ -23,6 +23,12 @@ logger = structlog.get_logger()
 
 ABSTAIN_THRESHOLD = 0.20  # strictly greater than fires the flag
 
+# Filename marker for jury / permute sidecar files. Any prediction file whose
+# basename contains this token is per-member detail, not aggregate predictions,
+# and is excluded from the κ table. Pinned here so a future extension change
+# (jsonl → json) is caught at the contract site rather than at report time.
+_SIDECAR_BASENAME_MARKER = "_members."
+
 
 def _classify_abstain(reasoning: str) -> str:
     if reasoning.startswith(ABSTAIN_REASON_PROVIDER_EXHAUSTED):
@@ -67,8 +73,11 @@ def generate_kappa_table(
 
     rows: list[dict] = []
     for pf in pred_files:
-        # Skip sidecar JSONLs (per-member detail, not aggregate predictions)
-        if pf.endswith("_members.jsonl"):
+        # Skip sidecars (per-member detail, not aggregate predictions).
+        # Match the basename marker, not a specific extension, so a future
+        # jsonl → json migration of jury._DEFAULT_SIDECAR_TEMPLATE doesn't
+        # silently start contaminating the κ table.
+        if _SIDECAR_BASENAME_MARKER in Path(pf).name:
             continue
         row_label = (
             Path(pf).stem.replace("calibration_v1_judge_", "")

@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+import structlog
+
 from agent_bench.evaluation.judges.base import (
     Judge,
     ScoreResult,
@@ -15,6 +17,8 @@ from agent_bench.evaluation.judges.groundedness import _system_output_hash
 if TYPE_CHECKING:
     from agent_bench.agents.orchestrator import AgentResponse
     from agent_bench.evaluation.harness import GoldenQuestion
+
+logger = structlog.get_logger()
 
 _CITATION_PATTERN = re.compile(r"\[source:\s*([^\]]+)\]")
 
@@ -66,7 +70,29 @@ class CitationFaithfulnessJudge(Judge):
     ) -> ScoreResult:
         pairs = _extract_claims_with_citations(output.answer)
         # Map cited source name to its retrieved chunk text via output.source_chunks
-        # (assumes index alignment with output.sources, matching harness convention)
+        # (assumes index alignment with output.sources, matching harness
+        # convention). If the same source appears multiple times in the
+        # sources list with distinct chunks (legitimate when multiple
+        # retrievals match the same doc), `setdefault` keeps only the first
+        # — every "[source: X]" claim then evaluates against that one chunk,
+        # a false-failure risk. Warn so the operator notices.
+        source_names = [s.source for s in output.sources]
+        if len(set(source_names)) < len(source_names):
+            from collections import Counter
+
+            duplicates = sorted(
+                name for name, n in Counter(source_names).items() if n > 1
+            )
+            logger.warning(
+                "citation_faithfulness_lossy_source_lookup",
+                item_id=item.id,
+                duplicate_source_names=duplicates,
+                detail=(
+                    "source name appears multiple times in output.sources "
+                    "with distinct chunks; only the first chunk will be "
+                    "associated with the name during citation evaluation."
+                ),
+            )
         source_to_chunk: dict[str, str] = {}
         for src_ref, chunk in zip(output.sources, output.source_chunks):
             source_to_chunk.setdefault(src_ref.source, chunk)
@@ -93,6 +119,26 @@ class CitationFaithfulnessJudge(Judge):
         accumulated_latency = 0.0
         any_unfaithful = False
         for claim, cited in pairs:
+            # Empty claim → leading-citation case (e.g., answer starts with
+            # "[source: a.md] ..." with no prior content). There is no claim
+            # to evaluate against the chunk; the well-defined verdict is
+            # vacuously faithful. Skip the API call; record a synthetic
+            # ScoreResult so per-pair detail still appears in evidence_quotes.
+            if not claim:
+                per_pair_results.append(
+                    ScoreResult(
+                        reasoning="empty_claim_vacuously_faithful",
+                        evidence_quotes=[],
+                        score=1,
+                        judge_id=self.judge_id,
+                        rubric_version=self.rubric.source_hash,
+                        prompt_seed=prompt_seed,
+                        system_output_hash=sys_hash,
+                        cost_usd=0.0,
+                        latency_ms=0.0,
+                    )
+                )
+                continue
             chunk = source_to_chunk.get(cited, "")
             prompt = (
                 f"{self.rubric.render_prompt(level_permutation_seed=prompt_seed)}\n\n"

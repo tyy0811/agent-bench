@@ -200,23 +200,46 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
     cfg = load_config()
     sem = asyncio.Semaphore(concurrency)
     all_results: list[dict] = []
+    strategy = row["strategy"]
 
-    for dim in row["dimensions"]:
-        if row["strategy"] == "single":
-            judge = _make_judge(row["provider"], row["model_id"], dim, cfg)
+    def _skip_oos(rec: dict, dim: str) -> bool:
+        return rec["category"] == "out_of_scope" and dim != "relevance"
 
-            async def score_one(rec, _judge=judge, _dim=dim):
-                async with sem:
-                    if rec["category"] == "out_of_scope" and _dim != "relevance":
-                        return None
-                    item, output = _build_item_and_output(rec)
-                    result = await _judge.score(item, output)
-                    return {"dimension": _dim, **result.model_dump()}
+    if strategy == "single":
+        # Build one judge per dimension up-front, then gather all
+        # (dim, item) pairs in a single asyncio.gather call. Previous
+        # design serialized across dimensions (each dim awaited fully
+        # before the next started), leaving Phase-11 wall-clock on the
+        # table when the calibration spend is API-rate-limited.
+        judges_by_dim = {
+            dim: _make_judge(row["provider"], row["model_id"], dim, cfg)
+            for dim in row["dimensions"]
+        }
 
-            row_results = await asyncio.gather(*[score_one(r) for r in outputs])
-            all_results.extend([r for r in row_results if r is not None])
+        async def score_one(rec: dict, dim: str, judge):
+            async with sem:
+                if _skip_oos(rec, dim):
+                    return None
+                item, output = _build_item_and_output(rec)
+                result = await judge.score(item, output)
+                return {"dimension": dim, **result.model_dump()}
 
-        elif row["strategy"] == "rubric_permute":
+        coros = [
+            score_one(rec, dim, judge)
+            for dim, judge in judges_by_dim.items()
+            for rec in outputs
+        ]
+        gathered = await asyncio.gather(*coros)
+        all_results.extend([r for r in gathered if r is not None])
+
+    elif strategy == "rubric_permute":
+        # Sequential per-item by design: PermutedJudge writes to the
+        # sidecar JSONL with append mode and within-call ordering matters
+        # for downstream per-permutation analysis (the kappa_table joins
+        # by item_id but the sidecar order encodes the permutation seed
+        # sequence). Across-dim parallelism is left for v1.1 once the
+        # sidecar contract proves stable.
+        for dim in row["dimensions"]:
             judge = _make_judge(row["provider"], row["model_id"], dim, cfg)
             sidecar = REPO / row.get(
                 "sidecar_path", "results/calibration_v1_permute_members.jsonl"
@@ -228,13 +251,19 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
                 sidecar_path=sidecar,
             )
             for rec in outputs:
-                if rec["category"] == "out_of_scope" and dim != "relevance":
+                if _skip_oos(rec, dim):
                     continue
                 item, output = _build_item_and_output(rec)
                 result = await permuted.score(item, output)
                 all_results.append({"dimension": dim, **result.model_dump()})
 
-        elif row["strategy"] == "jury":
+    elif strategy == "jury":
+        # Same sequential rationale as rubric_permute: jury writes a
+        # per-member sidecar and downstream analysis benefits from stable
+        # ordering. The asyncio.gather inside Jury.score does parallelize
+        # member calls within an item; the across-item / across-dim
+        # serialization is the conservative choice.
+        for dim in row["dimensions"]:
             members = [
                 _make_judge(m["provider"], m["model_id"], dim, cfg)
                 for m in row["members"]
@@ -253,13 +282,13 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
                 sidecar_path=sidecar,
             )
             for rec in outputs:
-                if rec["category"] == "out_of_scope" and dim != "relevance":
+                if _skip_oos(rec, dim):
                     continue
                 item, output = _build_item_and_output(rec)
                 result = await j.score(item, output)
                 all_results.append({"dimension": dim, **result.model_dump()})
-        else:
-            raise SystemExit(f"unknown strategy: {row['strategy']}")
+    else:
+        raise SystemExit(f"unknown strategy: {strategy}")
 
     out_path = REPO / row["output_path"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
