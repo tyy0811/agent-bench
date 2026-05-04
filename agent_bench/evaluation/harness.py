@@ -82,7 +82,11 @@ class EvalResult(BaseModel):
     answer: str = ""
     retrieved_sources: list[str] = []
     # New in judge-layer v1: per-dimension judge scores. Empty when no
-    # judge_provider configured or item.category == "out_of_scope".
+    # judge_provider is configured. With a provider, OOS items receive
+    # relevance only (refusal-vs-engagement is the L2 signal worth
+    # measuring); reference-based dimensions (groundedness, completeness)
+    # are skipped on OOS. Completeness is also skipped when
+    # reference_answer is empty regardless of category.
     judge_scores: dict[str, ScoreResult] = Field(default_factory=dict)
 
 
