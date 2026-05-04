@@ -174,3 +174,192 @@ class TestMockJudge:
         )
         with pytest.raises(LookupError, match="item_999_NOT_PRESENT"):
             await mj.score(item, output)
+
+
+import json
+from unittest.mock import AsyncMock
+
+from agent_bench.core.provider import (
+    LLMProvider,
+    ProviderRateLimitError,
+)
+from agent_bench.core.types import CompletionResponse, TokenUsage
+from agent_bench.evaluation.judges.base import _call_judge_with_retry
+
+
+def _mk_response(content: str) -> CompletionResponse:
+    return CompletionResponse(
+        content=content,
+        tool_calls=[],
+        usage=TokenUsage(input_tokens=10, output_tokens=10, estimated_cost_usd=0.0001),
+        provider="mock",
+        model="mock-1",
+        latency_ms=1.0,
+    )
+
+
+def _valid_json(score: int) -> str:
+    return json.dumps(
+        {
+            "reasoning": "test reasoning",
+            "evidence_quotes": ["q1"],
+            "score": score,
+        }
+    )
+
+
+class TestCallJudgeWithRetry:
+    @pytest.mark.asyncio
+    async def test_first_attempt_success(self):
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response(_valid_json(1))
+
+        result = await _call_judge_with_retry(
+            provider=provider,
+            prompt="test prompt",
+            valid_scores={0, 1},
+            judge_id="claude-haiku-4-5_groundedness",
+            rubric_version="abc",
+            prompt_seed=0,
+            system_output_hash="def",
+            item_id="item_001",
+        )
+        assert result.score == 1
+        assert provider.complete.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_schema_parse_then_retry_success(self):
+        import structlog
+
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = [
+            _mk_response("not json at all"),
+            _mk_response(_valid_json(0)),
+        ]
+
+        with structlog.testing.capture_logs() as logs:
+            result = await _call_judge_with_retry(
+                provider=provider,
+                prompt="test prompt",
+                valid_scores={0, 1},
+                judge_id="claude-haiku-4-5_groundedness",
+                rubric_version="abc",
+                prompt_seed=0,
+                system_output_hash="def",
+                item_id="item_001",
+            )
+        assert result.score == 0
+        assert provider.complete.await_count == 2
+        # First-attempt-failure log must have fired even though retry succeeded
+        assert any(
+            entry.get("event") == "judge_first_attempt_failure" for entry in logs
+        ), f"no judge_first_attempt_failure log in {logs!r}"
+
+    @pytest.mark.asyncio
+    async def test_schema_parse_twice_abstains_with_prefix(self):
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = [
+            _mk_response("garbage"),
+            _mk_response("also garbage"),
+        ]
+
+        result = await _call_judge_with_retry(
+            provider=provider,
+            prompt="test prompt",
+            valid_scores={0, 1},
+            judge_id="claude-haiku-4-5_groundedness",
+            rubric_version="abc",
+            prompt_seed=0,
+            system_output_hash="def",
+            item_id="item_001",
+        )
+        assert result.abstained
+        assert result.reasoning.startswith(ABSTAIN_REASON_SCHEMA_PARSE)
+
+    @pytest.mark.asyncio
+    async def test_score_out_of_range_twice_abstains_with_prefix(self):
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = [
+            _mk_response(_valid_json(5)),
+            _mk_response(_valid_json(7)),
+        ]
+
+        result = await _call_judge_with_retry(
+            provider=provider,
+            prompt="test prompt",
+            valid_scores={0, 1},
+            judge_id="claude-haiku-4-5_groundedness",
+            rubric_version="abc",
+            prompt_seed=0,
+            system_output_hash="def",
+            item_id="item_001",
+        )
+        assert result.abstained
+        assert result.reasoning.startswith(ABSTAIN_REASON_OUT_OF_RANGE)
+
+    @pytest.mark.asyncio
+    async def test_provider_rate_limit_abstains_with_prefix(self):
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = ProviderRateLimitError("exhausted")
+
+        result = await _call_judge_with_retry(
+            provider=provider,
+            prompt="test prompt",
+            valid_scores={0, 1},
+            judge_id="claude-haiku-4-5_groundedness",
+            rubric_version="abc",
+            prompt_seed=0,
+            system_output_hash="def",
+            item_id="item_001",
+        )
+        assert result.abstained
+        assert result.reasoning.startswith(ABSTAIN_REASON_PROVIDER_EXHAUSTED)
+
+    @pytest.mark.asyncio
+    async def test_unknown_exception_reraises(self):
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.side_effect = ValueError("caller bug")
+
+        with pytest.raises(ValueError, match="caller bug"):
+            await _call_judge_with_retry(
+                provider=provider,
+                prompt="test prompt",
+                valid_scores={0, 1},
+                judge_id="x",
+                rubric_version="abc",
+                prompt_seed=0,
+                system_output_hash="def",
+                item_id="item_001",
+            )
+
+    @pytest.mark.asyncio
+    async def test_genuine_unknown_score_passes_through(self):
+        # Rubric allows abstain — model returns "Unknown" — no retry, no prefix
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response(
+            json.dumps(
+                {
+                    "reasoning": "genuinely uncertain",
+                    "evidence_quotes": [],
+                    "score": "Unknown",
+                }
+            )
+        )
+
+        result = await _call_judge_with_retry(
+            provider=provider,
+            prompt="test prompt",
+            valid_scores={0, 1},
+            judge_id="x",
+            rubric_version="abc",
+            prompt_seed=0,
+            system_output_hash="def",
+            item_id="item_001",
+            abstain_allowed=True,
+        )
+        assert result.abstained
+        assert result.reasoning == "genuinely uncertain"
+        # No structured prefix on genuine abstain
+        assert not result.reasoning.startswith(ABSTAIN_REASON_PROVIDER_EXHAUSTED)
+        assert not result.reasoning.startswith(ABSTAIN_REASON_SCHEMA_PARSE)
+        assert provider.complete.await_count == 1

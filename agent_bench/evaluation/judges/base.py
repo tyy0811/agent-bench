@@ -278,3 +278,210 @@ class MockJudge(Judge):
                 + (" ..." if len(self._verdicts) > 5 else "")
             )
         return self._verdicts[item.id]
+
+
+# --- _call_judge_with_retry helper ---
+
+import json as _json
+import time
+
+import structlog
+
+from agent_bench.core.provider import (
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+)
+from agent_bench.core.types import Message, Role
+
+logger = structlog.get_logger()
+
+_STRICT_REPROMPT_SUFFIX = (
+    "\n\nSTRICT FORMATTING NOTE: respond ONLY with a JSON object matching "
+    "the schema; reasoning first, then evidence_quotes, then score."
+)
+
+
+async def _call_judge_with_retry(
+    *,
+    provider: "LLMProvider",
+    prompt: str,
+    valid_scores: set[int],
+    judge_id: str,
+    rubric_version: str,
+    prompt_seed: int,
+    system_output_hash: str,
+    item_id: str,
+    abstain_allowed: bool = True,
+    max_tokens: int = 512,
+) -> ScoreResult:
+    """Send prompt to provider; one retry with strict reprompt on
+    schema-parse / score-out-of-range; abstain on persistent failure
+    or provider exhaustion. Re-raises unknown exceptions (caller bugs).
+    """
+    accumulated_cost = 0.0
+    accumulated_latency = 0.0
+
+    for attempt in range(2):  # 2 = original + one retry
+        send_prompt = prompt if attempt == 0 else prompt + _STRICT_REPROMPT_SUFFIX
+        start = time.perf_counter()
+        try:
+            response = await provider.complete(
+                [Message(role=Role.USER, content=send_prompt)],
+                temperature=0.0,
+                max_tokens=max_tokens,
+            )
+        except (ProviderRateLimitError, ProviderTimeoutError) as e:
+            return ScoreResult(
+                reasoning=f"{ABSTAIN_REASON_PROVIDER_EXHAUSTED}{type(e).__name__}: {e}",
+                evidence_quotes=[],
+                score="Unknown",
+                judge_id=judge_id,
+                rubric_version=rubric_version,
+                prompt_seed=prompt_seed,
+                system_output_hash=system_output_hash,
+                cost_usd=accumulated_cost,
+                latency_ms=accumulated_latency + (time.perf_counter() - start) * 1000,
+            )
+        # Other exceptions (caller bugs like 401, 400) propagate.
+        accumulated_cost += response.usage.estimated_cost_usd
+        accumulated_latency += (time.perf_counter() - start) * 1000
+        last_raw = response.content[:300]
+
+        # Parse
+        try:
+            data = _json.loads(response.content)
+            reasoning = str(data["reasoning"])
+            evidence_quotes = list(data.get("evidence_quotes", []))
+            raw_score = data["score"]
+        except (_json.JSONDecodeError, KeyError, TypeError) as e:
+            cause = ABSTAIN_REASON_SCHEMA_PARSE
+            if attempt == 0:
+                logger.warning(
+                    "judge_first_attempt_failure",
+                    judge_id=judge_id,
+                    item_id=item_id,
+                    provider=type(provider).__name__,
+                    failure_cause=cause,
+                    attempt_index=1,
+                )
+                continue
+            return ScoreResult(
+                reasoning=f"{cause}raw={last_raw!r} parse_error={e}",
+                evidence_quotes=[],
+                score="Unknown",
+                judge_id=judge_id,
+                rubric_version=rubric_version,
+                prompt_seed=prompt_seed,
+                system_output_hash=system_output_hash,
+                cost_usd=accumulated_cost,
+                latency_ms=accumulated_latency,
+            )
+
+        # Score validation
+        if raw_score == "Unknown":
+            if not abstain_allowed:
+                cause = ABSTAIN_REASON_OUT_OF_RANGE
+                if attempt == 0:
+                    logger.warning(
+                        "judge_first_attempt_failure",
+                        judge_id=judge_id,
+                        item_id=item_id,
+                        provider=type(provider).__name__,
+                        failure_cause=cause,
+                        attempt_index=1,
+                    )
+                    continue
+                return ScoreResult(
+                    reasoning=(
+                        f"{cause}model returned 'Unknown' but rubric "
+                        f"abstain_allowed=False"
+                    ),
+                    evidence_quotes=[],
+                    score="Unknown",
+                    judge_id=judge_id,
+                    rubric_version=rubric_version,
+                    prompt_seed=prompt_seed,
+                    system_output_hash=system_output_hash,
+                    cost_usd=accumulated_cost,
+                    latency_ms=accumulated_latency,
+                )
+            # Genuine abstain — no prefix, no retry
+            return ScoreResult(
+                reasoning=reasoning,
+                evidence_quotes=evidence_quotes,
+                score="Unknown",
+                judge_id=judge_id,
+                rubric_version=rubric_version,
+                prompt_seed=prompt_seed,
+                system_output_hash=system_output_hash,
+                cost_usd=accumulated_cost,
+                latency_ms=accumulated_latency,
+            )
+
+        try:
+            score_int = int(raw_score)
+        except (ValueError, TypeError):
+            cause = ABSTAIN_REASON_OUT_OF_RANGE
+            if attempt == 0:
+                logger.warning(
+                    "judge_first_attempt_failure",
+                    judge_id=judge_id,
+                    item_id=item_id,
+                    provider=type(provider).__name__,
+                    failure_cause=cause,
+                    attempt_index=1,
+                )
+                continue
+            return ScoreResult(
+                reasoning=f"{cause}non-int score: {raw_score!r}",
+                evidence_quotes=[],
+                score="Unknown",
+                judge_id=judge_id,
+                rubric_version=rubric_version,
+                prompt_seed=prompt_seed,
+                system_output_hash=system_output_hash,
+                cost_usd=accumulated_cost,
+                latency_ms=accumulated_latency,
+            )
+
+        if score_int not in valid_scores:
+            cause = ABSTAIN_REASON_OUT_OF_RANGE
+            if attempt == 0:
+                logger.warning(
+                    "judge_first_attempt_failure",
+                    judge_id=judge_id,
+                    item_id=item_id,
+                    provider=type(provider).__name__,
+                    failure_cause=cause,
+                    attempt_index=1,
+                )
+                continue
+            return ScoreResult(
+                reasoning=(
+                    f"{cause}model returned {score_int}, valid levels "
+                    f"{sorted(valid_scores)}"
+                ),
+                evidence_quotes=[],
+                score="Unknown",
+                judge_id=judge_id,
+                rubric_version=rubric_version,
+                prompt_seed=prompt_seed,
+                system_output_hash=system_output_hash,
+                cost_usd=accumulated_cost,
+                latency_ms=accumulated_latency,
+            )
+
+        # Success
+        return ScoreResult(
+            reasoning=reasoning,
+            evidence_quotes=evidence_quotes,
+            score=score_int,
+            judge_id=judge_id,
+            rubric_version=rubric_version,
+            prompt_seed=prompt_seed,
+            system_output_hash=system_output_hash,
+            cost_usd=accumulated_cost,
+            latency_ms=accumulated_latency,
+        )
+
+    raise RuntimeError("_call_judge_with_retry: unreachable code path")
