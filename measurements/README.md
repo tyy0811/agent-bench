@@ -12,3 +12,4 @@ Naming: `YYYY-MM-DD-<topic>-<variant>.log`
 
 Current entries:
 - `2026-04-15-coldstart-n1.log`, `-n2.log`, `-n3.log` — HF Spaces cold-start samples N=1..3. Backs the DECISIONS.md entry "Cold-start gate fired — assumption falsified, fix deferred to v1.1 at the right cause."
+- `2026-05-04-judge-calibration-labels.jsonl` — 30 items × 3 dimensions hand-labels (single rater) for the κ ablation table in `docs/_generated/kappa_table.md` and the writeup at `docs/judge-design.md`. Backs the DECISIONS.md entry "LLM-judge layer supersession — discrete-anchored 2-judge jury replaces continuous-score single-call". Lands in Phase 10 (manual labeling).
