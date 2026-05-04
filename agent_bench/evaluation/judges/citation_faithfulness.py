@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import structlog
 
@@ -166,7 +166,7 @@ class CitationFaithfulnessJudge(Judge):
             if sub_result.score == 0:
                 any_unfaithful = True
 
-        aggregate_score: int | str = 0 if any_unfaithful else 1
+        aggregate_score: int | Literal["Unknown"] = 0 if any_unfaithful else 1
         # Any sub-call abstain → propagate Unknown (consistent with strict-quorum)
         if any(r.abstained for r in per_pair_results):
             aggregate_score = "Unknown"

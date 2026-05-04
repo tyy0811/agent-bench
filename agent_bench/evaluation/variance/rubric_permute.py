@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from agent_bench.evaluation.judges.base import Judge, ScoreResult
 
@@ -72,7 +72,7 @@ class PermutedJudge:
 
         any_abstain = any(r.abstained for r in per_perm_results)
         if any_abstain:
-            score: int | str = "Unknown"
+            score: int | Literal["Unknown"] = "Unknown"
             reasoning = (
                 f"any_abstain_propagated: "
                 f"{sum(1 for r in per_perm_results if r.abstained)}/{self.n} "

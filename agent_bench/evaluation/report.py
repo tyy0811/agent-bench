@@ -54,9 +54,11 @@ def generate_report(
 
     # Optional groundedness (replaces continuous faithfulness in v1).
     # Discrete-anchored binary 0/1; abstain ('Unknown' score) is excluded
-    # from the average. See agent_bench/evaluation/judges/groundedness.py.
-    grounded_scores = [
-        r.judge_scores["groundedness"].score
+    # from the average. The float() cast narrows ScoreResult.score from
+    # `int | Literal["Unknown"]` to float for _safe_avg — abstained=False
+    # already guarantees the value is int but mypy doesn't propagate that.
+    grounded_scores: list[float] = [
+        float(r.judge_scores["groundedness"].score)  # type: ignore[arg-type]
         for r in positive
         if "groundedness" in r.judge_scores
         and not r.judge_scores["groundedness"].abstained

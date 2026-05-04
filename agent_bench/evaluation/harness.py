@@ -26,7 +26,13 @@ from agent_bench.evaluation.metrics import (
     tool_call_count,
 )
 
-_JUDGE_CLASS_BY_DIMENSION = {
+# Annotated as type[Judge] would lose concrete-class info and trigger
+# mypy's "cannot instantiate abstract class" on the dispatch site below.
+# The dict's runtime values are concrete, instantiable subclasses; the
+# explicit type alias below preserves that information.
+_JUDGE_CLASS_BY_DIMENSION: dict[
+    str, type[GroundednessJudge] | type[RelevanceJudge] | type[CompletenessJudge]
+] = {
     "groundedness": GroundednessJudge,
     "relevance": RelevanceJudge,
     "completeness": CompletenessJudge,
