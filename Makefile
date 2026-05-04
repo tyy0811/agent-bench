@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -33,6 +33,21 @@ benchmark:
 
 evaluate-langchain:
 	$(PYTHON) scripts/run_langchain_eval.py --provider openai
+
+calibrate:  ## Run full calibration pipeline (system outputs → all rows → strict κ table). Costs ~$2 in API calls.
+	$(PYTHON) scripts/run_calibration.py generate-outputs
+	@for cfg in configs/calibration/rows/*.yaml; do \
+		echo "==> running judges for $$cfg"; \
+		$(PYTHON) scripts/run_calibration.py run-judges --row-config=$$cfg || exit 1; \
+	done
+	$(PYTHON) scripts/run_calibration.py build-table --strict
+
+evaluate-judges:  ## Re-run all rows + build-table against existing system_outputs (no regeneration). Costs ~$1.
+	@for cfg in configs/calibration/rows/*.yaml; do \
+		echo "==> running judges for $$cfg"; \
+		$(PYTHON) scripts/run_calibration.py run-judges --row-config=$$cfg || exit 1; \
+	done
+	$(PYTHON) scripts/run_calibration.py build-table --strict
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build

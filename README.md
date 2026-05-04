@@ -302,11 +302,24 @@ The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3
 ## Testing
 
 ```bash
-make test    # 443 deterministic tests, no API keys needed
+make test    # 523 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
 All tests use MockProvider + MockEmbeddingModel. No API keys. No model downloads. CI-safe.
+
+### Targets that cost money
+
+These Make targets call paid LLM APIs. Run locally; they are excluded from CI.
+
+| Target | Requires API key | Approximate cost | What it produces |
+|---|---|---|---|
+| `make evaluate-full` | OpenAI or Anthropic | $0.01–0.10 per run | Full-corpus harness run with L1 + L2 judges; results in `results/{run_label}.json`. Cost scales with item count × judge dimensions: in-scope items get all 3 (groundedness + relevance + completeness), out-of-scope items get relevance only (~$0.0001/item). |
+| `make calibrate` | Anthropic + OpenAI | ~$2 per full run | Generates frozen system outputs, scores all 6 ablation rows, builds `docs/_generated/kappa_table.md` |
+| `make evaluate-judges` | Anthropic + OpenAI | ~$1 per run | Re-runs the 6 rows against existing system outputs (no regeneration) |
+| `make evaluate-langchain` | OpenAI or Anthropic | $0.01–0.05 per run | LangChain baseline harness for the comparison report |
+
+Set keys via `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` environment variables. CI does not have these (test job uses `MockProvider`).
 
 ## Design Decisions
 

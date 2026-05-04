@@ -1,0 +1,18 @@
+# 2-judge jury: Claude-Haiku + gpt-4o-mini, kappa-weighted aggregation.
+# Strict quorum default (any member abstain → jury abstain). Weights are
+# computed offline from per-judge κ on the calibration set's baseline
+# rows (NOT at jury construction — circular).
+
+label: jury_kappa_weighted
+strategy: jury
+aggregation: kappa_weighted
+quorum: null  # null = strict default (= len(judges) = 2)
+members:
+  - provider: anthropic
+    model_id: claude-haiku-4-5-20251001
+  - provider: openai
+    model_id: gpt-4o-mini-2024-07-18
+dimensions: [groundedness, relevance, completeness]
+weights_source: results/calibration_v1_judge_baseline.json  # κ per judge_id from baseline; jury runner computes weights
+output_path: results/calibration_v1_judge_jury_kappa_weighted.json
+sidecar_path: results/calibration_v1_judge_jury_kappa_weighted_members.jsonl

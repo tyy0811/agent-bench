@@ -2116,3 +2116,47 @@ the actual container filesystem would have caught it pre-deploy.
 Such a test is out of scope for v1 (adds ~5 min to CI plus Docker
 build infrastructure) but is the right long-term mitigation for this
 class of bug.
+
+## LLM-judge layer supersession — discrete-anchored 2-judge jury replaces continuous-score single-call
+
+The continuous-score single-call judges in `agent_bench/evaluation/metrics.py`
+(`answer_faithfulness`, `answer_correctness`, `_judge_call`) are deleted
+and replaced by the per-dimension Judge layer at
+`agent_bench/evaluation/judges/`. Hard cut, no deprecation cycle.
+
+**Design doc:** `docs/plans/2026-05-04-judge-layer-v1-design.md`.
+
+**Why this is a supersession, not a refactor.** The new layer differs from
+the old on six axes: discrete-anchored scale (vs continuous 0–1),
+reasoning-before-score JSON ordering (vs score-first), per-dimension
+judges (vs combined faithfulness/correctness), full provenance per call
+(judge_id + rubric_version + system_output_hash + prompt_seed; old had
+none), composable variance wrappers (rubric_permute, jury — old was
+single-call), and an intentional abstain-vs-raise discipline (vs silent
+`None` from a bare `except Exception`).
+
+**Evidence backing the supersession claim** — the calibration κ table
+quantifies the new layer's agreement with hand-labels across 6 ablation
+rows (baseline + 3 variance ablations + permute + 2-judge jury). The
+files defending this entry's claim, by file path:
+
+- `measurements/2026-05-04-judge-calibration-labels.jsonl` — 30 items × 3
+  dimensions hand-labeled (UK AISI bio/chem κ ~0.8 cited as the
+  literature ceiling). Lands in Phase 10.
+- `results/calibration_v1_judge_baseline.json`, `_baseline_no_cot.json`,
+  `_baseline_no_anchors.json`, `_baseline_no_abstain.json`,
+  `_permute.json`, `_jury_kappa_weighted.json` — per-row predictions.
+  Land in Phase 11.
+- `docs/_generated/kappa_table.md` — generated κ ablation table copy-
+  pasted into the writeup. Lands in Phase 11.
+- `docs/judge-design.md` — interpretive writeup with the closing
+  "when NOT to use LLM-judge" position. Lands in Phase 12.
+
+**Config-knob preservation.** `evaluation.judge_provider` is unchanged
+across all 5 YAML configs; new `evaluation.judge_dimensions` field
+defaults to the three v1 dimensions. Zero user-facing config migration.
+
+**Out of scope (v1.1+).** Mistral self-hosted as the third jury member,
+Langfuse self-host, dual-pass intra-rater calibration, DSPy/GEPA/MIPROv2
+prompt optimization, citation_faithfulness in the default
+judge_dimensions, AC2 sympy-derived parity tests.

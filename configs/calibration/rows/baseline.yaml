@@ -1,0 +1,14 @@
+# Baseline: single Claude-Haiku judge per dimension, all variance controls on.
+# CoT is implicit (the rubric prompts ask for reasoning before score).
+# Anchors come from the rubric files. Abstain comes from rubric.abstain_allowed=true.
+
+label: baseline
+provider: anthropic
+model_id: claude-haiku-4-5-20251001
+dimensions: [groundedness, relevance, completeness]
+strategy: single
+options:
+  use_cot: true
+  use_anchors: true
+  abstain_allowed: true
+output_path: results/calibration_v1_judge_baseline.json

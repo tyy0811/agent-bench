@@ -1,15 +1,19 @@
-"""Deterministic and LLM-judge evaluation metrics."""
+"""Deterministic evaluation metrics.
+
+The continuous-scale LLM-judge functions (answer_faithfulness,
+answer_correctness, _judge_call) were removed in the judge-layer v1
+supersession. The replacement lives at agent_bench/evaluation/judges/
+as discrete-anchored, per-dimension judges with κ-validated calibration.
+See docs/plans/2026-05-04-judge-layer-v1-design.md for the rationale.
+"""
 
 from __future__ import annotations
 
-import json
 import re
 
 import structlog
 
 from agent_bench.agents.orchestrator import AgentResponse
-from agent_bench.core.provider import LLMProvider
-from agent_bench.core.types import Message, Role
 
 logger = structlog.get_logger()
 
@@ -125,84 +129,4 @@ def calculator_used_when_expected(
     return "calculator" in response.tools_used
 
 
-# --- LLM-judge metrics (costs money, manual) ---
-
-_FAITHFULNESS_PROMPT = """\
-You are evaluating whether an AI assistant's answer \
-is fully supported by the provided source passages.
-
-Source passages:
-{chunks}
-
-Answer to evaluate:
-{answer}
-
-Score the answer's faithfulness to the sources from 0.0 to 1.0:
-- 1.0: Every claim is directly supported by the sources
-- 0.5: Some claims are supported, others are extrapolated
-- 0.0: The answer contradicts or is entirely unsupported
-
-Respond with ONLY a JSON object:
-{{"score": 0.8, "reasoning": "brief explanation"}}"""
-
-_CORRECTNESS_PROMPT = """\
-You are evaluating whether an AI assistant's answer \
-is factually correct compared to a reference answer.
-
-Reference answer:
-{reference}
-
-Answer to evaluate:
-{answer}
-
-Score correctness from 0.0 to 1.0:
-- 1.0: All key facts match the reference
-- 0.5: Some facts are correct, some are missing or wrong
-- 0.0: The answer is factually incorrect
-
-Respond with ONLY a JSON object:
-{{"score": 0.8, "reasoning": "brief explanation"}}"""
-
-
-async def answer_faithfulness(
-    answer: str,
-    source_chunks: list[str],
-    judge_provider: LLMProvider,
-) -> float | None:
-    """LLM-judged: is the answer supported by the sources? 0.0-1.0."""
-    chunks_text = "\n\n".join(f"[{i + 1}] {c}" for i, c in enumerate(source_chunks))
-    prompt = _FAITHFULNESS_PROMPT.format(chunks=chunks_text, answer=answer)
-
-    return await _judge_call(prompt, judge_provider)
-
-
-async def answer_correctness(
-    answer: str,
-    reference_answer: str,
-    judge_provider: LLMProvider,
-) -> float | None:
-    """LLM-judged: is the answer factually correct vs reference? 0.0-1.0."""
-    prompt = _CORRECTNESS_PROMPT.format(reference=reference_answer, answer=answer)
-
-    return await _judge_call(prompt, judge_provider)
-
-
-async def _judge_call(prompt: str, provider: LLMProvider) -> float | None:
-    """Make a judge call and parse the JSON response."""
-    try:
-        response = await provider.complete(
-            [Message(role=Role.USER, content=prompt)],
-            temperature=0.0,
-            max_tokens=256,
-        )
-        data = json.loads(response.content)
-        score = float(data["score"])
-        reasoning = data.get("reasoning", "")
-        logger.info("llm_judge_result", score=score, reasoning=reasoning)
-        return max(0.0, min(1.0, score))
-    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
-        logger.warning("llm_judge_parse_error", error=str(e), raw=response.content[:200])
-        return None
-    except Exception as e:
-        logger.error("llm_judge_call_error", error=str(e))
-        return None
+# LLM-judge metrics moved to agent_bench/evaluation/judges/ in judge-layer v1.

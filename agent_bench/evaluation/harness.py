@@ -8,8 +8,13 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from agent_bench.agents.orchestrator import Orchestrator
+from agent_bench.core.config import load_config
 from agent_bench.core.provider import LLMProvider
 from agent_bench.core.types import TokenUsage
+from agent_bench.evaluation.judges.base import Rubric, ScoreResult
+from agent_bench.evaluation.judges.completeness import CompletenessJudge
+from agent_bench.evaluation.judges.groundedness import GroundednessJudge
+from agent_bench.evaluation.judges.relevance import RelevanceJudge
 from agent_bench.evaluation.metrics import (
     calculator_used_when_expected,
     citation_accuracy,
@@ -20,6 +25,18 @@ from agent_bench.evaluation.metrics import (
     source_presence,
     tool_call_count,
 )
+
+# Annotated as type[Judge] would lose concrete-class info and trigger
+# mypy's "cannot instantiate abstract class" on the dispatch site below.
+# The dict's runtime values are concrete, instantiable subclasses; the
+# explicit type alias below preserves that information.
+_JUDGE_CLASS_BY_DIMENSION: dict[
+    str, type[GroundednessJudge] | type[RelevanceJudge] | type[CompletenessJudge]
+] = {
+    "groundedness": GroundednessJudge,
+    "relevance": RelevanceJudge,
+    "completeness": CompletenessJudge,
+}
 
 
 class GoldenQuestion(BaseModel):
@@ -70,9 +87,13 @@ class EvalResult(BaseModel):
     # Raw answer for reporting
     answer: str = ""
     retrieved_sources: list[str] = []
-    # LLM judge (None if not run)
-    faithfulness: float | None = None
-    correctness: float | None = None
+    # New in judge-layer v1: per-dimension judge scores. Empty when no
+    # judge_provider is configured. With a provider, OOS items receive
+    # relevance only (refusal-vs-engagement is the L2 signal worth
+    # measuring); reference-based dimensions (groundedness, completeness)
+    # are skipped on OOS. Completeness is also skipped when
+    # reference_answer is empty regardless of category.
+    judge_scores: dict[str, ScoreResult] = Field(default_factory=dict)
 
 
 def load_golden_dataset(path: str | Path) -> list[GoldenQuestion]:
@@ -149,21 +170,46 @@ async def run_evaluation(
             retrieved_sources=ranked_sources,
         )
 
-        # Optional LLM judge
-        if judge_provider is not None and q.category != "out_of_scope":
-            from agent_bench.evaluation.metrics import answer_correctness, answer_faithfulness
-
-            result.faithfulness = await answer_faithfulness(
-                answer=agent_response.answer,
-                source_chunks=agent_response.source_chunks,
-                judge_provider=judge_provider,
-            )
-            if q.reference_answer:
-                result.correctness = await answer_correctness(
-                    answer=agent_response.answer,
-                    reference_answer=q.reference_answer,
+        # Optional L2 LLM-judge layer (per-dimension; gated per-dim).
+        #
+        # OOS items get relevance scoring (a non-refusal answer to an OOS
+        # question is exactly what relevance is designed to detect — the
+        # rubric's "refusal that ignores the question" example covers this
+        # case). Groundedness and completeness are skipped on OOS because
+        # neither has a meaningful reference (no source_snippets, no
+        # reference_answer for OOS items).
+        #
+        # This per-dimension gating matches the calibration runner's
+        # behavior so the κ table's distribution of scored items lines up
+        # with what the production harness produces. Diverging gates would
+        # mean the calibration κ for relevance was estimated on items the
+        # production harness never sees, breaking the supersession's
+        # empirical backing.
+        if judge_provider is not None:
+            cfg = load_config()
+            rubric_dir = Path(__file__).resolve().parent / "rubrics"
+            is_oos = q.category == "out_of_scope"
+            for dim in cfg.evaluation.judge_dimensions:
+                if dim not in _JUDGE_CLASS_BY_DIMENSION:
+                    continue  # citation_faithfulness opt-in; not in default loop
+                # Per-dimension OOS gating: skip reference-based dimensions
+                # (groundedness, completeness) on OOS; allow relevance.
+                if is_oos and dim != "relevance":
+                    continue
+                # CompletenessJudge is reference-based on q.reference_answer;
+                # scoring an empty reference is guaranteed-noisy and burns
+                # tokens. Pre-supersession code had the same gate (correctness
+                # was conditional on reference_answer being non-empty).
+                if dim == "completeness" and not q.reference_answer:
+                    continue
+                rubric = Rubric.from_markdown_file(rubric_dir / f"{dim}.md")
+                judge = _JUDGE_CLASS_BY_DIMENSION[dim](
                     judge_provider=judge_provider,
+                    rubric=rubric,
+                    model_id=getattr(judge_provider, "model", "unknown"),
                 )
+                score_result = await judge.score(q, agent_response)
+                result.judge_scores[dim] = score_result
 
         results.append(result)
 
