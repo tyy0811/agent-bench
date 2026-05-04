@@ -69,3 +69,31 @@ class TestScoreResult:
     def test_score_rejects_other_strings(self):
         with pytest.raises(ValueError):
             ScoreResult(score="maybe", **self._base_kwargs())  # type: ignore[arg-type]
+
+
+from abc import ABC
+from pathlib import Path
+
+from agent_bench.evaluation.judges.base import Judge
+
+
+class TestJudgeABC:
+    def test_judge_is_abstract(self):
+        assert issubclass(Judge, ABC)
+        # Cannot instantiate directly — score is abstract
+        with pytest.raises(TypeError, match="abstract"):
+            Judge(judge_provider=None, rubric=None, model_id="test")  # type: ignore[abstract,arg-type]
+
+    def test_judge_id_built_from_model_and_dimension(self):
+        # Concrete subclass that satisfies the abstract method
+        class _ConcreteJudge(Judge):
+            async def score(self, item, output, *, prompt_seed=0):
+                raise NotImplementedError
+
+        from agent_bench.evaluation.judges.base import Rubric
+
+        rubric = Rubric.from_markdown_file(
+            Path(__file__).parent / "fixtures" / "rubrics_valid_binary.md"
+        )
+        j = _ConcreteJudge(judge_provider=None, rubric=rubric, model_id="claude-haiku-4-5")  # type: ignore[arg-type]
+        assert j.judge_id == "claude-haiku-4-5_groundedness"

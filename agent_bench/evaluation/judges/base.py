@@ -11,11 +11,17 @@ from __future__ import annotations
 import hashlib
 import random
 import re
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Literal, Self
+from typing import TYPE_CHECKING, Literal, Self
 
 import yaml
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from agent_bench.agents.orchestrator import AgentResponse
+    from agent_bench.core.provider import LLMProvider
+    from agent_bench.evaluation.harness import GoldenQuestion
 
 # --- Abstain-reason constants ---
 #
@@ -199,3 +205,38 @@ class Rubric(BaseModel):
             for lvl in permuted_levels
         )
         return permuted_body
+
+
+class Judge(ABC):
+    """Per-dimension LLM judge. Concrete subclasses implement score()
+    for one rubric dimension; they are thin (~30 lines) and not
+    factored against a shared base method (see design doc for why).
+    """
+
+    def __init__(
+        self,
+        judge_provider: "LLMProvider",
+        rubric: Rubric,
+        model_id: str,
+    ) -> None:
+        self.judge_provider = judge_provider
+        self.rubric = rubric
+        self.model_id = model_id
+        self.judge_id = f"{model_id}_{rubric.dimension}"
+
+    @abstractmethod
+    async def score(
+        self,
+        item: "GoldenQuestion",
+        output: "AgentResponse",
+        *,
+        prompt_seed: int = 0,
+    ) -> ScoreResult:
+        """Score one (item, output) pair against this judge's rubric.
+
+        Returns a ScoreResult whose system_output_hash is computed from
+        (item.id, output.answer, sorted(output.sources)). Failures map
+        to abstain via the abstain-reason constants; provider non-
+        retryable errors raise (caller bug, not noise).
+        """
+        ...
