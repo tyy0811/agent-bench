@@ -87,12 +87,11 @@ class TestBootstrapCI:
 # constants are the contract; the project hand-rolls the implementation.
 
 SKLEARN_KAPPA_FIXTURES: dict[str, float] = {
-    # PASTE OUTPUT FROM scripts/_dev/generate_kappa_fixtures.py HERE
-    # Placeholder values — replace by running the generator script in a
-    # venv with sklearn installed (see Phase 4 Task 4.2 Step 2).
-    "imbalanced_binary": 0.0,
-    "three_point_one_diagonal_swap": 0.0,
-    "weighted_ordinal_drift_linear": 0.0,
+    # Generated against scikit-learn==1.5.2 cohen_kappa_score on 2026-05-04.
+    # To regenerate: scripts/_dev/generate_kappa_fixtures.py
+    "imbalanced_binary": 0.2105263158,
+    "three_point_one_diagonal_swap": 0.8507462687,
+    "weighted_ordinal_drift_linear": 0.6666666667,
 }
 
 SKLEARN_KAPPA_INPUTS: dict[str, dict] = {
@@ -114,17 +113,14 @@ SKLEARN_KAPPA_INPUTS: dict[str, dict] = {
 }
 
 
-@pytest.mark.skip(
-    reason="Placeholder fixtures — regenerate via scripts/_dev/generate_kappa_fixtures.py "
-    "in a venv with sklearn==1.5.2, paste output above, then unskip."
-)
 class TestSklearnKappaParity:
     @pytest.mark.parametrize("case_name", list(SKLEARN_KAPPA_FIXTURES.keys()))
     def test_matches_sklearn(self, case_name: str):
         case = SKLEARN_KAPPA_INPUTS[case_name]
         expected = SKLEARN_KAPPA_FIXTURES[case_name]
         actual = cohen_kappa(case["y1"], case["y2"], weights=case["weights"])
-        assert actual == pytest.approx(expected, abs=1e-9), (
+        # Tolerance 1e-7 accommodates sklearn's printed precision of 10 decimals
+        assert actual == pytest.approx(expected, abs=1e-7), (
             f"hand-rolled cohen_kappa diverged from sklearn 1.5.2 on case "
             f"{case_name!r}: hand-rolled={actual} sklearn={expected}"
         )
