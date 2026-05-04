@@ -3,7 +3,7 @@
 
 label: permute
 provider: anthropic
-model_id: claude-haiku-4-5
+model_id: claude-haiku-4-5-20251001
 dimensions: [groundedness, relevance, completeness]
 strategy: rubric_permute
 options:

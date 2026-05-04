@@ -192,9 +192,17 @@ class MockProvider(LLMProvider):
 
 
 class OpenAIProvider(LLMProvider):
-    """OpenAI API provider pinned to a dated gpt-4o-mini snapshot."""
+    """OpenAI API provider pinned to a dated gpt-4o-mini snapshot.
 
-    def __init__(self, config: AppConfig | None = None) -> None:
+    The ``model`` parameter overrides the default pin (used by the
+    calibration runner so a row config's ``model_id`` is what actually
+    gets called — without an override, ``judge_id`` would be a label
+    that disagrees with the API request, breaking provenance).
+    """
+
+    def __init__(
+        self, config: AppConfig | None = None, *, model: str | None = None
+    ) -> None:
         try:
             from openai import AsyncOpenAI
         except ImportError as e:
@@ -205,7 +213,7 @@ class OpenAIProvider(LLMProvider):
         self.config = config or load_config()
         api_key = os.environ.get("OPENAI_API_KEY", "")
         self.client = AsyncOpenAI(api_key=api_key)
-        self.model = "gpt-4o-mini-2024-07-18"
+        self.model = model or "gpt-4o-mini-2024-07-18"
         model_pricing = self.config.provider.models.get(self.model)
         self._input_cost = model_pricing.input_cost_per_mtok if model_pricing else 0.15
         self._output_cost = model_pricing.output_cost_per_mtok if model_pricing else 0.60
@@ -410,9 +418,17 @@ def format_messages_anthropic(
 
 
 class AnthropicProvider(LLMProvider):
-    """Anthropic Claude provider."""
+    """Anthropic Claude provider.
 
-    def __init__(self, config: AppConfig | None = None) -> None:
+    The ``model`` parameter overrides the default pin (used by the
+    calibration runner so a row config's ``model_id`` is what actually
+    gets called — without an override, ``judge_id`` would be a label
+    that disagrees with the API request, breaking provenance).
+    """
+
+    def __init__(
+        self, config: AppConfig | None = None, *, model: str | None = None
+    ) -> None:
         try:
             from anthropic import AsyncAnthropic
         except ImportError as e:
@@ -425,7 +441,7 @@ class AnthropicProvider(LLMProvider):
         self.config = config or load_config()
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = "claude-haiku-4-5-20251001"
+        self.model = model or "claude-haiku-4-5-20251001"
         model_pricing = self.config.provider.models.get(self.model)
         self._input_cost = (
             model_pricing.input_cost_per_mtok if model_pricing else 0.80

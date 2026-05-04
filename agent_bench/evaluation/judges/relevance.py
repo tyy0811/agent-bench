@@ -24,14 +24,14 @@ class RelevanceJudge(Judge):
         *,
         prompt_seed: int = 0,
     ) -> ScoreResult:
+        schema_clause = self._json_schema_clause('0 or 1 or 2 or "Unknown"')
         prompt = (
             f"{self.rubric.render_prompt(level_permutation_seed=prompt_seed)}\n\n"
             f"---\n\n"
             f"## Question\n{item.question}\n\n"
             f"## Answer to score\n{output.answer}\n\n"
             f"Score this answer against the rubric above. Respond with ONLY a "
-            f'JSON object: {{"reasoning": "...", "evidence_quotes": [...], '
-            f'"score": 0 or 1 or 2 or "Unknown"}}.'
+            f"{schema_clause}"
         )
         return await _call_judge_with_retry(
             provider=self.judge_provider,
@@ -44,5 +44,5 @@ class RelevanceJudge(Judge):
                 item.id, output.answer, [s.source for s in output.sources]
             ),
             item_id=item.id,
-            abstain_allowed=self.rubric.abstain_allowed,
+            abstain_allowed=self.effective_abstain_allowed,
         )

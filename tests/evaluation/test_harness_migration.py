@@ -113,3 +113,62 @@ class TestCompletenessGatedOnReferenceAnswer:
         )
         assert "groundedness" in results[0].judge_scores
         assert "relevance" in results[0].judge_scores
+
+
+class TestOOSGatingPerDimension:
+    """Regression: production harness used to skip ALL L2 judges on
+    out_of_scope items, but the calibration runner scored relevance on
+    OOS. That mismatch meant the κ for relevance was estimated on items
+    the production harness never sees. Now: per-dimension OOS gate —
+    relevance allowed on OOS, groundedness/completeness skipped.
+    """
+
+    @pytest.mark.asyncio
+    async def test_oos_item_scores_relevance_only(self, tmp_path):
+        from agent_bench.agents.orchestrator import Orchestrator
+        from agent_bench.evaluation.harness import run_evaluation
+
+        # OOS item with a non-empty reference_answer and source_snippets
+        # — even with both populated, the harness must skip groundedness
+        # and completeness on OOS, but score relevance.
+        golden_path = tmp_path / "golden.json"
+        golden_path.write_text(
+            '[{"id": "q1", "question": "?", "expected_answer_keywords": [],'
+            ' "expected_sources": [], "category": "out_of_scope",'
+            ' "difficulty": "easy", "requires_calculator": false,'
+            ' "reference_answer": "would be irrelevant",'
+            ' "source_snippets": ["would be irrelevant"]}]'
+        )
+
+        orch = AsyncMock(spec=Orchestrator)
+        orch.run.return_value = AgentResponse(
+            answer="I cannot help with that request.",
+            sources=[],
+            ranked_sources=[],
+            source_chunks=[],
+            iterations=1,
+            usage=TokenUsage(
+                input_tokens=0, output_tokens=0, estimated_cost_usd=0.0
+            ),
+            latency_ms=0.0,
+        )
+
+        judge_provider = AsyncMock(spec=LLMProvider)
+        judge_provider.complete.return_value = _mk_judge_response(0)
+        judge_provider.model = "test-model"
+
+        results = await run_evaluation(
+            orchestrator=orch,
+            system_prompt="x",
+            golden_path=golden_path,
+            judge_provider=judge_provider,
+        )
+
+        assert len(results) == 1
+        # OOS items get relevance scoring (refusal-vs-engagement signal)
+        assert "relevance" in results[0].judge_scores
+        # But groundedness and completeness are skipped (no meaningful
+        # reference for OOS items — the snippets/reference_answer fields
+        # are placeholders or empty for OOS).
+        assert "groundedness" not in results[0].judge_scores
+        assert "completeness" not in results[0].judge_scores

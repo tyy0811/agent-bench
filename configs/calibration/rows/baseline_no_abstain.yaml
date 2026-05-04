@@ -4,7 +4,7 @@
 
 label: baseline_no_abstain
 provider: anthropic
-model_id: claude-haiku-4-5
+model_id: claude-haiku-4-5-20251001
 dimensions: [groundedness, relevance, completeness]
 strategy: single
 options:

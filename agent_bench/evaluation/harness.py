@@ -160,16 +160,32 @@ async def run_evaluation(
             retrieved_sources=ranked_sources,
         )
 
-        # Optional L2 LLM-judge layer (per-dimension; gated as before).
-        # The judge_provider != None gate is preserved (existing harness
-        # behavior); the q.category != 'out_of_scope' gate is preserved
-        # (L2 doesn't apply to refusals — that's L1's job).
-        if judge_provider is not None and q.category != "out_of_scope":
+        # Optional L2 LLM-judge layer (per-dimension; gated per-dim).
+        #
+        # OOS items get relevance scoring (a non-refusal answer to an OOS
+        # question is exactly what relevance is designed to detect — the
+        # rubric's "refusal that ignores the question" example covers this
+        # case). Groundedness and completeness are skipped on OOS because
+        # neither has a meaningful reference (no source_snippets, no
+        # reference_answer for OOS items).
+        #
+        # This per-dimension gating matches the calibration runner's
+        # behavior so the κ table's distribution of scored items lines up
+        # with what the production harness produces. Diverging gates would
+        # mean the calibration κ for relevance was estimated on items the
+        # production harness never sees, breaking the supersession's
+        # empirical backing.
+        if judge_provider is not None:
             cfg = load_config()
             rubric_dir = Path(__file__).resolve().parent / "rubrics"
+            is_oos = q.category == "out_of_scope"
             for dim in cfg.evaluation.judge_dimensions:
                 if dim not in _JUDGE_CLASS_BY_DIMENSION:
                     continue  # citation_faithfulness opt-in; not in default loop
+                # Per-dimension OOS gating: skip reference-based dimensions
+                # (groundedness, completeness) on OOS; allow relevance.
+                if is_oos and dim != "relevance":
+                    continue
                 # CompletenessJudge is reference-based on q.reference_answer;
                 # scoring an empty reference is guaranteed-noisy and burns
                 # tokens. Pre-supersession code had the same gate (correctness

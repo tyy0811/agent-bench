@@ -122,17 +122,26 @@ async def cmd_generate_outputs(concurrency: int) -> None:
 # --- Subcommand: run-judges (Step C, one row per invocation) ---
 
 
-def _make_provider(name: str, cfg):
+def _make_provider(name: str, cfg, *, model: str | None = None):
     from agent_bench.core.provider import AnthropicProvider, OpenAIProvider
 
     if name == "anthropic":
-        return AnthropicProvider(cfg)
+        return AnthropicProvider(cfg, model=model)
     if name == "openai":
-        return OpenAIProvider(cfg)
+        return OpenAIProvider(cfg, model=model)
     raise ValueError(f"unknown provider: {name}")
 
 
-def _make_judge(provider_name: str, model_id: str, dimension: str, cfg):
+def _make_judge(
+    provider_name: str,
+    model_id: str,
+    dimension: str,
+    cfg,
+    *,
+    use_cot: bool = True,
+    use_anchors: bool = True,
+    abstain_allowed_override: bool | None = None,
+):
     from agent_bench.evaluation.judges.base import Rubric
     from agent_bench.evaluation.judges.citation_faithfulness import (
         CitationFaithfulnessJudge,
@@ -149,11 +158,36 @@ def _make_judge(provider_name: str, model_id: str, dimension: str, cfg):
     }
     rubric_dir = REPO / "agent_bench/evaluation/rubrics"
     rubric = Rubric.from_markdown_file(rubric_dir / f"{dimension}.md")
+    if not use_anchors:
+        # Strip ### Example sections — body_markdown changes, so
+        # ScoreResult.rubric_version naturally distinguishes anchored vs
+        # stripped variants when the calibration report buckets results.
+        rubric = rubric.strip_anchors()
     return judge_class[dimension](
-        judge_provider=_make_provider(provider_name, cfg),
+        judge_provider=_make_provider(provider_name, cfg, model=model_id),
         rubric=rubric,
         model_id=model_id,
+        use_cot=use_cot,
+        abstain_allowed_override=abstain_allowed_override,
     )
+
+
+def _row_judge_options(row: dict) -> dict:
+    """Pull `options` from a row config and project to _make_judge kwargs.
+
+    Defaults (when keys are missing) match the baseline contract: CoT on,
+    anchors on, abstain follows the rubric (no override).
+    """
+    opts = row.get("options") or {}
+    abstain_allowed = opts.get("abstain_allowed")
+    return {
+        "use_cot": bool(opts.get("use_cot", True)),
+        "use_anchors": bool(opts.get("use_anchors", True)),
+        # None = follow rubric; explicit True/False = override
+        "abstain_allowed_override": (
+            None if abstain_allowed is None else bool(abstain_allowed)
+        ),
+    }
 
 
 def _build_item_and_output(rec: dict):
@@ -205,6 +239,8 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
     def _skip_oos(rec: dict, dim: str) -> bool:
         return rec["category"] == "out_of_scope" and dim != "relevance"
 
+    judge_opts = _row_judge_options(row)
+
     if strategy == "single":
         # Build one judge per dimension up-front, then gather all
         # (dim, item) pairs in a single asyncio.gather call. Previous
@@ -212,7 +248,9 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
         # before the next started), leaving Phase-11 wall-clock on the
         # table when the calibration spend is API-rate-limited.
         judges_by_dim = {
-            dim: _make_judge(row["provider"], row["model_id"], dim, cfg)
+            dim: _make_judge(
+                row["provider"], row["model_id"], dim, cfg, **judge_opts
+            )
             for dim in row["dimensions"]
         }
 
@@ -240,7 +278,9 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
         # sequence). Across-dim parallelism is left for v1.1 once the
         # sidecar contract proves stable.
         for dim in row["dimensions"]:
-            judge = _make_judge(row["provider"], row["model_id"], dim, cfg)
+            judge = _make_judge(
+                row["provider"], row["model_id"], dim, cfg, **judge_opts
+            )
             sidecar = REPO / row.get(
                 "sidecar_path", "results/calibration_v1_permute_members.jsonl"
             )
@@ -265,7 +305,7 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
         # serialization is the conservative choice.
         for dim in row["dimensions"]:
             members = [
-                _make_judge(m["provider"], m["model_id"], dim, cfg)
+                _make_judge(m["provider"], m["model_id"], dim, cfg, **judge_opts)
                 for m in row["members"]
             ]
             sidecar = REPO / row["sidecar_path"]

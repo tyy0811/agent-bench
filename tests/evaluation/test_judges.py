@@ -483,6 +483,116 @@ class TestCompletenessJudge:
         assert "The default port is 8080." in sent_prompt
 
 
+class TestAblationKnobs:
+    """Regression: row-config options (use_cot, use_anchors,
+    abstain_allowed) must actually change judge behavior. Pre-fix, all
+    three knobs were silently ignored — every ablation row produced
+    identical κ to baseline.
+    """
+
+    def _rubric(self, fixture: str = "rubrics_valid_three_point.md"):
+        from agent_bench.evaluation.judges.base import Rubric
+
+        return Rubric.from_markdown_file(Path(__file__).parent / "fixtures" / fixture)
+
+    def test_use_cot_false_strips_reasoning_from_prompt_schema(self):
+        """When use_cot=False the prompt's JSON schema must NOT request
+        a reasoning field — model should be told to return {"score": ...}.
+        """
+        from agent_bench.evaluation.judges.relevance import RelevanceJudge
+
+        rubric = self._rubric()
+        provider = AsyncMock(spec=LLMProvider)
+        # No call needed for this test; we inspect the schema clause directly
+        cot_judge = RelevanceJudge(
+            judge_provider=provider, rubric=rubric, model_id="m", use_cot=True
+        )
+        no_cot_judge = RelevanceJudge(
+            judge_provider=provider, rubric=rubric, model_id="m", use_cot=False
+        )
+        cot_clause = cot_judge._json_schema_clause('0 or 1 or 2 or "Unknown"')
+        no_cot_clause = no_cot_judge._json_schema_clause(
+            '0 or 1 or 2 or "Unknown"'
+        )
+        assert "reasoning" in cot_clause
+        assert "evidence_quotes" in cot_clause
+        assert "reasoning" not in no_cot_clause
+        assert "evidence_quotes" not in no_cot_clause
+
+    @pytest.mark.asyncio
+    async def test_use_cot_false_parser_tolerates_missing_reasoning_key(self):
+        """Helper must accept JSON without a 'reasoning' key (the no_cot
+        prompt asks for {"score": ...} only) without raising.
+        """
+        provider = AsyncMock(spec=LLMProvider)
+        provider.complete.return_value = _mk_response('{"score": 1}')
+
+        result = await _call_judge_with_retry(
+            provider=provider,
+            prompt="x",
+            valid_scores={0, 1},
+            judge_id="m_groundedness",
+            rubric_version="abc",
+            prompt_seed=0,
+            system_output_hash="def",
+            item_id="i1",
+        )
+        assert result.score == 1
+        assert result.reasoning == ""
+
+    def test_strip_anchors_removes_examples_and_changes_hash(self):
+        """use_anchors=False is implemented via Rubric.strip_anchors().
+        The stripped rubric's body_markdown must omit ### Example sections,
+        and source_hash must differ so calibration aggregation can bucket
+        anchored vs stripped scores correctly.
+        """
+        from agent_bench.evaluation.judges.base import Rubric
+
+        original = Rubric.from_markdown_file(
+            "agent_bench/evaluation/rubrics/relevance.md"
+        )
+        stripped = original.strip_anchors()
+        assert "### Example" in original.body_markdown
+        assert "### Example" not in stripped.body_markdown
+        assert original.source_hash != stripped.source_hash
+        # Levels still present, but their examples lists are empty
+        assert len(stripped.levels) == len(original.levels)
+        for lvl in stripped.levels:
+            assert lvl.examples == []
+
+    def test_abstain_allowed_override_is_used_by_helper_path(self):
+        """Judge.effective_abstain_allowed reflects override when set,
+        rubric.abstain_allowed otherwise. The override is what the
+        helper sees, not the rubric's flag.
+        """
+        from agent_bench.evaluation.judges.relevance import RelevanceJudge
+
+        rubric = self._rubric()  # abstain_allowed=True per fixture
+        provider = AsyncMock(spec=LLMProvider)
+
+        default_judge = RelevanceJudge(
+            judge_provider=provider, rubric=rubric, model_id="m"
+        )
+        assert default_judge.effective_abstain_allowed is True
+
+        forced_off = RelevanceJudge(
+            judge_provider=provider,
+            rubric=rubric,
+            model_id="m",
+            abstain_allowed_override=False,
+        )
+        assert forced_off.effective_abstain_allowed is False
+
+        # Explicit True override (rare but should work)
+        forced_on = RelevanceJudge(
+            judge_provider=provider,
+            rubric=rubric,
+            model_id="m",
+            abstain_allowed_override=True,
+        )
+        assert forced_on.effective_abstain_allowed is True
+
+
 class TestCitationFaithfulnessJudge:
     def test_extract_claims_with_citations(self):
         from agent_bench.evaluation.judges.citation_faithfulness import (

@@ -33,14 +33,14 @@ class GroundednessJudge(Judge):
         snippets_block = "\n".join(
             f"[{i + 1}] {s}" for i, s in enumerate(item.source_snippets)
         )
+        schema_clause = self._json_schema_clause('0 or 1 or "Unknown"')
         prompt = (
             f"{self.rubric.render_prompt(level_permutation_seed=prompt_seed)}\n\n"
             f"---\n\n"
             f"## Gold source snippets\n{snippets_block}\n\n"
             f"## Answer to score\n{output.answer}\n\n"
             f"Score this answer against the rubric above. Respond with ONLY a "
-            f'JSON object: {{"reasoning": "...", "evidence_quotes": [...], '
-            f'"score": 0 or 1 or "Unknown"}}.'
+            f"{schema_clause}"
         )
         return await _call_judge_with_retry(
             provider=self.judge_provider,
@@ -53,5 +53,5 @@ class GroundednessJudge(Judge):
                 item.id, output.answer, [s.source for s in output.sources]
             ),
             item_id=item.id,
-            abstain_allowed=self.rubric.abstain_allowed,
+            abstain_allowed=self.effective_abstain_allowed,
         )

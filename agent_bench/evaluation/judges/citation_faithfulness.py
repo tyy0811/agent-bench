@@ -140,14 +140,14 @@ class CitationFaithfulnessJudge(Judge):
                 )
                 continue
             chunk = source_to_chunk.get(cited, "")
+            schema_clause = self._json_schema_clause('0 or 1 or "Unknown"')
             prompt = (
                 f"{self.rubric.render_prompt(level_permutation_seed=prompt_seed)}\n\n"
                 f"---\n\n"
                 f"## Claim (from agent's answer)\n{claim}\n\n"
                 f"## Cited chunk content\n{chunk}\n\n"
                 f"Does the cited chunk support the claim? Respond with ONLY a "
-                f'JSON object: {{"reasoning": "...", "evidence_quotes": [...], '
-                f'"score": 0 or 1 or "Unknown"}}.'
+                f"{schema_clause}"
             )
             sub_result = await _call_judge_with_retry(
                 provider=self.judge_provider,
@@ -158,7 +158,7 @@ class CitationFaithfulnessJudge(Judge):
                 prompt_seed=prompt_seed,
                 system_output_hash=sys_hash,
                 item_id=f"{item.id}::{cited}",
-                abstain_allowed=self.rubric.abstain_allowed,
+                abstain_allowed=self.effective_abstain_allowed,
             )
             per_pair_results.append(sub_result)
             accumulated_cost += sub_result.cost_usd

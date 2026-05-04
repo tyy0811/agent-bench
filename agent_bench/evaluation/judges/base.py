@@ -244,11 +244,58 @@ class Rubric(BaseModel):
         )
         return permuted_body
 
+    def strip_anchors(self) -> Self:
+        """Return a new Rubric with anchored examples removed from every
+        level (and a regenerated body_markdown that omits the ``### Example``
+        sections). Used by the calibration runner's `use_anchors=false`
+        ablation row to measure the contribution of anchored examples.
+
+        source_hash naturally diverges because body_markdown changes — so
+        ScoreResults from the stripped rubric carry a different
+        rubric_version, and the calibration report can bucket them
+        correctly without requiring a separate provenance field.
+        """
+        fm_match = re.match(r"^(---\n.+?\n---\n)(.*)$", self.body_markdown, re.DOTALL)
+        head = fm_match.group(1) if fm_match else ""
+        rest = fm_match.group(2) if fm_match else self.body_markdown
+        intro = re.split(r"^## Score ", rest, maxsplit=1, flags=re.MULTILINE)[0]
+        # Render each level with its description but no examples.
+        stripped_body = head + intro + "\n".join(
+            f"## Score {lvl.score}\n{lvl.description}\n" for lvl in self.levels
+        )
+        stripped_levels = [
+            RubricLevel(score=lvl.score, description=lvl.description, examples=[])
+            for lvl in self.levels
+        ]
+        return type(self)(
+            dimension=self.dimension,
+            scale=self.scale,
+            reference_based=self.reference_based,
+            abstain_allowed=self.abstain_allowed,
+            levels=stripped_levels,
+            body_markdown=stripped_body,
+        )
+
 
 class Judge(ABC):
     """Per-dimension LLM judge. Concrete subclasses implement score()
     for one rubric dimension; they are thin (~30 lines) and not
     factored against a shared base method (see design doc for why).
+
+    Three calibration knobs are accepted at construction so the
+    calibration runner can run baseline-vs-ablation rows from the same
+    code path without monkey-patching:
+
+    - ``use_cot`` (default True) — when False, the JSON schema requested
+      from the model omits the ``reasoning`` and ``evidence_quotes``
+      fields, ablating the chain-of-thought-before-score discipline.
+    - ``abstain_allowed_override`` (default None) — when set, overrides
+      the rubric's ``abstain_allowed`` flag for this judge's calls. Used
+      by the ``baseline_no_abstain`` ablation row.
+    - The ``use_anchors`` knob is implemented by passing a stripped
+      rubric (via ``Rubric.strip_anchors()``) at construction time, not
+      via a separate flag here — that way ScoreResult.rubric_version
+      naturally distinguishes anchored vs stripped variants.
     """
 
     def __init__(
@@ -256,11 +303,47 @@ class Judge(ABC):
         judge_provider: "LLMProvider",
         rubric: Rubric,
         model_id: str,
+        *,
+        use_cot: bool = True,
+        abstain_allowed_override: bool | None = None,
     ) -> None:
         self.judge_provider = judge_provider
         self.rubric = rubric
         self.model_id = model_id
+        self.use_cot = use_cot
+        self.abstain_allowed_override = abstain_allowed_override
+        # judge_id format: ``{model_id}_{dimension}`` — load-bearing for
+        # the calibration report's per-judge κ breakdown. Ablation knobs
+        # do NOT enter the judge_id; the row label + ScoreResult.
+        # rubric_version (which differs for stripped anchors) carry that
+        # signal. This keeps the per-judge bucketing stable across
+        # baseline + ablation rows for the same model.
         self.judge_id = f"{model_id}_{rubric.dimension}"
+
+    @property
+    def effective_abstain_allowed(self) -> bool:
+        """Whether abstain is permitted for this judge's calls; the
+        override (when set) takes precedence over the rubric's flag.
+        """
+        if self.abstain_allowed_override is not None:
+            return self.abstain_allowed_override
+        return self.rubric.abstain_allowed
+
+    def _json_schema_clause(self, valid_scores_str: str) -> str:
+        """Render the trailing JSON-schema instruction for the prompt.
+
+        With ``use_cot=True`` (default) the schema asks for reasoning
+        and evidence_quotes before the score, so the model's response
+        conditions the score on the reasoning. With ``use_cot=False``
+        only the score field is requested — used for the ``no_cot``
+        ablation row.
+        """
+        if self.use_cot:
+            return (
+                f'JSON object: {{"reasoning": "...", '
+                f'"evidence_quotes": [...], "score": {valid_scores_str}}}.'
+            )
+        return f'JSON object: {{"score": {valid_scores_str}}}.'
 
     @abstractmethod
     async def score(
@@ -372,10 +455,12 @@ async def _call_judge_with_retry(
         accumulated_latency += (time.perf_counter() - start) * 1000
         last_raw = response.content[:300]
 
-        # Parse
+        # Parse — reasoning and evidence_quotes are optional so judges
+        # configured with use_cot=False (which prompt for {"score": ...}
+        # only) don't fail parsing on the missing key.
         try:
             data = _json.loads(response.content)
-            reasoning = str(data["reasoning"])
+            reasoning = str(data.get("reasoning", ""))
             evidence_quotes = list(data.get("evidence_quotes", []))
             raw_score = data["score"]
         except (_json.JSONDecodeError, KeyError, TypeError) as e:
