@@ -2280,18 +2280,97 @@ note in `feedback_judge_probe_before_sweep.md` was earned by this
 session's two failed full-row attempts that paid ~$1.15 for unparseable
 output before the diagnosis converged.
 
-The κ table at `docs/_generated/kappa_table.md` shows three findings
-that the writeup needs to interpret rather than report verbatim:
-relevance Cohen's κ = 0 across 5/6 rows is a prevalence degeneracy
-(29×score=2 + 1×score=1 gold, formula collapses), not judges failing
-at relevance — AC1 is the load-bearing statistic on this dimension and
-on groundedness; `no_cot` completeness κ = 1.000 at n=24 (vs 26
-elsewhere) is suspicious abstain-as-coverage-gap behavior worth
-investigating before the writeup celebrates it; and the headline
-finding that the writeup should lead with is that
-`jury_kappa_weighted` underperformed `baseline` on completeness
-(κ = 0.014 vs 0.416). The κ-weighted aggregation collapsing below
-either single member is the realized risk the design doc flagged; the
-right v1.2 fix is held-out validation for the jury weights rather
-than computing them on the same calibration set the κ table is
-evaluated against.
+The κ table at `docs/_generated/kappa_table.md` (regenerated on
+2026-05-05 with AC1 for groundedness and relevance, Cohen's κ for
+completeness — see report.py `_DIM_METRIC`) shows three findings
+that the writeup interprets rather than reports verbatim:
+
+**v1.1 finding 1 — relevance is not "judges fail" territory.**
+Cohen's κ = 0 across 5/6 rows is a prevalence degeneracy on the
+29×score=2 + 1×score=1 gold; raw agreement is 96–100%, AC1 is 0.96–1.00.
+AC1 is the load-bearing statistic on relevance and groundedness; both
+metrics agree on completeness where the gold (23×2 / 5×1) is balanced.
+
+**v1.1 finding 2 — `no_cot completeness` agreement is real, not
+selective abstain.** AC1 = κ = 1.000 at n=24. The 2 absent cells
+(`q021`, `k8s_012`) are infrastructure abstains (provider rate-limit
+retry exhaustion), both gold=`2`, neither in baseline's disagreement
+set. On the 24 scored cells, all 4 baseline-with-CoT disagreements
+(3× gold=2 scored 1 by CoT-judge, 1× gold=1 scored 2) flip to
+agreement when CoT is removed. The interview-relevant claim is the
+*opposite* of the conventional CoT-helps story: CoT-before-score on
+3-point completeness lets the judge over-emphasize partial coverage
+and rationalize `1` when the human gold sides with the holistic
+"covers the points" reading.
+
+**v1.1 finding 3 — `jury_kappa_weighted` underperformed baseline on
+completeness, with a precise mechanism.** Per-member analysis from
+`results/calibration_v1_judge_jury_kappa_weighted_members.jsonl`:
+Haiku-4.5 alone reaches κ = 0.416 / AC1 = 0.792 / raw 84.6%;
+gpt-4o-mini-2024-07-18 alone reaches κ = 0.020 / AC1 = 0.006 / raw
+26.9% — systematically harsh on the 3-point scale, almost never
+scoring `2`. Jury aggregate κ = 0.014 / AC1 = 0.016 / raw 26.9% —
+matches gpt-4o-mini alone exactly because the jury verdict reduces
+to gpt-4o-mini's verdict on every disputed cell.
+
+The mechanism is *missing-weight + round-down* compounding, not
+weighted voting in the usual sense. `scripts/run_calibration.py
+::_load_weights_from_baseline` is a documented v1 stub that returns
+weight = 1.0 for every judge_id present in baseline. baseline.json
+contains only Haiku, so Haiku gets 1.0 from the stub and gpt-4o-mini
+gets 1.0 from `jury.py`'s missing-key fallback (with a logged
+`jury_missing_weight_fallback_to_one` warning per call). Equal
+weights make disputed (Haiku=2, gpt=1) cells produce a weighted mean
+of 1.5; the `_discretize_mean` rule is `frac > 0.5 → ceil else floor`,
+and `0.5 > 0.5` is false, so 1.5 floors to 1. gpt-4o-mini's verdict
+wins every disputed cell. The v1 design doc's risks subsection listed
+"jury κ worse than the better individual judge — (a) kappa-weighting
+wrong, or (b) worse judge drags mean" as a tracked risk; v1.1 fired
+*both* branches simultaneously: branch (a) because the weighting is a
+stub returning equal weights, and branch (b) because round-down at
+exact 0.5 ties hands the verdict to the lower-scoring member.
+
+The deeper structural point is that weighting alone cannot rescue a
+systematically miscalibrated member. Even held-out validation that
+correctly assigned gpt-4o-mini's true low weight on completeness
+would still let it dominate disputed ties unless its weight were
+driven near zero — and at that point exclusion is more honest than
+near-zero inclusion. The conservative-on-binary "ties to lower" rule
+also doesn't transfer cleanly to ordinal scales: on completeness,
+"conservative" means scoring *toward incomplete*, which is precisely
+the direction of gpt-4o-mini's bias.
+
+**v1.2 fix list (four items, expanding the earlier two-item list):**
+
+1. **Held-out jury weights.** Replace the
+   `_load_weights_from_baseline` stub with a real κ-derived
+   computation, evaluated on a *held-out validation set* — not the
+   same calibration row whose κ is being measured against the gold.
+   Closes the circular-weighting hole.
+2. **Symmetric member coverage in the weights source.** Missing-member
+   fallback to weight = 1.0 amplifies an unweighted member rather than
+   suppressing it. Either every jury member must have a weight in the
+   source file or the run must abort. The `jury_missing_weight_
+   fallback_to_one` warning fired loudly on every call this run; in
+   v1.2 it should be a hard error.
+3. **Per-dimension member exclusion when individual κ falls below a
+   threshold.** gpt-4o-mini at κ = 0.020 on completeness should not be
+   in the completeness jury at all. Weights below a floor (suggested
+   κ < 0.2) should be treated as exclusion, not as small-weight
+   inclusion. Held-out validation fixes circular weighting; it does
+   not fix systematic member bias.
+4. **Per-dimension tie-break rule.** v1's `_discretize_mean` rule
+   (ties to lower) was selected for conservative behavior on binary
+   scales, where "conservative" means scoring 0 on uncertainty. On
+   3-point completeness, "conservative" means scoring toward
+   *incomplete*, which interacts badly with member miscalibration.
+   v1.2 should select the tie-break rule per-dimension based on the
+   rubric's conservative direction, not globally.
+
+**Evidence files:** `docs/_generated/kappa_table.md` (regenerated with
+AC1 for groundedness/relevance, κ for completeness);
+`results/calibration_v1_judge_jury_kappa_weighted_members.jsonl`
+(per-member sidecar where the gpt-4o-mini completeness bias is
+visible per item); `results/calibration_v1_judge_baseline.json`
+(weights source — note the absence of any gpt-4o-mini-2024-07-18
+entries, which is why the missing-weight fallback fires).
