@@ -8,11 +8,16 @@ from __future__ import annotations
 import glob as _glob
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 
 import structlog
 
-from agent_bench.evaluation.calibration.metrics import bootstrap_ci, cohen_kappa
+from agent_bench.evaluation.calibration.metrics import (
+    bootstrap_ci,
+    cohen_kappa,
+    gwets_ac2,
+)
 from agent_bench.evaluation.judges.base import (
     ABSTAIN_REASON_OUT_OF_RANGE,
     ABSTAIN_REASON_PROVIDER_EXHAUSTED,
@@ -22,6 +27,27 @@ from agent_bench.evaluation.judges.base import (
 logger = structlog.get_logger()
 
 ABSTAIN_THRESHOLD = 0.20  # strictly greater than fires the flag
+
+# Per-dimension headline metric. Cohen's κ degenerates under the prevalence
+# imbalance produced by the v1.1 strict-snippet groundedness rubric (1×score=1,
+# ~25×score=0) and by the inherent skew on relevance (29×score=2, 1×score=1):
+# both Po and Pe approach 1.0, the formula collapses to ~0/0, and the rendered
+# κ reads as 0.000 even when raw agreement is >95%. Gwet's AC1 (gwets_ac2 with
+# weights=None per metrics.py) uses mean marginals and stays informative under
+# imbalance. Completeness has a more balanced gold (23×2, 5×1, 2×Unknown) so
+# Cohen's κ is the conventional choice there. The metric per dim is rendered
+# explicitly in the footer so a writeup reader sees the methodology choice.
+# Type annotation prevents a mypy 1.20.x INTERNAL ERROR triggered by the
+# tuple-unpack of `_DIM_METRIC.get(dim, default)` further down. Without it
+# mypy fails to infer the metric_fn callable signature consistently across
+# the dict literal and the fallback default, and crashes with no real
+# user-facing type error to fix.
+_MetricFn = Callable[[list, list], float]
+_DIM_METRIC: dict[str, tuple[str, _MetricFn]] = {
+    "groundedness": ("AC1", gwets_ac2),
+    "relevance": ("AC1", gwets_ac2),
+    "completeness": ("κ", cohen_kappa),
+}
 
 # Filename marker for jury / permute sidecar files. Any prediction file whose
 # basename contains this token is per-member detail, not aggregate predictions,
@@ -114,6 +140,14 @@ def generate_kappa_table(
             labels_by_dim[label_rec["dimension"]].append(label_rec)
 
         for dim in sorted(preds_by_dim.keys()):
+            # Resolve dimension's headline metric once per dim, instead of
+            # tuple-unpacking _DIM_METRIC.get(...) at each use site below.
+            # The repeated unpack pattern triggered a mypy 1.19+ INTERNAL
+            # ERROR; one resolution call here is also less code.
+            metric_name, metric_fn = _DIM_METRIC.get(
+                dim, ("κ", cohen_kappa)
+            )
+
             preds_d = {p["item_id"]: p for p in preds_by_dim[dim]}
             labs_d = {
                 label_rec["item_id"]: label_rec
@@ -163,6 +197,7 @@ def generate_kappa_table(
                     {
                         "row": row_label,
                         "dim": dim,
+                        "metric": metric_name,
                         "kappa": None,
                         "ci_lo": None,
                         "ci_hi": None,
@@ -171,23 +206,24 @@ def generate_kappa_table(
                         "abstain_rate": abstain_rate,
                         "abstain_causes": abstain_causes,
                         "footnote": (
-                            f"κ undefined: insufficient agreement-eligible "
-                            f"items (N={n_eligible})"
+                            f"{metric_name} undefined: insufficient "
+                            f"agreement-eligible items (N={n_eligible})"
                         ),
                     }
                 )
                 continue
 
             try:
-                kappa = cohen_kappa(y_lab, y_pred)
+                kappa = metric_fn(y_lab, y_pred)
                 point, lo, hi = bootstrap_ci(
-                    y_lab, y_pred, cohen_kappa, n_iter=1000, seed=42
+                    y_lab, y_pred, metric_fn, n_iter=1000, seed=42
                 )
             except (ValueError, ZeroDivisionError):
                 rows.append(
                     {
                         "row": row_label,
                         "dim": dim,
+                        "metric": metric_name,
                         "kappa": None,
                         "ci_lo": None,
                         "ci_hi": None,
@@ -196,8 +232,8 @@ def generate_kappa_table(
                         "abstain_rate": abstain_rate,
                         "abstain_causes": abstain_causes,
                         "footnote": (
-                            "κ undefined: insufficient variance after "
-                            "exclusion"
+                            f"{metric_name} undefined: insufficient "
+                            f"variance after exclusion"
                         ),
                     }
                 )
@@ -211,6 +247,7 @@ def generate_kappa_table(
                     {
                         "row": row_label,
                         "dim": dim,
+                        "metric": metric_name,
                         "kappa": None,
                         "ci_lo": None,
                         "ci_hi": None,
@@ -219,8 +256,9 @@ def generate_kappa_table(
                         "abstain_rate": abstain_rate,
                         "abstain_causes": abstain_causes,
                         "footnote": (
-                            "κ undefined: all labels and predictions in a "
-                            "single category (no variance to measure)"
+                            f"{metric_name} undefined: all labels and "
+                            f"predictions in a single category (no variance "
+                            f"to measure)"
                         ),
                     }
                 )
@@ -234,15 +272,17 @@ def generate_kappa_table(
                     if v > 0
                 )
                 footnote = (
-                    f"κ computed on N={n_eligible} of {len(common)} items; "
-                    f"high abstain rate ({100 * abstain_rate:.1f}% — "
-                    f"breakdown: {breakdown}) suggests rubric ambiguity."
+                    f"{metric_name} computed on N={n_eligible} of "
+                    f"{len(common)} items; high abstain rate "
+                    f"({100 * abstain_rate:.1f}% — breakdown: {breakdown}) "
+                    f"suggests rubric ambiguity."
                 )
 
             rows.append(
                 {
                     "row": row_label,
                     "dim": dim,
+                    "metric": metric_name,
                     "kappa": kappa,
                     "ci_lo": lo,
                     "ci_hi": hi,
@@ -255,8 +295,20 @@ def generate_kappa_table(
             )
 
     out = ["# κ ablation table — calibration v1\n"]
-    out.append("| Row | Dimension | κ (95% CI) | N | Abstain rate | Notes |")
-    out.append("|---|---|---|---|---|---|")
+    out.append(
+        "Headline metric per dimension: " + ", ".join(
+            f"**{d} → {m}**" for d, (m, _) in _DIM_METRIC.items()
+        ) + ". "
+        "AC1 (Gwet 2008, unweighted) is used on dimensions whose v1.1 gold "
+        "is prevalence-skewed enough to make Cohen's κ degenerate "
+        "(groundedness 1×`1`/29×`0`, relevance 29×`2`/1×`1`); both metrics "
+        "produce ≥0.95 raw agreement on those rows but Cohen's κ collapses "
+        "to ≈0 because Pe approaches 1. Completeness uses Cohen's κ — its "
+        "gold (23×`2`/5×`1`) is balanced enough for κ to behave normally."
+    )
+    out.append("")
+    out.append("| Row | Dimension | Metric | Agreement (95% CI) | N | Abstain rate | Notes |")
+    out.append("|---|---|---|---|---|---|---|")
     for r in rows:
         if r["kappa"] is None:
             kcell = " — "
@@ -264,8 +316,8 @@ def generate_kappa_table(
             kcell = f"{r['kappa']:.3f} ({r['ci_lo']:.3f}, {r['ci_hi']:.3f})"
         rate = f"{100 * r['abstain_rate']:.1f}%"
         out.append(
-            f"| {r['row']} | {r['dim']} | {kcell} | {r['n_eligible']} | "
-            f"{rate} | {r['footnote']} |"
+            f"| {r['row']} | {r['dim']} | {r['metric']} | {kcell} | "
+            f"{r['n_eligible']} | {rate} | {r['footnote']} |"
         )
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

@@ -330,7 +330,7 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
                     return None
                 item, output = _build_item_and_output(rec)
                 result = await judge.score(item, output)
-                return {"dimension": dim, **result.model_dump()}
+                return {"item_id": rec["item_id"], "dimension": dim, **result.model_dump()}
 
         coros = [
             score_one(rec, dim, judge)
@@ -365,7 +365,7 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
                     continue
                 item, output = _build_item_and_output(rec)
                 result = await permuted.score(item, output)
-                all_results.append({"dimension": dim, **result.model_dump()})
+                all_results.append({"item_id": rec["item_id"], "dimension": dim, **result.model_dump()})
 
     elif strategy == "jury":
         # Same sequential rationale as rubric_permute: jury writes a
@@ -396,7 +396,7 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
                     continue
                 item, output = _build_item_and_output(rec)
                 result = await j.score(item, output)
-                all_results.append({"dimension": dim, **result.model_dump()})
+                all_results.append({"item_id": rec["item_id"], "dimension": dim, **result.model_dump()})
     else:
         raise SystemExit(f"unknown strategy: {strategy}")
 

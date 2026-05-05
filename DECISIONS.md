@@ -2160,3 +2160,217 @@ defaults to the three v1 dimensions. Zero user-facing config migration.
 Langfuse self-host, dual-pass intra-rater calibration, DSPy/GEPA/MIPROv2
 prompt optimization, citation_faithfulness in the default
 judge_dimensions, AC2 sympy-derived parity tests.
+
+## Opus stress-test surfaced groundedness rubric-scope drift before the κ ablation ran — 2026-05-05
+
+The Opus stress-test pass over the 30 calibration items × 3 dimensions
+disagreed with the single-rater human gold on **22 of 30 groundedness
+items** (8/30 agreement). Relevance and completeness agreed at 28/30 and
+25/30 respectively. The groundedness disagreement is consistent in
+direction — every disagreed-on item is `human=1, opus=0` — and has a
+single root cause.
+
+**Root cause: reference-scope drift between rubric author and labeler.**
+`agent_bench/evaluation/rubrics/groundedness.md` defines the reference
+scope as the gold snippets attached to each item:
+
+> The judge sees only the gold snippets — not the retrieved chunks. A
+> claim that happens to be true in the world but is not entailed by the
+> snippets fails groundedness.
+
+The single-rater notes on the disagreed-on items describe checking
+against the broader documentation, not against `source_snippets`:
+"supported by the corpus", "supported by the docs", "supported by the
+provided dependency snippet". For items like `k8s_006` the gold snippet
+is one sentence ("A ConfigMap is an API object used to store
+non-confidential data in key-value pairs"), while the agent's answer
+correctly synthesizes seven or eight additional claims from the full
+`k8s_configmap.md`. Those claims are true in the world and well-supported
+by the full doc, but **not entailed by the one snippet**. Opus applied
+the strict-snippet rubric; the human rater applied a corpus-supported
+rubric.
+
+**Why this blocks `make calibrate` against the current gold.** The κ
+ablation compares Haiku and GPT-4o-mini judges against the human gold.
+A judge that correctly applies the strict-snippet rubric will disagree
+with miscalibrated gold; a judge that's too lenient will agree. The
+ablation rewards leniency and punishes rigor — the opposite of the
+intended measurement. This is the same failure mode codified earlier in
+this document under "Fix 2 outcome" and elsewhere: tuning sweeps tune
+compensation when the measurement is wrong, not the intended effect.
+
+**Why the rubric stays as written, not relaxed to "corpus-supported".**
+Strict-snippet groundedness measures *RAG behavior*: did the agent
+synthesize from what it retrieved? Corpus-supported groundedness
+measures *LLM general knowledge passing through a RAG harness*: did the
+agent happen to be correct? The first is what this benchmark is for;
+the second is what `agent_bench/evaluation/metrics.py` measured before
+supersession. Relaxing the rubric to "corpus-supported" would silently
+re-introduce the failure mode the supersession entry above just removed.
+
+**Decision — three-step correction lands before `make calibrate` runs:**
+
+1. **Rubric clarification commit on `agent_bench/evaluation/rubrics/groundedness.md`.**
+   Add an explicit reference-scope line and one anchored example
+   contrasting "supported by the snippet" vs "true in the world but
+   not in the snippet". Audit-trail requirement: the v1.1 writeup will
+   cite "rubric clarified between v1.0 and v1.1", and the git history
+   needs to back that claim.
+2. **Re-label the 22 disagreed-on groundedness items** in
+   `measurements/2026-05-04-judge-calibration-labels.jsonl` against the
+   clarified rubric, snippet-only. **Do not mechanically copy Opus's
+   labels.** The labels remain the human single-rater's; what changes is
+   the rubric being applied. Mechanical copy would turn the κ table
+   into "judge vs Opus", which is not what the writeup claims it
+   measures.
+3. **Recompute `make calibrate` against the corrected gold** and emit
+   `docs/_generated/kappa_table.md` from the v1.1 labels.
+
+**Evidence files for the v1.1 writeup section:**
+
+- `measurements/2026-05-05-judge-rubric-opus-stress.jsonl` — 90 Opus
+  labels (claude-opus-4-7, serialized to stay under the 30K input-tok/min
+  org rate limit, ~$0.20, ~14 min wall, zero infra-abstains).
+- `measurements/2026-05-04-judge-calibration-labels.jsonl` — original
+  v1.0 single-rater gold; will be diffed against v1.1 corrected gold to
+  quantify the re-label delta.
+- `agent_bench/evaluation/rubrics/groundedness.md` — pre/post diff is
+  the rubric clarification.
+
+**Pre-labeling observations also worth recording for the writeup
+methodology section:**
+
+- `q021` (fastapi · calculation) answered the CORS preflight question
+  correctly (600 / 60 = 10 minutes) with `sources: []` and
+  `ranked_sources: []` — the agent did the arithmetic without retrieval
+  and emitted an answer consistent with the snippet without having
+  retrieved it. Methodologically interesting for the
+  citation-faithfulness story (Block 2.7) if it ships: an answer can be
+  correct without being grounded-by-citation.
+- `q025` (fastapi · multi_hop) answer was truncated mid-token by the
+  orchestrator's max_tokens limit. The labels reflect what the system
+  produced, not a mentally-patched complete version. The completeness
+  rubric does not currently anchor "truncated response" as a level —
+  v1.1 rubric work should add an anchor.
+- Several K8s items embed external knowledge that's correct but not in
+  the snippet phrasing (`k8s_017` mentions exit-code-0 for init-container
+  success; `k8s_009` describes Roles vs ClusterRoles by their semantics).
+  The clarified groundedness rubric should pick **strict** on this case
+  (claim must be supportable by the retrieved spans, not just consistent
+  with them) and the anchored example should show that ruling.
+
+**Methodology framing for the writeup.** The Opus stress-test was added
+specifically to catch hand-labeled-gold fragility before the κ table is
+published. It caught it. The writeup's calibration section should
+disclose the rubric clarification, quantify the re-label delta on
+groundedness, and report κ against the v1.1 corrected gold — that is a
+more credible story than a first-try clean κ table would have been.
+
+**Outcome — 2026-05-05 calibrate run on v1.1 gold.** All 6 ablation rows
+ran cleanly after three coupled production-code fixes that landed on the
+same branch as the rubric clarification: (1) markdown fence stripping in
+`agent_bench/evaluation/judges/base.py::_strip_markdown_fence` because
+Haiku 4.5 wraps JSON output in ` ```json ... ``` `, (2) `max_tokens`
+512 → 1024 because v1.1 anchored examples elicit longer model reasoning,
+(3) calibration runner v1.0 omitted `item_id` from prediction records;
+fixed in v1.1 with backfill of the 6 already-written row files via
+`hash → item_id` map (no re-spend). Probe-one-cell-before-sweep saved a
+fourth $0.50 wasted run after the fence-strip change — the methodology
+note in `feedback_judge_probe_before_sweep.md` was earned by this
+session's two failed full-row attempts that paid ~$1.15 for unparseable
+output before the diagnosis converged.
+
+The κ table at `docs/_generated/kappa_table.md` (regenerated on
+2026-05-05 with AC1 for groundedness and relevance, Cohen's κ for
+completeness — see report.py `_DIM_METRIC`) shows three findings
+that the writeup interprets rather than reports verbatim:
+
+**v1.1 finding 1 — relevance is not "judges fail" territory.**
+Cohen's κ = 0 across 5/6 rows is a prevalence degeneracy on the
+29×score=2 + 1×score=1 gold; raw agreement is 96–100%, AC1 is 0.96–1.00.
+AC1 is the load-bearing statistic on relevance and groundedness; both
+metrics agree on completeness where the gold (23×2 / 5×1) is balanced.
+
+**v1.1 finding 2 — `no_cot completeness` agreement is real, not
+selective abstain.** AC1 = κ = 1.000 at n=24. The 2 absent cells
+(`q021`, `k8s_012`) are infrastructure abstains (provider rate-limit
+retry exhaustion), both gold=`2`, neither in baseline's disagreement
+set. On the 24 scored cells, all 4 baseline-with-CoT disagreements
+(3× gold=2 scored 1 by CoT-judge, 1× gold=1 scored 2) flip to
+agreement when CoT is removed. The interview-relevant claim is the
+*opposite* of the conventional CoT-helps story: CoT-before-score on
+3-point completeness lets the judge over-emphasize partial coverage
+and rationalize `1` when the human gold sides with the holistic
+"covers the points" reading.
+
+**v1.1 finding 3 — `jury_kappa_weighted` underperformed baseline on
+completeness, with a precise mechanism.** Per-member analysis from
+`results/calibration_v1_judge_jury_kappa_weighted_members.jsonl`:
+Haiku-4.5 alone reaches κ = 0.416 / AC1 = 0.792 / raw 84.6%;
+gpt-4o-mini-2024-07-18 alone reaches κ = 0.020 / AC1 = 0.006 / raw
+26.9% — systematically harsh on the 3-point scale, almost never
+scoring `2`. Jury aggregate κ = 0.014 / AC1 = 0.016 / raw 26.9% —
+matches gpt-4o-mini alone exactly because the jury verdict reduces
+to gpt-4o-mini's verdict on every disputed cell.
+
+The mechanism is *missing-weight + round-down* compounding, not
+weighted voting in the usual sense. `scripts/run_calibration.py
+::_load_weights_from_baseline` is a documented v1 stub that returns
+weight = 1.0 for every judge_id present in baseline. baseline.json
+contains only Haiku, so Haiku gets 1.0 from the stub and gpt-4o-mini
+gets 1.0 from `jury.py`'s missing-key fallback (with a logged
+`jury_missing_weight_fallback_to_one` warning per call). Equal
+weights make disputed (Haiku=2, gpt=1) cells produce a weighted mean
+of 1.5; the `_discretize_mean` rule is `frac > 0.5 → ceil else floor`,
+and `0.5 > 0.5` is false, so 1.5 floors to 1. gpt-4o-mini's verdict
+wins every disputed cell. The v1 design doc's risks subsection listed
+"jury κ worse than the better individual judge — (a) kappa-weighting
+wrong, or (b) worse judge drags mean" as a tracked risk; v1.1 fired
+*both* branches simultaneously: branch (a) because the weighting is a
+stub returning equal weights, and branch (b) because round-down at
+exact 0.5 ties hands the verdict to the lower-scoring member.
+
+The deeper structural point is that weighting alone cannot rescue a
+systematically miscalibrated member. Even held-out validation that
+correctly assigned gpt-4o-mini's true low weight on completeness
+would still let it dominate disputed ties unless its weight were
+driven near zero — and at that point exclusion is more honest than
+near-zero inclusion. The conservative-on-binary "ties to lower" rule
+also doesn't transfer cleanly to ordinal scales: on completeness,
+"conservative" means scoring *toward incomplete*, which is precisely
+the direction of gpt-4o-mini's bias.
+
+**v1.2 fix list (four items, expanding the earlier two-item list):**
+
+1. **Held-out jury weights.** Replace the
+   `_load_weights_from_baseline` stub with a real κ-derived
+   computation, evaluated on a *held-out validation set* — not the
+   same calibration row whose κ is being measured against the gold.
+   Closes the circular-weighting hole.
+2. **Symmetric member coverage in the weights source.** Missing-member
+   fallback to weight = 1.0 amplifies an unweighted member rather than
+   suppressing it. Either every jury member must have a weight in the
+   source file or the run must abort. The `jury_missing_weight_
+   fallback_to_one` warning fired loudly on every call this run; in
+   v1.2 it should be a hard error.
+3. **Per-dimension member exclusion when individual κ falls below a
+   threshold.** gpt-4o-mini at κ = 0.020 on completeness should not be
+   in the completeness jury at all. Weights below a floor (suggested
+   κ < 0.2) should be treated as exclusion, not as small-weight
+   inclusion. Held-out validation fixes circular weighting; it does
+   not fix systematic member bias.
+4. **Per-dimension tie-break rule.** v1's `_discretize_mean` rule
+   (ties to lower) was selected for conservative behavior on binary
+   scales, where "conservative" means scoring 0 on uncertainty. On
+   3-point completeness, "conservative" means scoring toward
+   *incomplete*, which interacts badly with member miscalibration.
+   v1.2 should select the tie-break rule per-dimension based on the
+   rubric's conservative direction, not globally.
+
+**Evidence files:** `docs/_generated/kappa_table.md` (regenerated with
+AC1 for groundedness/relevance, κ for completeness);
+`results/calibration_v1_judge_jury_kappa_weighted_members.jsonl`
+(per-member sidecar where the gpt-4o-mini completeness bias is
+visible per item); `results/calibration_v1_judge_baseline.json`
+(weights source — note the absence of any gpt-4o-mini-2024-07-18
+entries, which is why the missing-weight fallback fires).

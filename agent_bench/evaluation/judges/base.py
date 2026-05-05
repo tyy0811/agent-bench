@@ -405,8 +405,25 @@ class MockJudge(Judge):
 
 _STRICT_REPROMPT_SUFFIX = (
     "\n\nSTRICT FORMATTING NOTE: respond ONLY with a JSON object matching "
-    "the schema; reasoning first, then evidence_quotes, then score."
+    "the schema; reasoning first, then evidence_quotes, then score. "
+    "Do not wrap the JSON in a markdown code fence."
 )
+
+
+_MARKDOWN_FENCE_RE = re.compile(r"^\s*```(?:json|JSON)?\s*\n(.*?)\n```\s*$", re.DOTALL)
+
+
+def _strip_markdown_fence(text: str) -> str:
+    """Strip a leading/trailing ```json ... ``` markdown fence if present.
+
+    Some chat models wrap structured JSON in a markdown code fence even
+    when the prompt asks for a bare JSON object. The judge parser uses
+    json.loads on the raw content, which fails at char 0 on the literal
+    backtick. This helper unwraps the fence so the parse can proceed.
+    Idempotent: returns text unchanged if no fence is present.
+    """
+    m = _MARKDOWN_FENCE_RE.match(text.strip())
+    return m.group(1) if m else text
 
 
 async def _call_judge_with_retry(
@@ -420,11 +437,19 @@ async def _call_judge_with_retry(
     system_output_hash: str,
     item_id: str,
     abstain_allowed: bool = True,
-    max_tokens: int = 512,
+    max_tokens: int = 1024,
 ) -> ScoreResult:
     """Send prompt to provider; one retry with strict reprompt on
     schema-parse / score-out-of-range; abstain on persistent failure
     or provider exhaustion. Re-raises unknown exceptions (caller bugs).
+
+    max_tokens defaults to 1024 (was 512 pre-v1.1). The v1.1 groundedness
+    rubric ships with calibration anchors whose verbose thinking traces
+    elicit longer model reasoning in turn; 512 truncated the JSON
+    response mid-reasoning and caused 78/82 schema_parse_failed
+    abstains in the first run after the rubric clarification. 1024 leaves
+    enough headroom; bump again if a future rubric revision pushes
+    reasoning longer.
     """
     accumulated_cost = 0.0
     accumulated_latency = 0.0
@@ -458,8 +483,14 @@ async def _call_judge_with_retry(
         # Parse — reasoning and evidence_quotes are optional so judges
         # configured with use_cot=False (which prompt for {"score": ...}
         # only) don't fail parsing on the missing key.
+        #
+        # Some models (observed on Haiku 4.5 under the v1.1 rubric) wrap
+        # their JSON in a ```json ... ``` markdown fence. Strip the fence
+        # before parsing rather than abstaining on a syntactically valid
+        # but conventionally formatted response.
+        content = _strip_markdown_fence(response.content)
         try:
-            data = _json.loads(response.content)
+            data = _json.loads(content)
             reasoning = str(data.get("reasoning", ""))
             evidence_quotes = list(data.get("evidence_quotes", []))
             raw_score = data["score"]
