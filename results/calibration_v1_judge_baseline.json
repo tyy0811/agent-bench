@@ -1,0 +1,1426 @@
+[
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer contains one ungrounded claim that violates strict snippet entailment. The snippet describes the caching mechanism (what it does) but does not explain why caching is useful. The answer states: 'This improves performance by avoiding redundant function calls and is particularly useful for expensive operations like database connections.' The claim about caching being 'particularly useful for expensive operations like database connections' is not entailed by the snippet\u2014it imports general LLM knowledge about use cases rather than deriving it from the reference material. This mirrors the calibration anchor example B (q006), where a similar embellishment about database connections was correctly scored 0. All other claims in the answer (the default caching behavior, once-per-request semantics, the use_cache=False mechanism, and the code example) are entailed by the snippet. However, the strict-conjunction rule requires every claim to be grounded; a single ungrounded claim fails the binary rubric.",
+    "evidence_quotes": [
+      "particularly useful for expensive operations like database connections",
+      "This improves performance by avoiding redundant function calls"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "3a79cfc1b2704a3bc427751108a08f038b33612329abee296ee3f25610c8e118",
+    "cost_usd": 0.0029392,
+    "latency_ms": 4136.505475034937,
+    "item_id": "q006"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several claims about FastAPI documentation endpoints. Snippet [1] confirms that `/docs` is Swagger UI and is an interactive API explorer. Snippet [2] states that every FastAPI application exposes three documentation-related endpoints by default, but does not specify what those three endpoints are. The answer claims the three endpoints are `/docs`, `/redoc`, and `/openapi.json`, and provides details about customization and disabling these endpoints. However, the gold snippets do not entail the specific names of the other two endpoints (`/redoc` and `/openapi.json`), nor do they entail the customization mechanism via FastAPI constructor parameters, nor the ability to disable endpoints by setting them to `None`. These claims go beyond what is entailed by the provided snippets, even though they are factually correct in FastAPI's actual documentation. The strict reference scope is the gold snippets only, and the answer extends significantly beyond them.",
+    "evidence_quotes": [
+      "[1] `/docs` | Swagger UI -- interactive API explorer",
+      "[2] Every FastAPI application exposes three documentation-related endpoints by default"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "6d8d2e201916d9c9d4d8f525009acaa8a02280dcd1573b8ecbb7bae461e26eef",
+    "cost_usd": 0.0028144,
+    "latency_ms": 3899.869768996723,
+    "item_id": "q011"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several claims about HTTPException. Claims about the primary way to raise HTTP errors, status_code and detail parameters, detail accepting string/list/dictionary, and automatic JSON serialization are all entailed by the snippets. However, the answer introduces three ungrounded claims: (1) the 'headers' parameter as an optional parameter for HTTPException, (2) an example showing headers={'X-Custom-Header': 'value'}, and (3) the statement that 'FastAPI's HTTPException inherits from Starlette's HTTPException'. None of these claims appear in or are entailed by the gold snippets. The headers parameter claim is particularly significant as it's presented as a documented feature with a code example. Under the strict binary rubric, a single ungrounded claim fails the test.",
+    "evidence_quotes": [
+      "[1] The `HTTPException` class is the primary way to return error responses from route handlers",
+      "[2] When raised, `HTTPException` immediately terminates request processing and returns the specified status code and detail message. The `detail` parameter can be a string, list, or dictionary -- FastAPI serializes it to JSON automatically."
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "b2fa2200ac582365a5f2c96fb8bcdc2d9788be5693046a68af870d073779e31b",
+    "cost_usd": 0.0029864,
+    "latency_ms": 3795.6045899773017,
+    "item_id": "q012"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "Every claim in the answer is entailed by the gold snippet under the trivial-inference clause. (1) The unit conversion from 600 seconds to 10 minutes is trivial inference (arithmetic/unit conversion). (2) The reference to 'Access-Control-Max-Age header' is entailed via the canonical-name carve-out: the snippet describes `max_age` by its configuration syntax; the answer uses the canonical HTTP header name for the same field. (3) The claim that `max_age` 'specifies the maximum time (in seconds) that the results of a preflight request can be cached' is a paraphrase of the snippet's 'Seconds the browser caches preflight results'. (4) The arithmetic (600 \u00f7 60 = 10 minutes) is trivial inference. All claims are content-equivalent to the snippet.",
+    "evidence_quotes": [
+      "max_age | 600 | Seconds the browser caches preflight results"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "32640bd1016bf34227a79195ad181f538bbbe937d3172f21ca733e7c729903de",
+    "cost_usd": 0.00258,
+    "latency_ms": 3208.11440696707,
+    "item_id": "q021"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer provides a comprehensive FastAPI setup guide covering error handling, CORS, and dependency injection. However, examining against the gold snippets: Snippet [1] states 'The `HTTPException` class is the primary way to return error responses from route handlers.' The answer instead demonstrates custom exception classes (ItemNotFoundException, DatabaseError) with custom exception handlers, and only imports HTTPException without using it as the primary method. Snippet [2] states 'Cross-Origin Resource Sharing (CORS) is configured using `CORSMiddleware` from Starlette.' The answer correctly uses CORSMiddleware, which is entailed. However, the answer's extensive treatment of custom exception handling, validation error handlers, and the overall architectural approach goes well beyond what is entailed by snippet [1]. The snippet identifies HTTPException as 'the primary way' but the answer demonstrates an alternative pattern using custom exceptions. This represents a claim not entailed by the snippets: that custom exception classes with handlers are an appropriate primary method for error handling in FastAPI. While this may be factually correct in the broader FastAPI ecosystem, it is not entailed by the gold snippet which specifically identifies HTTPException as the primary approach.",
+    "evidence_quotes": [
+      "The `HTTPException` class is the primary way to return error responses from route handlers",
+      "Cross-Origin Resource Sharing (CORS) is configured using `CORSMiddleware` from Starlette",
+      "class ItemNotFoundException(Exception)... @app.exception_handler(ItemNotFoundException)"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "42df91909038e53d05fe290544b6dbe63c631cedb6464cece79775105a7ddcde",
+    "cost_usd": 0.0037904,
+    "latency_ms": 5552.473278949037,
+    "item_id": "q023"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer provides a comprehensive implementation guide for building a paginated API with cursor navigation, validation, and analytics. However, the gold snippet only states that 'Cursor-based pagination uses an opaque token (cursor) pointing to the last item in the previous page. This avoids the performance degradation of large offsets.' The answer goes far beyond this single claim by providing: (1) complete Pydantic response models with specific field validation rules, (2) cursor encoding/decoding utilities using base64, (3) analytics logging infrastructure with background tasks, (4) a full FastAPI endpoint implementation with mock database, and (5) detailed code examples with specific parameter constraints. While the answer correctly captures the core concept of cursor-based pagination as an opaque token, nearly all of the substantive content\u2014the specific implementation patterns, validation schemas, analytics approach, and endpoint design\u2014is not entailed by the snippet. These are factually correct implementations but represent general LLM knowledge about FastAPI best practices, not content derived from the gold snippet. This is analogous to the k8s_006 calibration anchor: the answer dramatically extends beyond what the snippet supports.",
+    "evidence_quotes": [
+      "Cursor-based pagination uses an opaque token (cursor) pointing to the last item in the previous page."
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "e65efe1620df931603666588bea32ab8768035928f43b9170cd30cde25d89715",
+    "cost_usd": 0.003564,
+    "latency_ms": 4194.516663963441,
+    "item_id": "q025"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several claims about StatefulSet identity guarantees. The gold snippet states: 'StatefulSet Pods have a unique identity that consists of an ordinal, a stable network identity, and stable storage.' The answer's core claims about sticky identity, persistent identifiers, uniqueness, and network identity are all entailed by this snippet or are trivial inferences (paraphrase). However, the answer makes additional claims not entailed by the snippet: (1) detailed explanation of how Headless Services work and their role in network identity, (2) the existence and mechanics of `.spec.podManagementPolicy` field, (3) the distinction between OrderedReady and Parallel policies, and (4) specific use cases (databases, distributed systems). These claims go beyond what is entailed by the single-sentence snippet. The snippet only establishes WHAT the identity consists of (ordinal, stable network identity, stable storage), not HOW it is implemented (Headless Service requirement), WHAT policies control it, or WHY it matters. Under the strict reference scope (gold snippets only), these unentailed claims fail the binary rubric.",
+    "evidence_quotes": [
+      "StatefulSet Pods have a unique identity that consists of an ordinal, a stable network identity, and stable storage"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "95582498779bbb3574afc12b70b73c8229f2d86aeb2cb02d96fbc44b4661e217",
+    "cost_usd": 0.0030496000000000004,
+    "latency_ms": 3682.2473139618523,
+    "item_id": "k8s_001"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer contains multiple claims not entailed by the gold snippets. The snippets only state: (1) Deployments manage Pods for stateless workloads, and (2) StatefulSets maintain sticky identity for each Pod. The answer goes far beyond this, introducing claims about: pod naming conventions (random vs ordinal-based), network identity stability, persistent volumes and volumeClaimTemplates, ordered scaling/updates, headless services, specific use cases (databases, message queues, etc.), and detailed YAML examples with specific configurations. While these claims may be factually correct in Kubernetes documentation, they are not entailed by the two provided snippets. The strict reference scope is the gold snippets only, not broader domain knowledge. The answer dramatically over-extends from the minimal information provided, similar to calibration anchor k8s_006.",
+    "evidence_quotes": [
+      "Snippet [1]: 'A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state'",
+      "Snippet [2]: 'Unlike a Deployment, a StatefulSet maintains a sticky identity for each of its Pods'",
+      "Answer claims not in snippets: 'Pods are interchangeable; no sticky identity', 'Random pod names (e.g., app-abc123)', 'Ordinal-based names (e.g., web-0, web-1, web-2)', 'Stable hostname maintained across rescheduling', 'Persistent volumes per Pod via volumeClaimTemplates', 'Ordered, sequential operations', 'Headless Service Required'"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "858b5d51052c4491a8340a8676367f07b446db3e8ad1110863e07a23662fa30f",
+    "cost_usd": 0.0039008000000000003,
+    "latency_ms": 4388.676305010449,
+    "item_id": "k8s_002"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes numerous claims about Kubernetes traffic flow that are not entailed by the gold snippets. The snippets provide only two minimal statements: (1) Ingress exposes HTTP/HTTPS routes from outside the cluster, and (2) a partial sentence about Services being determined by a selector (incomplete). The answer elaborates extensively on: Ingress controller deployment as load balancers, hostname/path matching rules, Service ClusterIP assignment, EndpointSlices, kube-proxy mechanisms, iptables/DNAT, connection tracking, session affinity, and detailed architectural diagrams. While these claims are factually correct in Kubernetes, they are not entailed by the provided snippets. The snippets do not describe how traffic flows through these components, the role of kube-proxy, network address translation, endpoint tracking, or any of the detailed mechanisms presented. This is analogous to calibration anchor k8s_006: the answer goes dramatically beyond what the gold snippets entail, importing general Kubernetes knowledge rather than strict snippet groundedness.",
+    "evidence_quotes": [
+      "[1] Ingress exposes HTTP and HTTPS routes from outside the cluster to",
+      "[2] The set of Pods targeted by a Service is usually determined by a"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "feb4dfee8e9d49dd2fa61616b515e0be633d8f93d202a1a37a5c88e77803f4f5",
+    "cost_usd": 0.00328,
+    "latency_ms": 3571.8468010309152,
+    "item_id": "k8s_003"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes multiple claims about Pod Security Admission behavior, but the gold snippets provide only two minimal pieces of information: (1) 'Policy violations will cause the pod to be rejected' and (2) a feature state note about Kubernetes v1.25. The answer goes far beyond what is entailed by these snippets. Specifically, ungrounded claims include: the distinction between enforce and warn modes, that warn mode allows pods while enforce rejects them, that enforce is 'not applied' to workload resources while warn is applied to them, the specific namespace label syntax (`pod-security.kubernetes.io/enforce` and `pod-security.kubernetes.io/warn`), the behavior of user-facing warnings, the practical implications section, and the configuration example. While these claims may be factually correct in Kubernetes documentation, they are not entailed by the two provided snippets. Snippet [1] only states that policy violations cause rejection (which mode is unspecified), and snippet [2] provides only a version tag. The strict-reference-scope rule requires that claims be entailed by the gold snippets alone, not by broader corpus knowledge. This answer dramatically over-extends beyond the minimal snippet content, similar to calibration anchor `k8s_006`.",
+    "evidence_quotes": [
+      "[1] Policy violations will cause the pod to be rejected",
+      "[2] FEATURE STATE: `Kubernetes v1.25 [stable]"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "bfad2ede0dd56bcbd0a32d9ed0fa9f78bc1eea7ad5364f6f764fd133b60e20f6",
+    "cost_usd": 0.003188,
+    "latency_ms": 3836.1277320072986,
+    "item_id": "k8s_005"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer contains multiple claims that are not entailed by the gold snippet. The snippet only states that 'A ConfigMap is an API object used to store non-confidential data in key-value pairs.' The answer goes far beyond this with claims about: (1) how Pods consume ConfigMaps in three specific ways (environment variables, command-line arguments, volumes), (2) specific examples of what data should be stored (application configuration settings, environment-specific parameters, configuration files, feature flags), (3) what should NOT be stored (passwords, API keys, tokens, certificates), (4) the recommendation to use Kubernetes Secrets instead, and (5) details about `data` and `binaryData` fields. While these claims may be factually correct in the broader Kubernetes documentation, they are not entailed by the single-sentence gold snippet provided. The strict reference scope is the gold snippets only, and this answer dramatically extends beyond what is entailed there. This is analogous to calibration anchor k8s_006, where comprehensive multi-section coverage of consumption methods, security guidance, and schema fields all fail the strict-entailment test when the snippet only provides a basic definition.",
+    "evidence_quotes": [
+      "A ConfigMap is an API object used to store non-confidential data in key-value pairs"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "578d1632f1f46be8a8f4d45758d433fc223546d7ec92df5ca2d0877f3e8198cd",
+    "cost_usd": 0.0030384,
+    "latency_ms": 3616.6187390335836,
+    "item_id": "k8s_006"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes numerous claims that go far beyond what is entailed by the single gold snippet. The snippet only states that 'A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate.' The answer introduces substantial additional content not entailed by this snippet: (1) the distinction between finite/batch tasks vs. continuous workloads, (2) the concept of 'completion mode' and its two variants (NonIndexed and Indexed), (3) specific configuration parameters like `.spec.completions`, `.spec.parallelism`, and `.spec.backoffLimit`, (4) details about completion indices and how they are exposed via annotations, labels, and environment variables, (5) the mechanics of how Jobs transition to 'Completed' state. While these claims may be factually correct in Kubernetes documentation broadly, they are not entailed by the gold snippet provided. The strict-reference-scope rule requires that claims be entailed by the gold snippets only, not by general domain knowledge or broader documentation. This answer dramatically over-extends beyond the single sentence snippet, similar to the calibration anchor `k8s_006`. The snippet establishes only the basic mechanism (creates Pods, retries until specified number complete); the answer constructs an elaborate framework of completion modes, configuration parameters, and implementation details that the snippet does not support.",
+    "evidence_quotes": [
+      "A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "6ed7deff5411307bebfa2f318fa82011fb499b068dc733b77ffd0a16c1776916",
+    "cost_usd": 0.0033176000000000004,
+    "latency_ms": 4348.899589967914,
+    "item_id": "k8s_007"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer correctly identifies the four kinds of Kubernetes RBAC objects declared by the API: Role, ClusterRole, RoleBinding, and ClusterRoleBinding. This core claim is directly entailed by the gold snippet. However, the answer then provides extensive additional claims about what each object does (e.g., 'Defines a set of permissions within a specific namespace', 'grants the permissions defined in a Role', 'namespace-scoped vs cluster-scoped'), the distinction between defining permissions vs granting them, and the functional relationships between these objects. None of these elaborations are entailed by the gold snippet, which only declares that these four kinds of objects exist. The snippet does not describe their purposes, scopes, or functional roles. Following the strict-entailment rubric (as exemplified in calibration anchor k8s_006), claims that are factually correct in the broader Kubernetes documentation but not entailed by the gold snippet must score 0. The answer goes dramatically beyond what the snippet supports.",
+    "evidence_quotes": [
+      "The RBAC API declares four kinds of Kubernetes object: *Role*, *ClusterRole*, *RoleBinding* and *ClusterRoleBinding*"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "acddc826212df9c439cc2185cf54d832a77b89d14f3272f9b7cff9e9949f217a",
+    "cost_usd": 0.0028904,
+    "latency_ms": 3351.082170032896,
+    "item_id": "k8s_009"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The gold snippet provided is incomplete: '[1] Secrets can be mounted as data volumes or exposed as'. It cuts off mid-sentence and provides no substantive information about behavioral differences, advantages, limitations, or characteristics of either mounting method. The answer makes numerous specific claims about automatic updates, subPath behavior, environment variable restrictions, pod restart requirements, and use-case recommendations. None of these claims are entailed by the incomplete snippet fragment, which merely states that Secrets *can* be mounted or exposed without elaborating on how, when, or why. Under strict reference scope (gold snippets only) and the binary rubric's conjunction rule, a single ungrounded claim fails the test. This answer contains dozens of ungrounded claims despite being factually reasonable. The snippet is too fragmentary to ground any of the detailed behavioral comparisons presented.",
+    "evidence_quotes": [
+      "[1] Secrets can be mounted as data volumes or exposed as"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "5f662014659d6aa61d27fd67f348b014f88025d58df9f5f0f2d451714d021cb4",
+    "cost_usd": 0.0027328,
+    "latency_ms": 3256.8645250285044,
+    "item_id": "k8s_011"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several claims beyond what is entailed by the single gold snippet. The snippet only states: 'If you set the `emptyDir.medium` field to `\"Memory\"`, Kubernetes mounts a tmpfs.' This establishes that setting medium to Memory results in tmpfs mounting. However, the answer makes numerous additional claims not entailed by this snippet: (1) default emptyDir storage location and behavior, (2) performance characteristics of both default and Memory-backed variants, (3) memory impact and counting against container limits, (4) size limit specifications and node allocatable memory sizing, (5) resource considerations about memory cost and capacity. While these claims may be factually correct in Kubernetes documentation broadly, they are not entailed by the provided gold snippet. The strict reference scope is the gold snippets only, not the broader corpus. The answer dramatically extends beyond the single sentence provided, similar to calibration anchor k8s_006. Only the basic fact that setting medium to 'Memory' mounts a tmpfs is grounded.",
+    "evidence_quotes": [
+      "If you set the `emptyDir.medium` field to `\"Memory\"`, Kubernetes mounts a tmpfs"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "e35bb38c436523fe2336aaa56045152e389e274662fba67633a1e4c39ab743b5",
+    "cost_usd": 0.00294,
+    "latency_ms": 3356.8082489655353,
+    "item_id": "k8s_012"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several claims that go beyond what is entailed by the gold snippets. The snippets only state that liveness probes are used 'to know when to restart a container' and readiness probes are used 'to know when a container is ready to start accepting traffic.' The answer elaborates significantly with specific implementation details: (1) the kubelet kills the container and restarts it according to restart policy, (2) the kubelet honors terminationGracePeriodSeconds, (3) the kubelet continues running the container on readiness probe failure, (4) the Pod's Ready condition is set to false, (5) the pod will not receive traffic from Services, (6) specific use cases for each probe type, and (7) best practices about using both probes together with specific threshold recommendations. While these claims may be factually correct in Kubernetes documentation, they are not entailed by the two minimal snippets provided. The snippets only convey the basic purpose of each probe type, not the detailed behavioral consequences or implementation mechanics described in the answer. This is analogous to Example A (k8s_006) where correct information beyond the snippet scope fails the strict-entailment test.",
+    "evidence_quotes": [
+      "[1] uses liveness probes to know when to restart a container",
+      "[2] uses readiness probes to know when a container is ready to start accepting traffic"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "028660796eeb558b1293457bbec76392877d86c0ee859308b20ae90ec1a65566",
+    "cost_usd": 0.003196,
+    "latency_ms": 3500.45858201338,
+    "item_id": "k8s_013"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer contains multiple claims that are not entailed by the gold snippets. The snippets provide only minimal definitions: [1] 'Exposes the Service on each Node' and [2] 'Exposes the Service externally using an external load balancer.' The answer goes far beyond these definitions with numerous ungrounded claims: the NodePort range (30000-32767), the internal ClusterIP creation, the syntax for external access (<NodeIP>:<NodePort>), suitability for development/testing, the relationship that LoadBalancer is built on NodePort, the optional `spec.allocateLoadBalancerNodePorts: false` configuration, cloud provider integration details, and production vs. development recommendations. While these claims may be factually correct in Kubernetes documentation, they are not entailed by the two provided snippets. The strict-reference-scope rule requires that claims be grounded in the gold snippets only, not in broader domain knowledge. This is analogous to calibration anchor k8s_006, where correct information beyond the snippet scope scores 0.",
+    "evidence_quotes": [
+      "[1] Exposes the Service on each Node",
+      "[2] Exposes the Service externally using an external load balancer"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "63a0e85b245371ce00082ed8827b0d9efd3c76dac9a3c1de9574df2ff2e097d8",
+    "cost_usd": 0.0030272,
+    "latency_ms": 3387.496800045483,
+    "item_id": "k8s_014"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer contains multiple claims that are not entailed by the gold snippets. The snippets only state: (1) Jobs represent one-off tasks that run to completion and then stop, and (2) CronJobs start one-time Jobs on a repeating schedule. The answer goes far beyond these minimal claims by adding: scheduling mechanisms (manual vs automatic), specific use cases (batch tasks, backups, reports), implementation details (CronJobs create Job objects), failure semantics (no exactly-once guarantee), idempotency requirements, the startingDeadlineSeconds parameter, and detailed guidance on when to use each. While these claims are factually correct in Kubernetes documentation, they are not entailed by the two provided snippets. The strict-reference-scope rule requires that claims be entailed by the gold snippets only, not by broader domain knowledge. This is analogous to calibration anchor k8s_006, where a comprehensive answer that goes dramatically beyond the snippet scope scores 0.",
+    "evidence_quotes": [
+      "[1] Jobs represent one-off tasks that run to completion and then stop",
+      "[2] A CronJob starts one-time Jobs on a repeating schedule"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "28cce97784ed6be2331cb3757ddc2b93cb558939b96bd271f289c2ae16f55fb6",
+    "cost_usd": 0.0030152,
+    "latency_ms": 3364.0701539698057,
+    "item_id": "k8s_015"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several claims beyond what is entailed by the gold snippets. The snippets only state: (1) Deployment manages a set of Pods for stateless workloads, and (2) DaemonSet ensures all (or some) Nodes run a copy of a Pod. The answer adds substantial detail not entailed by these minimal snippets: the claim that Deployment uses 'the standard Kubernetes scheduler' with 'resource requests, affinity rules, and other scheduling constraints'; the claim that DaemonSet 'adds nodeAffinity rules' and sets '.spec.nodeName'; the claim about how the scheduler 'binds it to the target host'; and the specific use-case examples (web servers, logging agents, monitoring daemons, network plugins). While these claims are factually correct in Kubernetes documentation, they are not entailed by the two provided snippets, which contain only high-level definitions. Under strict reference scope (gold snippets only), these embellishments fail the binary rubric.",
+    "evidence_quotes": [
+      "Snippet [1]: 'A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state'",
+      "Snippet [2]: 'DaemonSet ensures that all (or some) Nodes run a copy of a Pod'"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "d5ce2becd7e454321d33605c5d123a1298d16b0bd2a031280161e38ec61263a2",
+    "cost_usd": 0.0030624000000000003,
+    "latency_ms": 4154.267113015521,
+    "item_id": "k8s_016"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes numerous specific claims about init container behavior that are not entailed by the gold snippets. The snippets only state that (1) init containers are exactly like regular containers and (2) they run before the main application container. The answer goes far beyond this minimal scope with detailed claims about sequential execution, strict ordering, no parallelism, blocking behavior, exit codes, retry behavior, restartPolicy handling, networking/storage readiness, and one-time execution. While these claims may be factually correct in Kubernetes documentation, they are not entailed by the provided gold snippets. The strict-reference-scope rule requires that claims be grounded in the gold snippets only, not in broader domain knowledge or documentation. This is analogous to the k8s_006 calibration anchor: the answer provides comprehensive, well-structured information that dramatically extends beyond what the snippets entail.",
+    "evidence_quotes": [
+      "Init containers are exactly like regular containers",
+      "before the main application container"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "7dc9ed4e57d4c46d18503075dee17ab44ed9f522465c4c41ce1b4e7c8704e285",
+    "cost_usd": 0.0028136000000000003,
+    "latency_ms": 2948.2485160115175,
+    "item_id": "k8s_017"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes multiple specific claims about the autoscaling/v2 API version that are not entailed by the gold snippets provided. Snippet [1] only states that HorizontalPodAutoscaler automatically updates a workload resource\u2014it does not describe API versions, stability status, or feature support. Snippet [2] is incomplete ('The current stable version can be found in the') and provides no substantive information. The answer claims: (1) autoscaling/v2 is the current stable version since Kubernetes v1.23, (2) it supports custom metrics, (3) it supports memory metrics, (4) it supports multiple metrics with specific evaluation behavior, (5) it provides configurable scaling behavior, and (6) autoscaling/v1 only supports CPU-based scaling. None of these claims are entailed by the two snippets provided. While these claims may be factually correct in the Kubernetes documentation, they are not grounded in the gold snippets under the strict reference scope defined by the rubric. The snippets do not describe API versions, feature differences, stability timelines, or metric types.",
+    "evidence_quotes": [
+      "[1] HorizontalPodAutoscaler* automatically updates a workload resource",
+      "[2] The current stable version can be found in the"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "2954a16f1a00e175ff9e8185698563b44054de6181e3c309a2c38c2c0b8e44f7",
+    "cost_usd": 0.0030464,
+    "latency_ms": 3348.7192280008458,
+    "item_id": "k8s_018"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer provides four detailed mechanisms for making ConfigMap values available to applications: environment variables (individual), environment variables (bulk import), volume mounts, and Kubernetes API access. However, the gold snippet only states that 'A ConfigMap is an API object used to store non-confidential data in key-value pairs.' This snippet establishes what a ConfigMap is and its purpose, but does not entail any claims about consumption methods, how values are made available to pods, volume mounting behavior, dynamic update capabilities, or API access patterns. The answer goes dramatically beyond the reference scope, similar to calibration anchor k8s_006. While these claims are factually correct in Kubernetes documentation, they are not entailed by the single provided snippet. The strict-conjunction rule applies: even though the answer is comprehensive and well-structured, every claim beyond the basic definition is ungrounded relative to the gold snippet scope.",
+    "evidence_quotes": [
+      "A ConfigMap is an API object used to store non-confidential data in key-value pairs"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "7761711620ffc8120f1aafdfb0e550fda47a0a70232686f087c45a97877ea6c7",
+    "cost_usd": 0.0030296000000000003,
+    "latency_ms": 3652.5564860203303,
+    "item_id": "k8s_019"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes several specific claims about Kubernetes NetworkPolicy behavior that cannot be verified against the provided gold snippets. The snippets only contain the labels 'non-isolated' and 'namespaceSelector' with no actual content or context. The answer claims: (1) by default all Pods are non-isolated for ingress and egress, (2) NetworkPolicy isolates Pods when it selects them via podSelector, (3) isolated ingress Pods allow only connections from their own node and explicitly allowed connections, (4) isolated egress Pods allow only explicitly allowed connections, and (5) NetworkPolicy is an opt-in isolation mechanism. None of these claims can be entailed by the gold snippets provided, as the snippets contain no substantive information about NetworkPolicy behavior, default isolation states, or how podSelector works. While these claims are factually correct in Kubernetes documentation, they are not grounded in the reference scope (the gold snippets only). The strict-entailment posture requires that claims be entailed by the snippets, not by general LLM knowledge or the broader corpus.",
+    "evidence_quotes": [
+      "[1] non-isolated",
+      "[2] namespaceSelector"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "b957c3ed390693ede4acfdf07509200e52bf42dbc86c0c5588400b685a45288b",
+    "cost_usd": 0.002972,
+    "latency_ms": 2944.677933002822,
+    "item_id": "k8s_020"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes multiple claims that are not entailed by the gold snippet. The snippet states only that RBAC is 'purely additive (there are no \"deny\" rules)' \u2014 a single, narrow factual statement about RBAC's design principle. The answer, however, goes far beyond this by: (1) explaining the 'deny by default, allow explicitly' principle in detail; (2) providing three distinct implementation options (not granting permissions, CEL-based policies, admission controllers); (3) offering code examples for each approach; (4) comparing methods in a summary table; (5) recommending best practices. While these claims may be factually correct in the Kubernetes world, none of them are entailed by the gold snippet. The snippet does not describe how to implement deny rules, does not mention CEL-based authorization policies, admission controllers, or ValidatingAdmissionPolicy, and does not provide recommendations or comparisons. This is a dramatic over-extension similar to calibration anchor k8s_006: the answer treats the snippet as a jumping-off point for comprehensive documentation rather than strictly grounding every claim in the snippet's content. The strict-conjunction rule applies: even though most of the answer is likely well-supported by broader Kubernetes documentation, the gold-snippet scope is what the rubric measures, and the answer goes dramatically beyond it.",
+    "evidence_quotes": [
+      "Gold snippet: 'purely additive (there are no \"deny\" rules)'",
+      "Answer claims: 'Standard Kubernetes RBAC does not have explicit deny rules' \u2014 paraphrase of snippet, grounded",
+      "Answer claims: 'RBAC is allow-based only \u2014 it works on a principle of \"deny by default, allow explicitly\"' \u2014 elaboration not in snippet",
+      "Answer provides: 'Option 1: Don't Grant Delete Permission' with YAML examples \u2014 not entailed by snippet",
+      "Answer provides: 'Option 2: Use CEL-based Authorization Policy' \u2014 not mentioned in snippet",
+      "Answer provides: 'Option 3: Use Admission Controllers' \u2014 not mentioned in snippet",
+      "Answer provides: comparison table and best-practice recommendations \u2014 not entailed by snippet"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "a12fba966149f0e235bc5bc483b748b4693d9f52a215fecdbd8965ff6a9ac7b4",
+    "cost_usd": 0.0041376,
+    "latency_ms": 5924.26980601158,
+    "item_id": "k8s_022"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The gold snippet provided is extremely minimal: 'Unrestricted policy'. This single phrase is insufficient to entail the detailed claims made in the answer. The answer makes multiple specific assertions: (1) the Privileged profile 'does NOT enforce any container-isolation restrictions', (2) it is 'entirely unrestricted' and 'defined by an absence of restrictions', (3) Pods can 'bypass typical container isolation mechanisms' with examples like 'access to the node's host network', (4) the profile is 'aimed at system- and infrastructure-level workloads managed by privileged, trusted users', and (5) comparative claims about Baseline and Restricted profiles. While the phrase 'Unrestricted policy' might loosely align with the general concept, none of these specific claims\u2014the mechanism of container-isolation bypass, the purpose statement, the comparison to other profiles, or the guidance about trusted workloads\u2014are entailed by the snippet. The snippet is too sparse to ground the detailed technical and contextual claims in the answer. Under strict reference scope (gold snippets only), this answer goes far beyond what the snippet entails.",
+    "evidence_quotes": [
+      "Unrestricted policy"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "9f58ab3eaeaaae5e5b500e686040b0c59ec06b789659406b79b32991c489d544",
+    "cost_usd": 0.0028304000000000003,
+    "latency_ms": 3216.909350012429,
+    "item_id": "k8s_023"
+  },
+  {
+    "dimension": "groundedness",
+    "reasoning": "The answer makes multiple claims about Kubernetes Service types for external exposure. The gold snippets only state: [1] 'Exposes the Service on a cluster-internal IP' and [2] 'Exposes the Service externally using an external load balancer.' Snippet [1] describes ClusterIP (internal only), and snippet [2] describes LoadBalancer (external). The answer claims NodePort, LoadBalancer, ExternalIPs, and Ingress/Gateway are ways to expose Services externally. While LoadBalancer is entailed by snippet [2], the detailed claims about NodePort (node IP, static port, port forwarding mechanics), ExternalIPs (configuration and routing), and Ingress/Gateway are NOT entailed by the gold snippets. These are factually correct in Kubernetes but fall outside the strict reference scope. The answer dramatically extends beyond what the two snippets support, similar to calibration anchor k8s_006.",
+    "evidence_quotes": [
+      "Snippet [1]: 'Exposes the Service on a cluster-internal IP'",
+      "Snippet [2]: 'Exposes the Service externally using an external load balancer'",
+      "Answer claims about NodePort mechanics: 'Exposes the Service on each node's IP address at a static port' \u2014 NOT in snippets",
+      "Answer claims about ExternalIPs: 'Services can be exposed using externalIPs' \u2014 NOT in snippets",
+      "Answer claims about Ingress/Gateway: 'you can expose a ClusterIP Service to the public internet using an Ingress or Gateway resource' \u2014 NOT in snippets"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5-20251001_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "64bfb5acf94d98b960c9d679463c7852613e55e1ce5883781f50b4b7814d9b3b",
+    "cost_usd": 0.0033576000000000005,
+    "latency_ms": 4068.60003399197,
+    "item_id": "k8s_025"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the user's question: (1) how dependency caching works in FastAPI, and (2) how to disable it. The explanation of caching behavior is accurate and specific\u2014it explains that FastAPI caches dependency results within a single request, calls the dependency function only once, and reuses the cached value. The answer then provides a clear, concrete method to disable caching using the `use_cache=False` parameter with a working code example. Both the core ask and the mechanism are fully addressed.",
+    "evidence_quotes": [
+      "If the same dependency is used multiple times within a single request... FastAPI caches the result and calls the dependency function only once.",
+      "To disable caching and force a fresh call each time a dependency is needed, use the `use_cache` parameter set to `False`",
+      "setting `use_cache=False` ensures that the dependency function is called twice, producing two separate results instead of reusing a cached value"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "3a79cfc1b2704a3bc427751108a08f038b33612329abee296ee3f25610c8e118",
+    "cost_usd": 0.0018152,
+    "latency_ms": 2379.2199509916827,
+    "item_id": "q006"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question: 'Can FastAPI generate GraphQL schemas natively?' The agent clearly states 'FastAPI does not natively generate GraphQL schemas' and provides supporting context about what FastAPI does support (OpenAPI/REST) versus what requires third-party libraries (GraphQL). The answer then goes beyond the yes/no to provide helpful alternatives and integration options. This is a direct, on-target response to the question asked.",
+    "evidence_quotes": [
+      "FastAPI does not natively generate GraphQL schemas",
+      "FastAPI is primarily a REST API framework and doesn't have native GraphQL schema generation capabilities",
+      "if you want to use GraphQL with FastAPI, you have options: [third-party libraries]"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "614e55fa482638a470a21120af307cbf65e5ed64380882e3addbd99d996a3930",
+    "cost_usd": 0.0014944000000000001,
+    "latency_ms": 2073.2037179986946,
+    "item_id": "q010"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question. The user asked for the default Swagger UI endpoint in FastAPI, and the answer immediately provides the correct answer: `/docs`. The response goes beyond the minimum by explaining how to access it, mentioning related endpoints, and showing how to customize or disable these endpoints. All information is on-topic and relevant to the question asked.",
+    "evidence_quotes": [
+      "The default Swagger UI endpoint in FastAPI is **`/docs`**.",
+      "This endpoint is automatically available in every FastAPI application with zero configuration required.",
+      "When you navigate to `http://localhost:8000/docs` (assuming your app is running on localhost:8000), you'll see an interactive API explorer powered by Swagger UI."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "6d8d2e201916d9c9d4d8f525009acaa8a02280dcd1573b8ecbb7bae461e26eef",
+    "cost_usd": 0.0015072,
+    "latency_ms": 2048.133442993276,
+    "item_id": "q011"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question of how to raise an HTTP error in a FastAPI route handler. It provides the primary method (HTTPException), includes practical code examples, explains the key parameters, shows optional features like custom headers, and describes the response format. All content is on-topic and relevant to the specific question asked.",
+    "evidence_quotes": [
+      "The primary way to raise HTTP errors in FastAPI is using the `HTTPException` class",
+      "raise HTTPException(status_code=404, detail=\"Item not found\")",
+      "status_code (required): The HTTP status code to return",
+      "detail (optional): The error message/details",
+      "headers (optional): Custom HTTP headers to include in the response"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "b2fa2200ac582365a5f2c96fb8bcdc2d9788be5693046a68af870d073779e31b",
+    "cost_usd": 0.0016128000000000002,
+    "latency_ms": 2312.258435995318,
+    "item_id": "q012"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core ask of the question. The user asks how many minutes the browser caches preflight results given a max_age of 600 seconds. The answer provides the correct conversion (600 seconds = 10 minutes) and explains the relationship between the max_age directive and caching duration. This is a straightforward factual question that receives a direct, on-target response.",
+    "evidence_quotes": [
+      "the browser caches preflight results for **10 minutes**",
+      "600 seconds \u00f7 60 seconds/minute = 10 minutes"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "32640bd1016bf34227a79195ad181f538bbbe937d3172f21ca733e7c729903de",
+    "cost_usd": 0.0012415999999999998,
+    "latency_ms": 1683.471636963077,
+    "item_id": "q021"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses all three core components of the user's question: (1) custom error handling with multiple exception handlers, (2) CORS middleware configuration, and (3) structured testing setup with dependency injection/overrides. The answer provides concrete, working code examples for each requirement. While the answer appears to be cut off at the end (incomplete dependencies.py section), it still comprehensively covers the main asks of the question with relevant, on-target content.",
+    "evidence_quotes": [
+      "Custom Exception Classes... Custom Exception Handlers",
+      "Add CORS Middleware... app.add_middleware(CORSMiddleware, allow_origins=[...])",
+      "Dependency Injection Setup... class Database... def connect(self):",
+      "The answer provides complete code examples for error handling, CORS configuration, and dependency setup"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "42df91909038e53d05fe290544b6dbe63c631cedb6464cece79775105a7ddcde",
+    "cost_usd": 0.0021984,
+    "latency_ms": 2662.223421037197,
+    "item_id": "q023"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses all core components of the user's multi-part question: (1) paginated API with cursor-based navigation, (2) response model validation, and (3) background task processing for analytics logging. The response provides a production-ready implementation with concrete code examples for each requirement, including cursor encoding/decoding utilities, Pydantic validation models, analytics logging functions, and a FastAPI endpoint skeleton. While the endpoint implementation appears incomplete (cuts off mid-function), the answer comprehensively covers the question's main asks with relevant, on-target technical content.",
+    "evidence_quotes": [
+      "Here's a production-ready implementation:",
+      "class PaginatedResponse(BaseModel, Generic[T]): ... pagination: CursorPaginationMeta",
+      "def encode_cursor(item_id: int) -> str: \"\"\"Encode item ID into an opaque cursor token\"\"\"",
+      "def log_api_analytics(...): \"\"\"Log analytics data asynchronously\"\"\"",
+      "@app.get('/items/', response_model=PaginatedResponse[Item], ...)"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "e65efe1620df931603666588bea32ab8768035928f43b9170cd30cde25d89715",
+    "cost_usd": 0.0024624,
+    "latency_ms": 9030.619402998127,
+    "item_id": "q025"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core of the user's question about how FastAPI handles automatic load balancing. The user asked 'how does FastAPI handle' load balancing, and the answer provides a clear, direct response: FastAPI does NOT handle automatic load balancing itself. The answer then explains what FastAPI does provide (single-server scaling with Uvicorn workers) and what external tools are needed for multi-server load balancing (reverse proxies, cloud load balancers, Kubernetes, API gateways). This is a complete, on-target response that addresses the question's premise and provides the necessary clarification and context. The answer goes beyond a simple 'no' by explaining the architecture and best practices.",
+    "evidence_quotes": [
+      "FastAPI itself does not provide built-in automatic load balancing across multiple servers",
+      "To distribute requests across multiple servers, you need to use external tools",
+      "The key advantage of FastAPI is that it's stateless by design, making it easy to deploy multiple instances behind any load balancer"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "7d1fa1afe474dc2cf5944be153e9151584f9ce66aa78f804fd8e225c3936ad1e",
+    "cost_usd": 0.0019032,
+    "latency_ms": 7195.735186978709,
+    "item_id": "q027"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "judge_call_failed_after_retry: ProviderRateLimitError: Rate limited after 3 retries: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': \"This request would exceed your organization's rate limit of 50,000 input tokens per minute (org: d1e9ee34-748f-4bd3-a248-753a7e6a7275, model: claude-haiku-4-5-20251001). For details, refer to: https://docs.claude.com/en/api/rate-limits. You can see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at https://claude.com/contact-sales to discuss your options for a rate limit increase.\"}, 'request_id': 'req_011CajreKbMxMPAW1tkwm5Py'}",
+    "evidence_quotes": [],
+    "score": "Unknown",
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "95582498779bbb3574afc12b70b73c8229f2d86aeb2cb02d96fbc44b4661e217",
+    "cost_usd": 0.0,
+    "latency_ms": 25189.821349049453,
+    "item_id": "k8s_001"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question about how StatefulSets differ from Deployments and when to prefer one over the other. It provides a detailed comparison table covering pod identity, naming, network identity, storage, ordering, and use cases. It then explains StatefulSet characteristics with concrete examples, specifies when to use each (with clear use cases and examples), and covers important requirements. The answer is well-structured, on-topic, and fully engages with both parts of the question: the differences and the preference criteria.",
+    "evidence_quotes": [
+      "Core Differences table comparing Pod Identity, Naming, Network Identity, Storage, Ordering, and Use Case",
+      "Use Deployment for: Stateless applications (web servers, APIs)... Use StatefulSet for: Databases (MySQL, PostgreSQL, MongoDB)...",
+      "Pod Identity Components: Ordinal Index, Stable Hostname, Stable Storage",
+      "Important StatefulSet Requirements: Headless Service Required"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "858b5d51052c4491a8340a8676367f07b446db3e8ad1110863e07a23662fa30f",
+    "cost_usd": 0.0023464000000000002,
+    "latency_ms": 2600.056956987828,
+    "item_id": "k8s_002"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question about how external HTTP traffic flows from Ingress through Service to Pod. It covers all major components (Ingress Controller, Service, kube-proxy, Pod), explains their roles in the traffic path, and provides both detailed explanations and a visual summary. The answer demonstrates understanding of the complete flow including DNAT, EndpointSlices, load balancing, and network rule configuration. Every aspect of the question's core ask is addressed with relevant technical detail.",
+    "evidence_quotes": [
+      "External traffic arrives at the Ingress controller, which is typically deployed as a load balancer or edge router",
+      "The Ingress controller interprets these rules and routes traffic to the appropriate backend Service",
+      "the Service acts as an abstraction layer that: Assigns a virtual IP address (ClusterIP) to the Service, Maintains a list of backend endpoints through EndpointSlices",
+      "kube-proxy watches the EndpointSlices and: Configures network rules (typically using iptables or other mechanisms) to route traffic destined for the Service's ClusterIP to one of the backend Pod endpoints",
+      "Traffic is DNAT'd (Destination NAT) from the Service's virtual IP to the actual Pod IP address",
+      "The packet reaches the Pod's network interface on the target node"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "feb4dfee8e9d49dd2fa61616b515e0be633d8f93d202a1a37a5c88e77803f4f5",
+    "cost_usd": 0.0023776000000000005,
+    "latency_ms": 11609.22234604368,
+    "item_id": "k8s_003"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the user's question about enabling Jaeger sidecar injection for distributed tracing in Kubernetes Deployments. It provides multiple methods (labels, namespace-level injection, annotations), includes concrete YAML examples, configuration options, and verification steps. The answer is on-topic and covers the core ask comprehensively. While the answer acknowledges that specific search results weren't available and recommends checking official documentation, it still provides actionable guidance that directly matches the question's intent.",
+    "evidence_quotes": [
+      "Based on the documentation available, I can provide you with general guidance on enabling Jaeger sidecar injection for distributed tracing in Kubernetes.",
+      "Add a label to your Deployment's Pod template to enable automatic sidecar injection",
+      "Enable injection for all pods in a namespace by labeling the namespace",
+      "Alternatively, use annotations on the Pod template",
+      "After applying your Deployment, verify the sidecar was injected"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "09b4cf08124a393533ba34d779fc4729c7c9b9e3b3b488d04bbcf782354a6437",
+    "cost_usd": 0.0019568000000000003,
+    "latency_ms": 2443.067227024585,
+    "item_id": "k8s_004"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about how Pod Security Admission behaves differently between enforce and warn modes in Kubernetes v1.31. It provides a structured comparison covering the key behavioral differences: pod rejection (enforce rejects, warn allows), user feedback mechanisms, application to workload resources, and practical outcomes. The answer includes a clear table, detailed explanations, and configuration examples that all directly support the question's ask. However, there is one significant concern: the claim that warn mode is 'Applied to workload resources' while enforce mode is 'NOT applied' to workload resources appears to contradict standard Kubernetes documentation, where Pod Security Admission typically applies to pod objects, not workload resources, in both modes. This factual inaccuracy is a material error in the core comparison being requested, though the overall structure and most other details are on-topic and relevant.",
+    "evidence_quotes": [
+      "Pod Rejection: Policy violations will cause the pod to be rejected vs Policy violations are otherwise allowed",
+      "User Feedback: Pod creation fails silently vs Policy violations trigger a user-facing warning",
+      "Enforce Mode: Acts as a hard security boundary",
+      "Warn Mode: Acts as a soft advisory mechanism"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "bfad2ede0dd56bcbd0a32d9ed0fa9f78bc1eea7ad5364f6f764fd133b60e20f6",
+    "cost_usd": 0.0020112,
+    "latency_ms": 3559.2568750143982,
+    "item_id": "k8s_005"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses both parts of the user's question: (1) what a ConfigMap is in Kubernetes, and (2) what kind of data should be stored in it. The response defines ConfigMap as a non-confidential key-value storage API object, explains its purpose (decoupling configuration from container images), describes how pods consume ConfigMaps (three methods), specifies appropriate data types (application settings, environment parameters, feature flags, etc.), and importantly clarifies what should NOT be stored (passwords, API keys, secrets). The answer is well-structured, on-topic, and fully addresses the core ask.",
+    "evidence_quotes": [
+      "A ConfigMap is a Kubernetes API object used to store non-confidential data in key-value pairs",
+      "ConfigMaps are designed for non-confidential, non-sensitive data, such as: Application configuration settings, Environment-specific parameters, Configuration files, Feature flags, General application properties",
+      "Do NOT store sensitive or confidential data in ConfigMaps, such as: Passwords, API keys, Tokens, Certificates"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "578d1632f1f46be8a8f4d45758d433fc223546d7ec92df5ca2d0877f3e8198cd",
+    "cost_usd": 0.0018872000000000001,
+    "latency_ms": 23652.25038101198,
+    "item_id": "k8s_006"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses both parts of the user's two-part question: (1) what a Kubernetes Job does, and (2) how it decides its task is complete. The response explains that Jobs run finite/batch tasks to completion, then details the completion logic through both NonIndexed and Indexed modes with specific configuration parameters. The answer is well-structured, specific to Kubernetes Jobs, and covers the core asks without tangential information.",
+    "evidence_quotes": [
+      "A **Kubernetes Job** is a workload object designed to run **finite or batch tasks to completion**",
+      "A Job determines completion based on its **completion mode**, which is specified in `.spec.completionMode`",
+      "The Job is considered complete when there have been `.spec.completions` successfully completed Pods",
+      "The Job is considered complete when there is **one successfully completed Pod for each index**"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "6ed7deff5411307bebfa2f318fa82011fb499b068dc733b77ffd0a16c1776916",
+    "cost_usd": 0.0018055999999999999,
+    "latency_ms": 2146.9814439769834,
+    "item_id": "k8s_007"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the question's core ask by identifying all four object kinds in the Kubernetes RBAC API (Role, ClusterRole, RoleBinding, ClusterRoleBinding) and explaining what each one does. The explanations are accurate and comprehensive, covering both the functional purpose of each object and how they relate to each other (permission definition vs. permission assignment, namespace vs. cluster scope). This is a complete, on-target response that fully satisfies the question.",
+    "evidence_quotes": [
+      "the Kubernetes RBAC API declares **four kinds of objects**: 1. **Role** - Defines a set of permissions within a specific namespace",
+      "2. **ClusterRole** - Similar to a Role, but is cluster-scoped rather than namespace-scoped",
+      "3. **RoleBinding** - Grants the permissions defined in a Role to a user or set of users within a specific namespace",
+      "4. **ClusterRoleBinding** - Similar to a RoleBinding, but grants the permissions defined in a ClusterRole at the cluster level"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "acddc826212df9c439cc2185cf54d832a77b89d14f3272f9b7cff9e9949f217a",
+    "cost_usd": 0.0018072000000000001,
+    "latency_ms": 10644.408104999457,
+    "item_id": "k8s_009"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about behavioral differences between the two Secret consumption methods. It provides specific, detailed comparisons across multiple dimensions (automatic updates, dynamic refresh, static values, pod restart requirements, character restrictions, etc.). The answer covers both mounting as a data volume and exposing as environment variables, explaining how each behaves differently. The response includes concrete examples of the differences (e.g., subPath mounts don't receive updates, environment variables require pod restart) and provides a clear summary table. This comprehensively addresses what the question asks for.",
+    "evidence_quotes": [
+      "Automatic Updates: When a Secret is updated, Kubernetes automatically tracks and updates the data in the volume using an eventually-consistent approach",
+      "Environment variables are set when the Pod starts and do not update automatically",
+      "If a Secret is updated, the Pod must be restarted for the container to access the new values",
+      "If a container uses a Secret as a `subPath` volume mount, it will **NOT** receive automated Secret updates"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "5f662014659d6aa61d27fd67f348b014f88025d58df9f5f0f2d451714d021cb4",
+    "cost_usd": 0.0018712,
+    "latency_ms": 2541.7004689807072,
+    "item_id": "k8s_011"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about how emptyDir behaves differently between default and Memory medium settings. It provides specific, detailed comparisons across multiple dimensions (storage location, performance, memory impact, size limits, resource considerations). The answer covers both sides of the comparison comprehensively and engages with the technical specifics of the question. This is a complete, on-target response that fully addresses what the user asked.",
+    "evidence_quotes": [
+      "Storage location: Stored on whatever medium backs the node... versus Mounted as a tmpfs (RAM-backed filesystem)",
+      "Memory impact: Does not count against container memory limits versus Files written count against the memory limit of the container that wrote them",
+      "The main practical differences are: 1. Performance 2. Resource accounting 3. Capacity 4. Use case"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "e35bb38c436523fe2336aaa56045152e389e274662fba67633a1e4c39ab743b5",
+    "cost_usd": 0.0016528000000000003,
+    "latency_ms": 2254.6453599934466,
+    "item_id": "k8s_012"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question about how kubelet responds differently to failing liveness versus readiness probes. It covers the specific actions taken (kill/restart vs. keep running), the resulting pod states, traffic implications, and use cases for each. The answer is well-structured with clear comparisons and includes practical context. This is a complete, on-target response that fully addresses both sides of the comparison question.",
+    "evidence_quotes": [
+      "When a liveness probe fails: The kubelet kills the container and restarts it according to the pod's restart policy",
+      "When a readiness probe fails: The kubelet continues running the container - it does NOT kill it",
+      "The Pod's Ready condition is set to false",
+      "The pod will not receive traffic from Kubernetes Services - it's marked as unready"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "028660796eeb558b1293457bbec76392877d86c0ee859308b20ae90ec1a65566",
+    "cost_usd": 0.0017304,
+    "latency_ms": 2113.7818960123695,
+    "item_id": "k8s_013"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core ask of the question, which is to explain the differences between NodePort and LoadBalancer Service types in Kubernetes. The response provides a comprehensive comparison covering: (1) how each type exposes services, (2) their technical implementation details, (3) use cases, (4) the relationship between them, and (5) a clear summary. All key differences are covered: NodePort uses static ports on nodes while LoadBalancer uses an external load balancer; NodePort is for development/testing while LoadBalancer is for production; LoadBalancer builds on NodePort internally. The answer fully satisfies the comparison question format.",
+    "evidence_quotes": [
+      "NodePort: Exposes the Service on each Node's IP at a static port",
+      "LoadBalancer: Exposes the Service externally using an external load balancer",
+      "LoadBalancer is built on top of NodePort - it creates a NodePort internally and then adds an external load balancer layer on top of it",
+      "NodePort gives you direct node access, while LoadBalancer adds an external load balancer for better traffic distribution"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "63a0e85b245371ce00082ed8827b0d9efd3c76dac9a3c1de9574df2ff2e097d8",
+    "cost_usd": 0.0019472,
+    "latency_ms": 2598.321530967951,
+    "item_id": "k8s_014"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the question: (1) how CronJobs and Jobs differ, and (2) when to use one over the other. The response provides a clear comparison table, distinct use-case guidance for each resource type, and important implementation considerations (idempotency and deadline handling). All content is on-topic and comprehensively covers the core ask.",
+    "evidence_quotes": [
+      "Runs once when created vs. Runs on a repeating schedule",
+      "Use a Job when you need to: Run a task once to completion",
+      "Use a CronJob when you need to: Run tasks on a repeating schedule",
+      "Jobs created by CronJobs should be idempotent",
+      "use Job for one-time tasks, and CronJob for anything that needs to run repeatedly on a schedule"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "28cce97784ed6be2331cb3757ddc2b93cb558939b96bd271f289c2ae16f55fb6",
+    "cost_usd": 0.001752,
+    "latency_ms": 4428.224706032779,
+    "item_id": "k8s_015"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about the key scheduling difference between Deployment and DaemonSet. It clearly explains that Deployments run a specified number of replicas distributed across eligible nodes based on scheduler decisions, while DaemonSets ensure exactly one Pod runs on each eligible node. The answer covers both sides of the comparison with specific technical details (nodeAffinity, nodeName field, scheduler behavior) and provides practical context with use cases. This is a comprehensive, on-target response that fully addresses the question's premise.",
+    "evidence_quotes": [
+      "Deployment: Manages a specified number of Pod replicas that can run on any eligible nodes in the cluster",
+      "DaemonSet: Ensures that all eligible nodes (or a subset based on node selectors/affinity) run exactly one copy of a Pod",
+      "Deployment: Runs a specified number of replicas distributed across nodes",
+      "DaemonSet: Runs one Pod per node (or per eligible node based on selectors), ensuring cluster-wide coverage"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "d5ce2becd7e454321d33605c5d123a1298d16b0bd2a031280161e38ec61263a2",
+    "cost_usd": 0.0018055999999999999,
+    "latency_ms": 3606.314275006298,
+    "item_id": "k8s_016"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question about init container execution order and Kubernetes guarantees. It covers: (1) the sequential execution order of init containers, (2) the requirement that application containers start only after all init containers complete successfully, and (3) multiple specific guarantees Kubernetes makes (strict ordering, no parallelism, blocking behavior, successful exit requirements, retry behavior, and timing). The answer is well-structured, detailed, and stays on-topic throughout. It answers both parts of the question\u2014the order and the guarantees\u2014with specificity and clarity.",
+    "evidence_quotes": [
+      "Init containers run sequentially - The kubelet runs each init container in the order they appear in the Pod's spec, one after another",
+      "Application containers start after all init containers complete - Once all init containers have successfully completed, the kubelet initializes and runs the application containers in parallel",
+      "Strict ordering: Init containers are guaranteed to run in the order specified in the Pod spec",
+      "No parallelism: Init containers never run in parallel with each other",
+      "Each init container must exit with a success status (exit code 0) before the next container starts"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "7dc9ed4e57d4c46d18503075dee17ab44ed9f522465c4c41ce1b4e7c8704e285",
+    "cost_usd": 0.0020312,
+    "latency_ms": 2984.0400390094146,
+    "item_id": "k8s_017"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question: which autoscaling API version to use for HPA scaling on custom or memory metrics, and why. The response identifies `autoscaling/v2` as the correct answer and provides substantive reasoning covering: (1) stable support for custom metrics, (2) memory metrics support, (3) multiple metrics capability, and (4) advanced features. The answer also clarifies the key difference between v1 and v2. All of this directly matches the question's ask for both the API version and the justification.",
+    "evidence_quotes": [
+      "Use `autoscaling/v2` API version",
+      "The `autoscaling/v2` API version is the current stable version (stable since Kubernetes v1.23) that includes support for scaling on **custom metrics**",
+      "The `autoscaling/v2` API version includes support for scaling on **memory metrics**, which is not available in the older `autoscaling/v1` version",
+      "`autoscaling/v1`: Only supports CPU-based scaling; `autoscaling/v2`: Supports CPU, memory, custom metrics, and external metrics"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "2954a16f1a00e175ff9e8185698563b44054de6181e3c309a2c38c2c0b8e44f7",
+    "cost_usd": 0.0019664,
+    "latency_ms": 8728.148852998856,
+    "item_id": "k8s_018"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question about mechanisms for making ConfigMap values available to applications in Pods. It identifies four distinct mechanisms (environment variables individual, environment variables bulk, volume mounts, and Kubernetes API), provides concrete YAML examples for each, explains how each works, notes important limitations (e.g., env vars don't auto-update, subPath mounts don't receive updates), and includes a summary table comparing the mechanisms. The answer fully engages with the question's premise and covers the topic thoroughly.",
+    "evidence_quotes": [
+      "Based on the Kubernetes documentation, here are the **four main mechanisms** that make ConfigMap values available to applications running in a Pod",
+      "ConfigMap key-value pairs can be injected as individual environment variables in the container",
+      "All key-value pairs from a ConfigMap can be imported as environment variables at once",
+      "ConfigMap data can be mounted as files in the container's filesystem",
+      "Applications can directly query the Kubernetes API to read ConfigMap data"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "7761711620ffc8120f1aafdfb0e550fda47a0a70232686f087c45a97877ea6c7",
+    "cost_usd": 0.0020768,
+    "latency_ms": 2389.5995739731006,
+    "item_id": "k8s_019"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly and comprehensively addresses the core question. The user asks two things: (1) whether Pods are isolated or non-isolated by default, and (2) how NetworkPolicy changes that baseline. The answer clearly states that Pods are non-isolated by default (allowing all ingress and egress), then explains exactly how NetworkPolicy changes this by introducing opt-in isolation. The explanation covers both ingress and egress directions, explains the selection mechanism, and clarifies the allow/deny semantics. This is a complete, on-target response that addresses both parts of the question.",
+    "evidence_quotes": [
+      "By default, all Pods are non-isolated for both ingress and egress traffic",
+      "A NetworkPolicy changes the baseline by explicitly isolating a Pod when the policy selects it",
+      "NetworkPolicy acts as an opt-in isolation mechanism. Pods remain open by default, but as soon as you apply a NetworkPolicy that selects a Pod, that Pod becomes isolated for the specified direction(s)."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "b957c3ed390693ede4acfdf07509200e52bf42dbc86c0c5588400b685a45288b",
+    "cost_usd": 0.0018464,
+    "latency_ms": 3715.873340028338,
+    "item_id": "k8s_020"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the user's question about writing an RBAC deny rule to block a specific user from deleting Pods. It correctly identifies that standard Kubernetes RBAC does not support explicit deny rules (only allow-based), and provides three practical alternatives with code examples. The answer covers the core ask: explaining why traditional deny rules don't exist in RBAC and offering viable solutions (not granting permission, CEL-based policies, and admission controllers). All options are relevant and on-topic.",
+    "evidence_quotes": [
+      "Standard Kubernetes RBAC does **not have explicit deny rules**. RBAC is **allow-based only**",
+      "Option 1: Don't Grant Delete Permission (Recommended) - The simplest approach is to **not grant** the `delete` verb to the user",
+      "Option 2: Use CEL-based Authorization Policy (Kubernetes 1.26+) - For explicit deny rules, use **CEL-based authorization policies**",
+      "Option 3: Use Admission Controllers - Implement a **ValidatingAdmissionPolicy** or **ValidatingWebhook** to block deletions"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "a12fba966149f0e235bc5bc483b748b4693d9f52a215fecdbd8965ff6a9ac7b4",
+    "cost_usd": 0.0022408000000000003,
+    "latency_ms": 2666.2986149895005,
+    "item_id": "k8s_022"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The question asks which container-isolation restrictions the 'privileged' profile enforces. The answer directly addresses this by stating that the privileged profile enforces NO restrictions\u2014it is 'entirely unrestricted' and defined by an 'absence of restrictions.' This is the core ask of the question. The answer goes further to explain the purpose and contrast with other profiles, providing context. The answer is on-target and directly addresses what the question is asking for.",
+    "evidence_quotes": [
+      "the Pod Security Standards **'privileged' profile does NOT enforce any container-isolation restrictions**",
+      "The Privileged policy is purposely-open and entirely unrestricted. It is defined by an **absence of restrictions**",
+      "the Privileged profile places no restrictions on container isolation"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "9f58ab3eaeaaae5e5b500e686040b0c59ec06b789659406b79b32991c489d544",
+    "cost_usd": 0.0015008000000000003,
+    "latency_ms": 6890.58304700302,
+    "item_id": "k8s_023"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the user's question about configuring Envoy xDS ADS for sidecar proxies in Kubernetes Deployments. It provides specific, actionable guidance including: (1) bootstrap configuration with ADS setup, (2) Kubernetes Deployment manifest showing how to inject and mount the configuration, and (3) control plane requirements. The answer engages with all core components of the question: Envoy ADS configuration, xDS protocol, sidecar proxy pattern, and Kubernetes Deployment context. While the answer acknowledges the documentation corpus doesn't contain specific ADS configuration docs, it doesn't refuse to engage\u2014instead it provides comprehensive industry best-practice guidance that directly answers the question's core ask.",
+    "evidence_quotes": [
+      "Aggregated Discovery Service (ADS) is an Envoy xDS transport that allows a single gRPC stream to deliver all configuration types",
+      "Create an Envoy bootstrap configuration that specifies ADS as the discovery mechanism",
+      "Inject the bootstrap configuration as a ConfigMap and mount it in your sidecar",
+      "dynamic_resources: ads_config: api_type: GRPC"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "1e8fc6086c8751052c1b22fcc728df75411562f3ecdffa30146931afd47dd37f",
+    "cost_usd": 0.0024904000000000003,
+    "latency_ms": 8009.954167006072,
+    "item_id": "k8s_024"
+  },
+  {
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about which Kubernetes Service types expose applications to outside traffic. It identifies NodePort and LoadBalancer as the primary types, explains how each works, and mentions ExternalIPs as an additional option. The answer is well-structured, accurate in its topic coverage, and comprehensively addresses what was asked. It also helpfully includes ClusterIP for context (noting it does NOT expose externally) and mentions Ingress/Gateway as related alternatives. This is a complete, on-target response to the question.",
+    "evidence_quotes": [
+      "the Service types that expose an application to traffic from outside the cluster are: 1. NodePort... 2. LoadBalancer... 3. ExternalIPs",
+      "You can contact the Service from outside the cluster by connecting to any node using the node's IP address and the allocated port",
+      "Exposes the Service externally using a cloud provider's load balancer",
+      "So the primary Service types for external traffic are NodePort and LoadBalancer, with ExternalIPs as an additional option."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "64bfb5acf94d98b960c9d679463c7852613e55e1ce5883781f50b4b7814d9b3b",
+    "cost_usd": 0.0018528000000000001,
+    "latency_ms": 22117.236446996685,
+    "item_id": "k8s_025"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two key points: (1) FastAPI caches dependency results so each dependency is called only once per request, and (2) caching can be disabled by setting use_cache=False in the Depends() call. The agent's answer covers both points comprehensively. Point 1 is addressed in the 'How Dependency Caching Works' section, which explains that FastAPI caches results and calls the dependency function only once per request. Point 2 is addressed in the 'How to Disable Caching' section, which explicitly states use_cache=False and provides a code example. The answer includes additional helpful context (performance benefits, use cases) but the scoring rubric explicitly states the judge does not penalize for adding correct extra detail. All key reference points are present.",
+    "evidence_quotes": [
+      "By default, FastAPI implements automatic caching of dependency results within a single request",
+      "FastAPI caches the result and calls the dependency function only once",
+      "To disable caching and force a fresh call each time a dependency is needed, use the `use_cache` parameter set to `False`",
+      "setting `use_cache=False` ensures that the dependency function is called twice"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "3a79cfc1b2704a3bc427751108a08f038b33612329abee296ee3f25610c8e118",
+    "cost_usd": 0.0020312,
+    "latency_ms": 8225.406764948275,
+    "item_id": "q006"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two key points: (1) the default Swagger UI endpoint is /docs, and (2) it provides an interactive API documentation interface. The agent's answer covers both of these points explicitly in the opening statement and first paragraph. The agent correctly identifies /docs as the endpoint and describes it as 'an interactive API explorer powered by Swagger UI.' The additional information provided (about /redoc, /openapi.json, customization options, and disabling endpoints) goes beyond the reference but does not detract from coverage of the reference's core points. All key facts from the reference are present.",
+    "evidence_quotes": [
+      "The default Swagger UI endpoint in FastAPI is **`/docs`**.",
+      "When you navigate to `http://localhost:8000/docs` (assuming your app is running on localhost:8000), you'll see an interactive API explorer powered by Swagger UI."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "6d8d2e201916d9c9d4d8f525009acaa8a02280dcd1573b8ecbb7bae461e26eef",
+    "cost_usd": 0.0016192000000000001,
+    "latency_ms": 2398.3864950132556,
+    "item_id": "q011"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer identifies two key points: (1) raising an HTTPException, and (2) using status_code and detail message parameters. The agent's answer covers both of these points comprehensively. The answer explains that HTTPException is raised with status_code and detail parameters, provides multiple code examples demonstrating this, and elaborates on how these parameters work. All essential points from the reference are present, though the agent adds substantial additional detail (headers parameter, response format, custom exception handlers, etc.). Since the scoring rubric explicitly states 'The judge does not penalize the agent for adding correct extra detail,' and all reference points are covered, this merits a score of 2.",
+    "evidence_quotes": [
+      "The primary way to raise HTTP errors in FastAPI is using the `HTTPException` class",
+      "raise HTTPException(status_code=404, detail=\"Item not found\")",
+      "**status_code** (required): The HTTP status code to return",
+      "**detail** (optional): The error message/details"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "b2fa2200ac582365a5f2c96fb8bcdc2d9788be5693046a68af870d073779e31b",
+    "cost_usd": 0.0018432000000000001,
+    "latency_ms": 6352.686904952861,
+    "item_id": "q012"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two key points: (1) that a CORS max_age of 600 seconds results in 10 minutes of caching, and (2) the calculation showing 600/60=10. The agent's answer covers both points: it states that 600 seconds equals 10 minutes of browser caching for preflight results, and it explicitly shows the calculation (600 seconds \u00f7 60 seconds/minute = 10 minutes). The agent also provides additional context about what the max_age directive does, but this is extra detail that doesn't affect the completeness score. All key reference points are present.",
+    "evidence_quotes": [
+      "If the CORS `max_age` is 600 seconds, the browser caches preflight results for **10 minutes**.",
+      "600 seconds \u00f7 60 seconds/minute = 10 minutes"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "32640bd1016bf34227a79195ad181f538bbbe937d3172f21ca733e7c729903de",
+    "cost_usd": 0.001508,
+    "latency_ms": 2488.3104329928756,
+    "item_id": "q021"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer specifies three key points: (1) custom error handling via HTTPException or exception handlers, (2) CORS configuration via CORSMiddleware with allowed origins, and (3) testing with TestClient and app.dependency_overrides. The agent's answer covers all three points explicitly: it demonstrates custom exception handlers (ItemNotFoundException, DatabaseError, RequestValidationError), shows CORSMiddleware setup with allowed_origins parameter, and begins to set up dependency injection. However, the answer is incomplete\u2014it cuts off mid-sentence in the dependencies section and crucially does NOT show the actual testing implementation with TestClient or app.dependency_overrides, which is a key reference point. The answer covers 2 out of 3 main reference points fully, with the third point (testing) only partially addressed through dependency setup but missing the actual test code.",
+    "evidence_quotes": [
+      "Custom Exception Handlers... @app.exception_handler(ItemNotFoundException)",
+      "app.add_middleware(CORSMiddleware, allow_origins=[...])",
+      "Dependency Injection Setup... class Database",
+      "The answer cuts off and does not include TestClient or app.dependency_overrides examples"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "42df91909038e53d05fe290544b6dbe63c631cedb6464cece79775105a7ddcde",
+    "cost_usd": 0.0025216000000000006,
+    "latency_ms": 5392.216557986103,
+    "item_id": "q023"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all three key points from the reference: (1) cursor-based pagination using opaque cursor tokens is demonstrated with encode_cursor/decode_cursor functions, (2) response models are validated using Pydantic BaseModel with Field validators and the response_model parameter on the route decorator (@app.get with response_model=PaginatedResponse[Item]), and (3) analytics logging is handled asynchronously via BackgroundTasks dependency. All reference points are present, though the answer is incomplete (cuts off mid-function definition), the covered portions address all stated requirements.",
+    "evidence_quotes": [
+      "def encode_cursor(item_id: int) -> str: \"\"\"Encode item ID into an opaque cursor token\"\"\"",
+      "class Item(BaseModel): ... class PaginatedResponse(BaseModel, Generic[T]): ... with Field validators",
+      "@app.get('/items/', response_model=PaginatedResponse[Item], ...)",
+      "def log_api_analytics(...): \"\"\"Log analytics data asynchronously\"\"\"",
+      "background_tasks: BackgroundTasks = Depends"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "e65efe1620df931603666588bea32ab8768035928f43b9170cd30cde25d89715",
+    "cost_usd": 0.0024871999999999997,
+    "latency_ms": 9171.53250001138,
+    "item_id": "q025"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all three key points from the reference: (1) ordinal index is mentioned as 'ordering' and 'persistent identifier', (2) stable network identity is explicitly discussed with mention of Headless Service and stable DNS names, and (3) stable persistent storage is notably absent from the answer. The reference explicitly states StatefulSet Pods have 'stable persistent storage' as a core component of their identity, but the answer does not mention storage at all. The answer also correctly distinguishes StatefulSets from Deployments (interchangeable vs. unique identity). Since 2 out of 3 key points are covered but persistent storage is missing, this falls into partial coverage.",
+    "evidence_quotes": [
+      "Reference: 'StatefulSet Pods have a unique identity composed of an ordinal index, a stable network identity, and stable persistent storage.'",
+      "Answer covers ordinal index: 'ordering and uniqueness of Pods'",
+      "Answer covers stable network identity: 'Headless Service to be responsible for the network identity of the Pods. This allows Pods to have stable, predictable DNS names'",
+      "Answer missing persistent storage: no mention of storage, volumes, or persistent storage guarantees"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "95582498779bbb3574afc12b70b73c8229f2d86aeb2cb02d96fbc44b4661e217",
+    "cost_usd": 0.0020456,
+    "latency_ms": 5276.722497015726,
+    "item_id": "k8s_001"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. The reference identifies four main distinctions: (1) Deployment manages stateless workloads with interchangeable Pods, (2) StatefulSet maintains sticky identity, (3) StatefulSet provides stable network identifiers and persistent storage, and (4) StatefulSet enables ordered deployment/scaling. The answer explicitly addresses all these points: it states Pods are 'interchangeable' for Deployments, describes StatefulSet's 'unique, persistent identity', covers 'stable hostname maintained across rescheduling' and 'persistent volumes per Pod', and explains 'ordered, sequential operations'. The answer goes significantly beyond the reference with detailed examples, YAML configurations, and use cases, but the scoring rubric explicitly states 'The judge does not penalize the agent for adding correct extra detail' and focuses only on coverage of reference points. All reference facts are present and clearly articulated.",
+    "evidence_quotes": [
+      "Pods are interchangeable; no sticky identity",
+      "Each Pod has a unique, persistent identity",
+      "Stable hostname maintained across rescheduling",
+      "Persistent volumes per Pod via volumeClaimTemplates",
+      "Ordered, sequential operations (0\u21921\u21922)"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "858b5d51052c4491a8340a8676367f07b446db3e8ad1110863e07a23662fa30f",
+    "cost_usd": 0.0026104,
+    "latency_ms": 15152.165531995706,
+    "item_id": "k8s_002"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains three key points: (1) Ingress exposes HTTP/HTTPS routes from outside the cluster, (2) Ingress maps routes to backend Services based on rules, and (3) Service is an abstraction defining logical endpoints (Pods) with selectors that load-balance traffic to container ports. The agent's answer covers all three points comprehensively. Point 1 is covered in the 'Ingress Controller' section describing external traffic arrival and rule-based routing. Point 2 is explicitly addressed in the 'Service Layer' section explaining how Services abstract endpoints and perform load balancing. Point 3 is covered through the discussion of Service's virtual IP, endpoint selection via selectors (implied through EndpointSlices), and traffic delivery to container ports. While the agent provides extensive additional detail (kube-proxy, DNAT, EndpointSlices API), the scoring rubric explicitly states judges do not penalize for adding correct extra detail. All reference points are present and clearly paraphrased.",
+    "evidence_quotes": [
+      "The Ingress resource defines rules that match HTTP requests based on: Hostnames, URL paths, Other protocol-aware configurations",
+      "The Ingress controller interprets these rules and routes traffic to the appropriate backend Service",
+      "Service acts as an abstraction layer that... Maintains a list of backend endpoints through EndpointSlices (or the older Endpoints API). These endpoints represent the actual Pod IP addresses that match the Service's selector labels",
+      "Traffic is DNAT'd (Destination NAT) from the Service's virtual IP to the actual Pod IP address. The packet reaches the Pod's network interface on the target node. The container inside the Pod receives the traffic on the specified port"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "feb4dfee8e9d49dd2fa61616b515e0be633d8f93d202a1a37a5c88e77803f4f5",
+    "cost_usd": 0.0027368,
+    "latency_ms": 4004.554941027891,
+    "item_id": "k8s_003"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) Pod Security Admission applies restrictions at namespace level based on labels - covered implicitly through the configuration examples; (2) enforce mode causes Pod rejection on policy violations - explicitly stated ('cause the pod to be rejected'); (3) warn mode triggers user-facing warning but Pod is still allowed - explicitly stated ('trigger a user-facing warning' and 'pods will still be created'); (4) a namespace can combine modes at different levels - explicitly stated ('Both modes can be configured independently on the same namespace'). The answer includes additional correct details (workload resources behavior, practical implications, configuration examples) but these are not penalized per the rubric. All reference points are present and clearly covered.",
+    "evidence_quotes": [
+      "Policy violations will cause the pod to be rejected",
+      "Policy violations trigger a user-facing warning",
+      "Allows non-compliant pods to run but alerts the user",
+      "Both modes can be configured independently on the same namespace, allowing you to have different security policies for enforcement versus warnings"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "bfad2ede0dd56bcbd0a32d9ed0fa9f78bc1eea7ad5364f6f764fd133b60e20f6",
+    "cost_usd": 0.0018992,
+    "latency_ms": 17775.737968971953,
+    "item_id": "k8s_005"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains three key points: (1) ConfigMap is an API object for storing non-confidential data in key-value pairs, (2) it is intended for application configuration that does not need to be secret, and (3) confidential data like passwords or tokens should use Secret instead. The agent's answer covers all three points comprehensively. Point 1 is directly stated in the opening paragraph. Point 2 is reinforced multiple times throughout (the 'What Kind of Data' section and the structure discussion). Point 3 is extensively covered in the 'Important: What NOT to Store' section with specific examples of passwords, API keys, tokens, and certificates, plus explicit direction to use Kubernetes Secrets instead. The agent also adds substantial extra detail (consumption methods, structure fields) but this does not affect the score since we only evaluate coverage of reference points.",
+    "evidence_quotes": [
+      "A ConfigMap is a Kubernetes API object used to store non-confidential data in key-value pairs",
+      "ConfigMaps are designed for non-confidential, non-sensitive data",
+      "Do NOT store sensitive or confidential data in ConfigMaps, such as: Passwords, API keys, Tokens, Certificates",
+      "For sensitive data, you should use Kubernetes Secrets instead"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "578d1632f1f46be8a8f4d45758d433fc223546d7ec92df5ca2d0877f3e8198cd",
+    "cost_usd": 0.0020775999999999998,
+    "latency_ms": 3233.411822002381,
+    "item_id": "k8s_006"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains four key points: (1) A Job creates one or more Pods, (2) it retries execution until a specified number successfully terminate, (3) it tracks successful completions, and (4) deleting a Job cleans up its Pods. The agent's answer covers points 1 and 3 clearly. Point 2 (retry behavior) is mentioned indirectly through the backoffLimit parameter but not explicitly stated as core Job behavior. Point 4 (cleanup on deletion) is completely absent from the answer. The agent's answer adds substantial detail about completion modes (NonIndexed vs Indexed) and configuration parameters that go beyond the reference, but the scoring rubric explicitly states judges should not penalize for extra correct details\u2014only score on coverage of reference points. With 2 out of 4 key reference points clearly covered and 1 partially addressed, this represents partial but incomplete coverage.",
+    "evidence_quotes": [
+      "Reference: 'A Job creates one or more Pods' | Answer: 'It creates one or more Pods'",
+      "Reference: 'tracks the successful completions; once the specified number is reached, the Job is considered complete' | Answer: 'A Job determines completion based on...`.spec.completions` successfully completed Pods'",
+      "Reference: 'will continue to retry execution' | Answer: '`.spec.backoffLimit`: The number of retries' (indirect, not core explanation)",
+      "Reference: 'Deleting a Job cleans up the Pods it created' | Answer: [NOT PRESENT]"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "6ed7deff5411307bebfa2f318fa82011fb499b068dc733b77ffd0a16c1776916",
+    "cost_usd": 0.0024335999999999997,
+    "latency_ms": 4266.8321509845555,
+    "item_id": "k8s_007"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all four key points from the reference: (1) identifies all four object kinds (Role, ClusterRole, RoleBinding, ClusterRoleBinding), (2) explains that Role and ClusterRole contain rules representing permissions, (3) explains that RoleBinding and ClusterRoleBinding grant those roles to users, groups, or service accounts, and (4) distinguishes the namespace-scoped variants (Role, RoleBinding) from cluster-wide variants (ClusterRole, ClusterRoleBinding). The answer uses paraphrase and adds helpful organizational detail, but all reference points are present.",
+    "evidence_quotes": [
+      "the Kubernetes RBAC API declares four kinds of objects: Role, ClusterRole, RoleBinding, and ClusterRoleBinding",
+      "Role - Defines a set of permissions within a specific namespace. It contains rules that represent a set of permissions.",
+      "ClusterRole - Similar to a Role, but is cluster-scoped rather than namespace-scoped.",
+      "RoleBinding - Grants the permissions defined in a Role to a user or set of users within a specific namespace... It connects a Role to subjects (users, groups, or service accounts).",
+      "ClusterRoleBinding - Similar to a RoleBinding, but grants the permissions defined in a ClusterRole at the cluster level. It connects a ClusterRole to subjects across the entire cluster.",
+      "the namespace-scoped variants (Role and RoleBinding) are used for permissions within a specific namespace, while the cluster-scoped variants (ClusterRole and ClusterRoleBinding) apply across the entire cluster"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "acddc826212df9c439cc2185cf54d832a77b89d14f3272f9b7cff9e9949f217a",
+    "cost_usd": 0.0023231999999999997,
+    "latency_ms": 2587.1090359869413,
+    "item_id": "k8s_009"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains three key points: (1) both modes deliver the same underlying data, (2) mounted volumes receive in-place updates if the Secret changes, and (3) environment variables are evaluated at Pod start and do not update after the Pod is running. The agent's answer covers all three points comprehensively. Point 1 is implicit in the agent's discussion that both are ways to 'consume' a Secret with the same data. Point 2 is explicitly covered in the 'Mounting Secret as a Data Volume' section with 'Automatic Updates' and 'Dynamic Refresh'. Point 3 is explicitly covered in the 'Exposing Secret as Environment Variables' section with 'Static at Pod Start' and 'Pod Restart Required'. The agent also provides additional correct details (subPath limitations, character restrictions, use cases) that go beyond the reference but do not contradict it. All reference points are present and clearly articulated.",
+    "evidence_quotes": [
+      "When a Secret is updated, Kubernetes automatically tracks and updates the data in the volume using an eventually-consistent approach",
+      "The container can access the latest Secret data without requiring a restart",
+      "Environment variables are set when the Pod starts and do not update automatically",
+      "If a Secret is updated, the Pod must be restarted for the container to access the new values"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "5f662014659d6aa61d27fd67f348b014f88025d58df9f5f0f2d451714d021cb4",
+    "cost_usd": 0.0021791999999999996,
+    "latency_ms": 17062.20399902668,
+    "item_id": "k8s_011"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. The reference makes three main claims: (1) default emptyDir is stored on whatever medium backs the node (disk, SSD, or network storage), (2) setting emptyDir.medium to 'Memory' uses tmpfs (RAM-backed filesystem), and (3) files in tmpfs count against the container's memory limit. The agent's answer includes all three points with accurate paraphrasing and additional helpful context. The agent explicitly states the storage location for default emptyDir, clearly explains tmpfs for Memory-backed volumes, and prominently highlights that files count against container memory limits. No key reference points are missing.",
+    "evidence_quotes": [
+      "Stored on whatever medium backs the node (disk, SSD, or network storage depending on your environment)",
+      "Mounted as a tmpfs (RAM-backed filesystem)",
+      "Files written count against the memory limit of the container that wrote them"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "e35bb38c436523fe2336aaa56045152e389e274662fba67633a1e4c39ab743b5",
+    "cost_usd": 0.00178,
+    "latency_ms": 2628.0171329854056,
+    "item_id": "k8s_012"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two key points: (1) liveness probe failure causes kubelet to restart the container to recover from wedged states like deadlocks, and (2) readiness probe failure does not restart the container; instead the Pod is marked not-ready and removed from Service load balancers so traffic stops. The agent's answer covers both of these points comprehensively. Point 1 is covered in the 'Failing Liveness Probe' section where it states 'The kubelet kills the container and restarts it' and mentions 'deadlocks' as a use case. Point 2 is covered in the 'Failing Readiness Probe' section which states 'The kubelet continues running the container - it does NOT kill it' and 'The pod will not receive traffic from Kubernetes Services - it's marked as unready.' The agent also provides additional correct details (restart policy, terminationGracePeriodSeconds, periodic probes, Ready condition) that go beyond the reference but do not contradict it. All key reference points are present with appropriate paraphrasing.",
+    "evidence_quotes": [
+      "The kubelet kills the container and restarts it according to the pod's restart policy",
+      "Detecting unrecoverable application failures (e.g., deadlocks) where the only recovery is to restart the container",
+      "The kubelet continues running the container - it does NOT kill it",
+      "The pod will not receive traffic from Kubernetes Services - it's marked as unready"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "028660796eeb558b1293457bbec76392877d86c0ee859308b20ae90ec1a65566",
+    "cost_usd": 0.0023576,
+    "latency_ms": 8355.50108802272,
+    "item_id": "k8s_013"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. It explicitly states that NodePort exposes the Service on each Node's IP at a static port (matching reference point 1), that LoadBalancer exposes the Service externally using an external load balancer (matching reference point 2), that Kubernetes does not directly provide the load balancer and you must integrate with a cloud provider or supply one yourself (matching reference point 3), and that LoadBalancer is typically implemented on top of NodePort in cloud environments (matching reference point 4). All four major factual claims in the reference are present in the answer, though with additional elaboration and context.",
+    "evidence_quotes": [
+      "Exposes the Service on each Node's IP at a static port (the NodePort)",
+      "Exposes the Service externally using an external load balancer",
+      "Kubernetes doesn't directly provide the load balancer; you must provide one or use a cloud provider's load balancer",
+      "LoadBalancer is built on top of NodePort - it creates a NodePort internally and then adds an external load balancer layer on top of it"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "63a0e85b245371ce00082ed8827b0d9efd3c76dac9a3c1de9574df2ff2e097d8",
+    "cost_usd": 0.0019768000000000003,
+    "latency_ms": 2318.680135998875,
+    "item_id": "k8s_014"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains five key points: (1) A Job represents a one-off task that runs to completion and then stops, (2) it creates one or more Pods and retries until a specified number successfully terminate, (3) a CronJob creates Jobs on a repeating schedule written in cron format, (4) CronJob is meant for regular recurring actions such as backups or report generation, and (5) use a Job for a single batch run, and a CronJob when you need the same Job to run on a recurring schedule. The agent's answer covers points 1, 3, 4, and 5 clearly and comprehensively. However, point 2 about Jobs creating Pods and retrying until a specified number successfully terminate is not explicitly mentioned in the agent's answer. The agent does mention 'one-time batch tasks' and 'one-off workload' but does not address the Pod creation mechanism or the retry behavior. The agent does add substantial additional information about idempotency and deadline handling that is not in the reference, but per the rubric, this does not affect the score. The answer covers most but not all of the reference's key points.",
+    "evidence_quotes": [
+      "Reference: 'A Job represents a one-off task that runs to completion and then stops; it creates one or more Pods and retries until a specified number successfully terminate.' Agent: 'Run a task once to completion' and 'One-time batch tasks' \u2014 covers one-off nature but not Pod creation or retry mechanism.",
+      "Reference: 'A CronJob creates Jobs on a repeating schedule written in cron format' Agent: 'Runs on a repeating schedule (like Unix cron)' \u2014 covered.",
+      "Reference: 'meant for regular recurring actions such as backups or report generation' Agent: 'e.g., daily backups, hourly reports' \u2014 covered.",
+      "Reference: 'Use a Job for a single batch run, and a CronJob when you need the same Job to run on a recurring schedule.' Agent: 'use Job for one-time tasks, and CronJob for anything that needs to run repeatedly on a schedule' \u2014 covered."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "28cce97784ed6be2331cb3757ddc2b93cb558939b96bd271f289c2ae16f55fb6",
+    "cost_usd": 0.0048808,
+    "latency_ms": 6695.655577990692,
+    "item_id": "k8s_015"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. It explains that Deployments schedule a configured number of replicas (matching 'fixed by the Deployment spec'), that this count is independent of node count, that DaemonSets ensure all/some nodes run a copy, and that the DaemonSet replica count is tied to the number of matching nodes. The answer uses different phrasing but captures the essential facts: Deployment = fixed replica count distributed across nodes; DaemonSet = one pod per eligible node with count tied to node count. All three core reference points are present.",
+    "evidence_quotes": [
+      "Manages a **specified number of Pod replicas** that can run on **any eligible nodes**",
+      "Ensures that **all eligible nodes** (or a subset based on node selectors/affinity) run **exactly one copy** of a Pod",
+      "**Deployment**: Runs a specified number of replicas distributed across nodes",
+      "**DaemonSet**: Runs one Pod per node (or per eligible node based on selectors), ensuring cluster-wide coverage"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "d5ce2becd7e454321d33605c5d123a1298d16b0bd2a031280161e38ec61263a2",
+    "cost_usd": 0.0018935999999999998,
+    "latency_ms": 19364.772674976848,
+    "item_id": "k8s_016"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) init containers run sequentially/one at a time in defined order, (2) each must complete successfully before the next starts, (3) application containers only start after all init containers succeed, and (4) if an init container fails, the Pod restarts according to restartPolicy and the sequence begins again. The answer also correctly identifies that init containers are for one-time setup work. All major facts from the reference are present, though expressed with additional detail and organization. The core reference points are fully covered.",
+    "evidence_quotes": [
+      "Init containers run sequentially - The kubelet runs each init container in the order they appear in the Pod's spec, one after another",
+      "Each init container must exit with success before the next one starts",
+      "Once all init containers have successfully completed, the kubelet initializes and runs the application containers",
+      "If an init container fails to start or exits with a failure, the kubelet will retry it according to the Pod's restartPolicy",
+      "Init containers run only once during Pod startup (if successful)"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "7dc9ed4e57d4c46d18503075dee17ab44ed9f522465c4c41ce1b4e7c8704e285",
+    "cost_usd": 0.0019872,
+    "latency_ms": 2823.2900139992125,
+    "item_id": "k8s_017"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) autoscaling/v2 is the current stable API version, (2) it adds support for memory metrics beyond CPU-only autoscaling/v1, (3) it adds support for custom metrics. The answer also mentions that new fields are preserved as annotations when working with v1, and that v2 should be used directly for memory or custom metric scaling on Deployments/StatefulSets. The answer goes beyond the reference with additional details about multiple metrics, scaling behavior configuration, and the v1.23 stabilization timeline, but these are correct extra details that don't detract from coverage. All reference points are present and accurately paraphrased.",
+    "evidence_quotes": [
+      "The `autoscaling/v2` API version is the current stable version",
+      "includes support for scaling on **custom metrics**",
+      "includes support for scaling on **memory metrics**, which is not available in the older `autoscaling/v1` version",
+      "**`autoscaling/v1`**: Only supports CPU-based scaling",
+      "**`autoscaling/v2`**: Supports CPU, memory, custom metrics, and external metrics",
+      "you must use `apiVersion: autoscaling/v2` in your manifest"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "2954a16f1a00e175ff9e8185698563b44054de6181e3c309a2c38c2c0b8e44f7",
+    "cost_usd": 0.0021208000000000004,
+    "latency_ms": 3087.260321015492,
+    "item_id": "k8s_018"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer identifies two main ways to surface ConfigMap data to Pods: (1) exposing specific keys as environment variables, and (2) mounting as a volume where keys become files. It also specifies a key difference: volume-mounted data updates in place when ConfigMap changes, while environment variables are set at Pod start and don't update until Pod restart. The agent's answer covers all these core points but presents four mechanisms instead of two. The first two mechanisms (individual and bulk environment variables) both map to the reference's first point about environment variables. The third mechanism (volume mounts) directly matches the reference's second point. The fourth mechanism (Kubernetes API direct access) is additional information not in the reference. Critically, the agent correctly captures the update behavior difference: environment variables require restart (sections 1-2), while volume mounts support dynamic updates (section 3). All key reference points are present and accurately paraphrased, though the answer organizes and expands the information beyond the reference's scope.",
+    "evidence_quotes": [
+      "ConfigMap key-value pairs can be injected as individual environment variables in the container",
+      "All key-value pairs from a ConfigMap can be imported as environment variables at once",
+      "ConfigMaps consumed as environment variables are not updated automatically and require a pod restart",
+      "ConfigMap data can be mounted as files in the container's filesystem",
+      "Each key in the ConfigMap becomes a filename under the mountPath",
+      "This mechanism supports dynamic updates when the ConfigMap changes"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "7761711620ffc8120f1aafdfb0e550fda47a0a70232686f087c45a97877ea6c7",
+    "cost_usd": 0.0025304,
+    "latency_ms": 7668.782662018202,
+    "item_id": "k8s_019"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) Pods are non-isolated by default, (2) A Pod becomes isolated when any NetworkPolicy selects it via podSelector, (3) Only traffic explicitly allowed by NetworkPolicies that select the Pod is permitted after isolation, (4) NetworkPolicy rules can target ingress, egress, or both. The answer does not explicitly mention that the CNI plugin enforces the policy (not Kubernetes itself), which is a minor point in the reference. However, the answer covers all the major substantive points about default behavior, isolation mechanism, and traffic allowance rules. The omission of the CNI enforcement detail is relatively minor compared to the comprehensive coverage of the core concepts.",
+    "evidence_quotes": [
+      "By default, all Pods are non-isolated",
+      "A Pod becomes isolated for ingress if there is any NetworkPolicy that selects the Pod (via podSelector)",
+      "A Pod becomes isolated for egress if there is any NetworkPolicy that selects the Pod (via podSelector)",
+      "only the following connections are allowed: Connections explicitly allowed by the ingress rules in NetworkPolicies that apply to the Pod",
+      "only connections explicitly allowed by the egress rules in NetworkPolicies that apply to the Pod are permitted",
+      "NetworkPolicy rules can target ingress, egress, or both [implied by separate sections on ingress and egress isolation]"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "b957c3ed390693ede4acfdf07509200e52bf42dbc86c0c5588400b685a45288b",
+    "cost_usd": 0.0022351999999999997,
+    "latency_ms": 4320.280827989336,
+    "item_id": "k8s_020"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference answer makes one key point: Kubernetes RBAC does not support deny rules; it is purely additive, and the way to prevent deletion is by not granting the delete verb. The agent's answer covers this core point in Option 1 and explicitly states 'Standard Kubernetes RBAC does not have explicit deny rules' and 'RBAC is allow-based only.' However, the agent then goes significantly beyond the reference by introducing Options 2 and 3 (CEL-based Authorization Policy and Admission Controllers), which are alternative mechanisms outside standard RBAC. While these additions are factually correct and potentially useful, they diverge from what the reference establishes as the answer to the question. The reference's single key point\u2014that you can't use deny rules in RBAC and must rely on not granting permissions\u2014is fully covered. The extra content about alternative approaches does not detract from coverage of the reference material itself.",
+    "evidence_quotes": [
+      "Standard Kubernetes RBAC does not have explicit deny rules",
+      "RBAC is allow-based only",
+      "The simplest approach is to not grant the delete verb to the user",
+      "By default, users have no permissions"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "a12fba966149f0e235bc5bc483b748b4693d9f52a215fecdbd8965ff6a9ac7b4",
+    "cost_usd": 0.0023128000000000003,
+    "latency_ms": 6994.648925028741,
+    "item_id": "k8s_022"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) the privileged profile enforces none/is defined by absence of restrictions, (2) it is purposely-open and entirely unrestricted, (3) pods can bypass typical container isolation mechanisms with examples like host network access, and (4) baseline and restricted profiles should be used for actual isolation. The answer uses paraphrase and adds some extra context about infrastructure workloads, but all reference points are present.",
+    "evidence_quotes": [
+      "does NOT enforce any container-isolation restrictions",
+      "Entirely Unrestricted: The Privileged policy is purposely-open and entirely unrestricted. It is defined by an absence of restrictions.",
+      "Pods with the Privileged profile are able to bypass typical container isolation mechanisms. For example, a Pod can have access to the node's host network.",
+      "the Privileged profile places no restrictions on container isolation",
+      "In contrast to the more restrictive profiles (Baseline and Restricted)"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "9f58ab3eaeaaae5e5b500e686040b0c59ec06b789659406b79b32991c489d544",
+    "cost_usd": 0.001728,
+    "latency_ms": 2359.346297045704,
+    "item_id": "k8s_023"
+  },
+  {
+    "dimension": "completeness",
+    "reasoning": "The reference identifies four key points: (1) NodePort exposes on each Node's IP at a static port, (2) LoadBalancer uses external load balancer from cloud integration, (3) ExternalName maps to external DNS name via CNAME, and (4) ClusterIP is default/cluster-internal only, with Ingress as alternative. The answer covers points 1 and 2 fully with good detail. However, it completely omits ExternalName (a named Service type in the reference). Instead, it discusses ExternalIPs, which is a field/configuration option but not one of the four Service types listed in the reference. The answer does mention ClusterIP and Ingress as alternatives, matching the reference. The omission of ExternalName\u2014an explicitly named Service type in the reference\u2014is a significant gap. The answer provides 3 of 4 reference points (NodePort, LoadBalancer, and the ClusterIP/Ingress context), but substitutes ExternalIPs for ExternalName rather than covering all reference types.",
+    "evidence_quotes": [
+      "Reference lists: NodePort, LoadBalancer, ExternalName, and ClusterIP",
+      "Answer covers: NodePort (\u2713), LoadBalancer (\u2713), ExternalIPs (\u2717 not in reference), ClusterIP (\u2713), Ingress (\u2713)",
+      "Reference: 'ExternalName (maps the Service to an external DNS name via a CNAME record)'",
+      "Answer: No mention of ExternalName or CNAME mapping"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5-20251001_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "64bfb5acf94d98b960c9d679463c7852613e55e1ce5883781f50b4b7814d9b3b",
+    "cost_usd": 0.0023615999999999997,
+    "latency_ms": 7498.626695014536,
+    "item_id": "k8s_025"
+  }
+]

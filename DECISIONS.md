@@ -2265,3 +2265,33 @@ published. It caught it. The writeup's calibration section should
 disclose the rubric clarification, quantify the re-label delta on
 groundedness, and report κ against the v1.1 corrected gold — that is a
 more credible story than a first-try clean κ table would have been.
+
+**Outcome — 2026-05-05 calibrate run on v1.1 gold.** All 6 ablation rows
+ran cleanly after three coupled production-code fixes that landed on the
+same branch as the rubric clarification: (1) markdown fence stripping in
+`agent_bench/evaluation/judges/base.py::_strip_markdown_fence` because
+Haiku 4.5 wraps JSON output in ` ```json ... ``` `, (2) `max_tokens`
+512 → 1024 because v1.1 anchored examples elicit longer model reasoning,
+(3) calibration runner v1.0 omitted `item_id` from prediction records;
+fixed in v1.1 with backfill of the 6 already-written row files via
+`hash → item_id` map (no re-spend). Probe-one-cell-before-sweep saved a
+fourth $0.50 wasted run after the fence-strip change — the methodology
+note in `feedback_judge_probe_before_sweep.md` was earned by this
+session's two failed full-row attempts that paid ~$1.15 for unparseable
+output before the diagnosis converged.
+
+The κ table at `docs/_generated/kappa_table.md` shows three findings
+that the writeup needs to interpret rather than report verbatim:
+relevance Cohen's κ = 0 across 5/6 rows is a prevalence degeneracy
+(29×score=2 + 1×score=1 gold, formula collapses), not judges failing
+at relevance — AC1 is the load-bearing statistic on this dimension and
+on groundedness; `no_cot` completeness κ = 1.000 at n=24 (vs 26
+elsewhere) is suspicious abstain-as-coverage-gap behavior worth
+investigating before the writeup celebrates it; and the headline
+finding that the writeup should lead with is that
+`jury_kappa_weighted` underperformed `baseline` on completeness
+(κ = 0.014 vs 0.416). The κ-weighted aggregation collapsing below
+either single member is the realized risk the design doc flagged; the
+right v1.2 fix is held-out validation for the jury weights rather
+than computing them on the same calibration set the κ table is
+evaluated against.

@@ -28,6 +28,8 @@ logs/
 # Narrow exception to the *.jsonl ignore above. Add new measurement files
 # explicitly here so the audit-trail intent stays opt-in.
 !measurements/*.jsonl
+# Calibration jury/permute sidecars (per-member detail for κ ablation table).
+!results/*.jsonl
 
 # Opaque binary artifacts — no PDFs in the repo today, and any that
 # appear here are almost always local reference material (downloaded
