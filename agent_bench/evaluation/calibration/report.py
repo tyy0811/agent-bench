@@ -8,6 +8,7 @@ from __future__ import annotations
 import glob as _glob
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 
 import structlog
@@ -36,7 +37,13 @@ ABSTAIN_THRESHOLD = 0.20  # strictly greater than fires the flag
 # imbalance. Completeness has a more balanced gold (23×2, 5×1, 2×Unknown) so
 # Cohen's κ is the conventional choice there. The metric per dim is rendered
 # explicitly in the footer so a writeup reader sees the methodology choice.
-_DIM_METRIC = {
+# Type annotation prevents a mypy 1.20.x INTERNAL ERROR triggered by the
+# tuple-unpack of `_DIM_METRIC.get(dim, default)` further down. Without it
+# mypy fails to infer the metric_fn callable signature consistently across
+# the dict literal and the fallback default, and crashes with no real
+# user-facing type error to fix.
+_MetricFn = Callable[[list, list], float]
+_DIM_METRIC: dict[str, tuple[str, _MetricFn]] = {
     "groundedness": ("AC1", gwets_ac2),
     "relevance": ("AC1", gwets_ac2),
     "completeness": ("κ", cohen_kappa),
@@ -133,6 +140,14 @@ def generate_kappa_table(
             labels_by_dim[label_rec["dimension"]].append(label_rec)
 
         for dim in sorted(preds_by_dim.keys()):
+            # Resolve dimension's headline metric once per dim, instead of
+            # tuple-unpacking _DIM_METRIC.get(...) at each use site below.
+            # The repeated unpack pattern triggered a mypy 1.19+ INTERNAL
+            # ERROR; one resolution call here is also less code.
+            metric_name, metric_fn = _DIM_METRIC.get(
+                dim, ("κ", cohen_kappa)
+            )
+
             preds_d = {p["item_id"]: p for p in preds_by_dim[dim]}
             labs_d = {
                 label_rec["item_id"]: label_rec
@@ -178,7 +193,6 @@ def generate_kappa_table(
             abstain_rate = abstains / max(len(common), 1)
 
             if n_eligible < 3:
-                metric_name, _ = _DIM_METRIC.get(dim, ("κ", cohen_kappa))
                 rows.append(
                     {
                         "row": row_label,
@@ -199,7 +213,6 @@ def generate_kappa_table(
                 )
                 continue
 
-            metric_name, metric_fn = _DIM_METRIC.get(dim, ("κ", cohen_kappa))
             try:
                 kappa = metric_fn(y_lab, y_pred)
                 point, lo, hi = bootstrap_ci(
