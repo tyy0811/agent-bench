@@ -2160,3 +2160,108 @@ defaults to the three v1 dimensions. Zero user-facing config migration.
 Langfuse self-host, dual-pass intra-rater calibration, DSPy/GEPA/MIPROv2
 prompt optimization, citation_faithfulness in the default
 judge_dimensions, AC2 sympy-derived parity tests.
+
+## Opus stress-test surfaced groundedness rubric-scope drift before the κ ablation ran — 2026-05-05
+
+The Opus stress-test pass over the 30 calibration items × 3 dimensions
+disagreed with the single-rater human gold on **22 of 30 groundedness
+items** (8/30 agreement). Relevance and completeness agreed at 28/30 and
+25/30 respectively. The groundedness disagreement is consistent in
+direction — every disagreed-on item is `human=1, opus=0` — and has a
+single root cause.
+
+**Root cause: reference-scope drift between rubric author and labeler.**
+`agent_bench/evaluation/rubrics/groundedness.md` defines the reference
+scope as the gold snippets attached to each item:
+
+> The judge sees only the gold snippets — not the retrieved chunks. A
+> claim that happens to be true in the world but is not entailed by the
+> snippets fails groundedness.
+
+The single-rater notes on the disagreed-on items describe checking
+against the broader documentation, not against `source_snippets`:
+"supported by the corpus", "supported by the docs", "supported by the
+provided dependency snippet". For items like `k8s_006` the gold snippet
+is one sentence ("A ConfigMap is an API object used to store
+non-confidential data in key-value pairs"), while the agent's answer
+correctly synthesizes seven or eight additional claims from the full
+`k8s_configmap.md`. Those claims are true in the world and well-supported
+by the full doc, but **not entailed by the one snippet**. Opus applied
+the strict-snippet rubric; the human rater applied a corpus-supported
+rubric.
+
+**Why this blocks `make calibrate` against the current gold.** The κ
+ablation compares Haiku and GPT-4o-mini judges against the human gold.
+A judge that correctly applies the strict-snippet rubric will disagree
+with miscalibrated gold; a judge that's too lenient will agree. The
+ablation rewards leniency and punishes rigor — the opposite of the
+intended measurement. This is the same failure mode codified earlier in
+this document under "Fix 2 outcome" and elsewhere: tuning sweeps tune
+compensation when the measurement is wrong, not the intended effect.
+
+**Why the rubric stays as written, not relaxed to "corpus-supported".**
+Strict-snippet groundedness measures *RAG behavior*: did the agent
+synthesize from what it retrieved? Corpus-supported groundedness
+measures *LLM general knowledge passing through a RAG harness*: did the
+agent happen to be correct? The first is what this benchmark is for;
+the second is what `agent_bench/evaluation/metrics.py` measured before
+supersession. Relaxing the rubric to "corpus-supported" would silently
+re-introduce the failure mode the supersession entry above just removed.
+
+**Decision — three-step correction lands before `make calibrate` runs:**
+
+1. **Rubric clarification commit on `agent_bench/evaluation/rubrics/groundedness.md`.**
+   Add an explicit reference-scope line and one anchored example
+   contrasting "supported by the snippet" vs "true in the world but
+   not in the snippet". Audit-trail requirement: the v1.1 writeup will
+   cite "rubric clarified between v1.0 and v1.1", and the git history
+   needs to back that claim.
+2. **Re-label the 22 disagreed-on groundedness items** in
+   `measurements/2026-05-04-judge-calibration-labels.jsonl` against the
+   clarified rubric, snippet-only. **Do not mechanically copy Opus's
+   labels.** The labels remain the human single-rater's; what changes is
+   the rubric being applied. Mechanical copy would turn the κ table
+   into "judge vs Opus", which is not what the writeup claims it
+   measures.
+3. **Recompute `make calibrate` against the corrected gold** and emit
+   `docs/_generated/kappa_table.md` from the v1.1 labels.
+
+**Evidence files for the v1.1 writeup section:**
+
+- `measurements/2026-05-05-judge-rubric-opus-stress.jsonl` — 90 Opus
+  labels (claude-opus-4-7, serialized to stay under the 30K input-tok/min
+  org rate limit, ~$0.20, ~14 min wall, zero infra-abstains).
+- `measurements/2026-05-04-judge-calibration-labels.jsonl` — original
+  v1.0 single-rater gold; will be diffed against v1.1 corrected gold to
+  quantify the re-label delta.
+- `agent_bench/evaluation/rubrics/groundedness.md` — pre/post diff is
+  the rubric clarification.
+
+**Pre-labeling observations also worth recording for the writeup
+methodology section:**
+
+- `q021` (fastapi · calculation) answered the CORS preflight question
+  correctly (600 / 60 = 10 minutes) with `sources: []` and
+  `ranked_sources: []` — the agent did the arithmetic without retrieval
+  and emitted an answer consistent with the snippet without having
+  retrieved it. Methodologically interesting for the
+  citation-faithfulness story (Block 2.7) if it ships: an answer can be
+  correct without being grounded-by-citation.
+- `q025` (fastapi · multi_hop) answer was truncated mid-token by the
+  orchestrator's max_tokens limit. The labels reflect what the system
+  produced, not a mentally-patched complete version. The completeness
+  rubric does not currently anchor "truncated response" as a level —
+  v1.1 rubric work should add an anchor.
+- Several K8s items embed external knowledge that's correct but not in
+  the snippet phrasing (`k8s_017` mentions exit-code-0 for init-container
+  success; `k8s_009` describes Roles vs ClusterRoles by their semantics).
+  The clarified groundedness rubric should pick **strict** on this case
+  (claim must be supportable by the retrieved spans, not just consistent
+  with them) and the anchored example should show that ruling.
+
+**Methodology framing for the writeup.** The Opus stress-test was added
+specifically to catch hand-labeled-gold fragility before the κ table is
+published. It caught it. The writeup's calibration section should
+disclose the rubric clarification, quantify the re-label delta on
+groundedness, and report κ against the v1.1 corrected gold — that is a
+more credible story than a first-try clean κ table would have been.
