@@ -721,6 +721,141 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
   border: 1px solid var(--rule-2); background: var(--paper); color: var(--ink);
 }
 
+/* ── Evaluation harness section ───────────── */
+.harness-intro{
+  display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px;
+  align-items: end; margin-bottom: 28px;
+}
+.harness-intro p{color: var(--ink-2); max-width: 56ch}
+.harness-intro .sig{
+  font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-3);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.harness-intro .sig b{color: var(--ink); font-weight: 600}
+
+.rubric-grid{
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.rubric{
+  background: var(--paper); padding: 22px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.rubric .dim{
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+}
+.rubric .scale{
+  font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-3);
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.rubric .scale span{border: 1px solid var(--rule); padding: 1px 6px}
+.rubric .scale span.on{border-color: var(--ink); color: var(--ink)}
+.rubric .desc{
+  font-size: 0.86rem; color: var(--ink-2); line-height: 1.5;
+}
+.rubric .anchor{
+  font-family: var(--font-mono); font-size: 0.72rem;
+  border-left: 2px solid var(--rule-2); padding: 8px 10px;
+  background: var(--paper-2); color: var(--ink-2); line-height: 1.5;
+  margin-top: auto;
+}
+.rubric .anchor b{color: var(--ink); font-weight: 600; font-size: 0.7rem; letter-spacing: 0.06em}
+
+/* Compact one-row κ summary that lives above Findings (deep table is in appendix) */
+.kappa-summary{
+  margin-top: 22px; border: 1px solid var(--rule);
+  padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--paper-2);
+}
+.kappa-summary .ks-head{
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);
+}
+.kappa-summary .ks-head .ks-sub{
+  letter-spacing: 0.04em; text-transform: none; color: var(--ink-3);
+  font-weight: 400; margin-left: 4px;
+}
+.kappa-summary .ks-row{
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 22px;
+  font-family: var(--font-mono); font-size: 0.85rem;
+  font-feature-settings: "tnum","zero";
+}
+.kappa-summary .ks-stat{display: flex; align-items: baseline; gap: 8px}
+.kappa-summary .ks-stat .k{color: var(--ink-3); font-size: 0.78rem}
+.kappa-summary .ks-stat .v{color: var(--ink); font-weight: 600}
+.kappa-summary .ks-stat .v.win{color: var(--ok)}
+.kappa-summary .ks-link{
+  margin-left: auto; font-size: 0.78rem; color: var(--ink-2);
+  border-bottom: 1px solid var(--rule-2);
+}
+.kappa-summary .ks-link:hover{color: var(--ink); border-color: var(--ink)}
+
+.kappa-wrap{
+  margin-top: 28px; border: 1px solid var(--rule);
+  display: grid; grid-template-columns: 1.4fr 1fr;
+}
+.kappa-table{
+  border-right: 1px solid var(--rule);
+  padding: 22px 24px;
+}
+.kappa-table h4{
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
+  margin-bottom: 14px;
+}
+.kappa-table table{width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.78rem}
+.kappa-table th, .kappa-table td{
+  text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule);
+  font-feature-settings: "tnum","zero";
+}
+.kappa-table th{
+  font-weight: 600; color: var(--ink-3); font-size: 0.68rem;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.kappa-table td.num{text-align: right; color: var(--ink)}
+.kappa-table td.num.win{color: var(--ok); font-weight: 600}
+.kappa-table tr.config-row td{background: var(--paper)}
+.kappa-table tr:last-child td{border-bottom: none}
+.kappa-note{
+  font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3);
+  margin-top: 10px; line-height: 1.5; max-width: 60ch;
+}
+
+.variance{
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--paper-2);
+}
+.variance h4{
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
+}
+.variance .v-row{
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 14px; background: var(--paper); border: 1px solid var(--rule);
+}
+.variance .v-row .name{
+  font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; color: var(--ink);
+}
+.variance .v-row .name code{
+  font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent-ink);
+  background: var(--accent-soft); padding: 1px 5px;
+}
+.variance .v-row .why{
+  font-size: 0.82rem; color: var(--ink-2); line-height: 1.5;
+}
+
+/* Harness responsive overrides — collapse rubric grid + κ split at narrower viewport */
+@media (max-width: 1000px){
+  .rubric-grid{grid-template-columns: repeat(2, 1fr)}
+  .kappa-wrap{grid-template-columns: 1fr}
+  .kappa-table{border-right: none; border-bottom: 1px solid var(--rule)}
+  .harness-intro{grid-template-columns: 1fr; gap: 16px}
+}
+
 /* ── Responsive ────────────────────────────── */
 @media (max-width: 880px){
   .grid{grid-template-columns: 1fr}
@@ -742,6 +877,7 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
   <div class="wordmark">agent-bench</div>
   <nav>
     <a href="#demo">Demo</a>
+    <a href="#harness">Harness</a>
     <a href="#findings">Findings</a>
     <a href="#log">Log</a>
     <a href="https://github.com/tyy0811/agent-bench" target="_blank" rel="noopener">GitHub ↗</a>
@@ -933,6 +1069,62 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
   </div>
 </section>
 
+<!-- Evaluation harness (LLM-as-judge methodology) -->
+<section class="section" id="harness">
+  <div class="section-head">
+    <h2>How we grade it</h2>
+    <span class="sub">4 anchored rubrics · LLM-as-judge · κ-calibrated against human labels</span>
+  </div>
+
+  <div class="harness-intro">
+    <p class="deck">Benchmark numbers are only as good as the grader. Each answer is scored by an LLM judge against an anchored markdown rubric — strict scope, fixed scale, abstain-allowed — and the judges themselves are calibrated against human labels on a held-out set before they're trusted on the main run.</p>
+    <div class="sig">
+      <span><b>30</b> calibration items · human-labeled</span>
+      <span><b>v1.1</b> rubric · sha-pinned per result</span>
+      <span>headline metric: <b>Cohen's κ</b> · <b>Gwet's AC1</b> on prevalence-skewed dims</span>
+    </div>
+  </div>
+
+  <!-- Rubric cards -->
+  <div class="rubric-grid">
+    <div class="rubric">
+      <div class="dim">Groundedness</div>
+      <div class="scale"><span class="on">0</span><span class="on">1</span><span>abstain</span></div>
+      <div class="desc">Every claim must be entailed by gold snippets. A claim that's correct in the world but not in the snippets scores 0 — strict-snippet measures retrieval-grounded behavior, not LLM general knowledge passing through.</div>
+      <div class="anchor"><b>ANCHOR · q006</b><br>Answer adds "particularly useful for expensive operations like database connections" — not in snippet → 0.</div>
+    </div>
+    <div class="rubric">
+      <div class="dim">Relevance</div>
+      <div class="scale"><span class="on">0</span><span class="on">1</span><span class="on">2</span><span>abstain</span></div>
+      <div class="desc">Reference-free. Does the answer address the user's question? Score the topic-match, not the truth-value. A refusal that doesn't engage with the premise scores 0.</div>
+      <div class="anchor"><b>ANCHOR</b><br>Q: "How do I deploy to Kubernetes?"<br>A: "Python virtual environments isolate dependencies." → 0.</div>
+    </div>
+    <div class="rubric">
+      <div class="dim">Completeness</div>
+      <div class="scale"><span class="on">0</span><span class="on">1</span><span class="on">2</span><span>abstain</span></div>
+      <div class="desc">Reference-based against gold answer. Score coverage of the reference's key points only — extra correct detail isn't penalized here.</div>
+      <div class="anchor"><b>ANCHOR</b><br>Reference covers ordinal, hostname, storage. Answer covers ordinal, hostname only → 1.</div>
+    </div>
+    <div class="rubric">
+      <div class="dim">Citation faithfulness</div>
+      <div class="scale"><span class="on">0</span><span class="on">1</span><span>abstain</span></div>
+      <div class="desc">For every <code>[source: X.md]</code> in the answer, does the cited chunk actually support the claim next to it? <b>All-or-nothing</b> per item — one bad citation fails the whole answer.</div>
+      <div class="anchor"><b>ANCHOR</b><br>Claim: "default port is 8080." Cited chunk: about OAuth and SAML auth → 0 (citation drift).</div>
+    </div>
+  </div>
+
+  <!-- Compact κ summary → deep methodology lives in the appendix below the log -->
+  <div class="kappa-summary">
+    <div class="ks-head">Inter-rater agreement vs. human labels <span class="ks-sub">(calibration v1, baseline)</span></div>
+    <div class="ks-row">
+      <div class="ks-stat"><span class="k">groundedness</span><span class="v win">AC1 = 1.000</span></div>
+      <div class="ks-stat"><span class="k">relevance</span><span class="v win">AC1 = 0.964</span></div>
+      <div class="ks-stat"><span class="k">completeness</span><span class="v">κ = 0.416</span></div>
+      <a class="ks-link" href="#harness-appendix">Full table + variance hardening ↓</a>
+    </div>
+  </div>
+</section>
+
 <!-- Findings -->
 <section class="section" id="findings">
   <div class="section-head">
@@ -1024,6 +1216,49 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
       <span>total tokens <b id="sumTok">14,220</b></span>
       <span>total cost <b id="sumCost">$0.0081</b></span>
       <span>blocked <b id="sumBlock">1</b></span>
+    </div>
+  </div>
+</section>
+
+<!-- Methodology appendix — deep dive that was demoted from the main flow -->
+<section class="section" id="harness-appendix">
+  <div class="section-head">
+    <h2>Methodology appendix</h2>
+    <span class="sub">κ ablations · variance hardening · abstain semantics</span>
+  </div>
+
+  <div class="kappa-wrap">
+    <div class="kappa-table">
+      <h4>κ ablation table · calibration v1</h4>
+      <table>
+        <thead>
+          <tr><th>Configuration</th><th>Groundedness<br><span style="font-weight:400">AC1</span></th><th>Relevance<br><span style="font-weight:400">AC1</span></th><th>Completeness<br><span style="font-weight:400">κ</span></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>baseline (v1.1, anchors, CoT)</td><td class="num win">1.000</td><td class="num win">0.964</td><td class="num">0.416</td></tr>
+          <tr><td>baseline · no anchors</td><td class="num">0.953</td><td class="num">0.964</td><td class="num">0.623</td></tr>
+          <tr><td>baseline · no CoT</td><td class="num">0.897</td><td class="num">0.963</td><td class="num win">1.000</td></tr>
+          <tr><td>permute (n=2 seeds)</td><td class="num win">1.000</td><td class="num">0.966</td><td class="num">0.506</td></tr>
+          <tr><td>jury · κ-weighted (haiku + gpt-4o-mini)</td><td class="num win">1.000</td><td class="num win">1.000</td><td class="num">0.416</td></tr>
+        </tbody>
+      </table>
+      <p class="kappa-note"><b>Reading this:</b> groundedness and relevance gold are prevalence-skewed (29×<code>0</code> / 1×<code>1</code> and 29×<code>2</code> / 1×<code>1</code> respectively), which makes Cohen's κ degenerate to ≈0 even at 95%+ raw agreement. AC1 is the right metric there. Completeness gold is balanced enough (23×<code>2</code> / 5×<code>1</code>) for κ to behave normally. The <b>no-CoT κ=1.000</b> looks like a win but comes with an 11.5% abstain rate — the headline is the baseline row.</p>
+    </div>
+
+    <div class="variance">
+      <h4>Variance hardening</h4>
+      <div class="v-row">
+        <div class="name"><code>PermutedJudge</code> · level-order permutation</div>
+        <div class="why">Wrap a judge with n=2 prompt-seed permutations of the rubric's level order; aggregate by mean. Catches judges whose verdict flips when "Score 0" anchor moves above "Score 2" — a presentation-order artifact, not a content disagreement.</div>
+      </div>
+      <div class="v-row">
+        <div class="name"><code>Jury</code> · κ-weighted multi-judge aggregation</div>
+        <div class="why">Run the same item through claude-haiku-4-5 and gpt-4o-mini, weight each judge's vote by its calibration κ, abstain if any member abstains. Surfaces single-model bias without flattening to majority-rule, and keeps abstain as a first-class outcome.</div>
+      </div>
+      <div class="v-row">
+        <div class="name">Abstain semantics · <code>"Unknown"</code> sentinel</div>
+        <div class="why">Schema-parse failures retry once, then abstain with a typed prefix; rubric-allowed model abstains use the empty-string sentinel. The metric drops the item, doesn't pretend it scored 0 — visible in the abstain rate column above.</div>
+      </div>
     </div>
   </div>
 </section>
