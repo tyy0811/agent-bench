@@ -2717,6 +2717,103 @@ the writeup body, not the table — the per-member AC1 improvement
 (0.006 → 0.232) is the headline number, surfaced as a separate
 paragraph next to the κ table rather than inside it.
 
-**Total spend this session:** $0.0013 (3A probe) + $0.0075 (full-26
-re-run) = $0.0088. Well under budget; the 4A escalation (GPT-4o full)
-is not needed because 3A satisfied the "fixed" criterion.
+**Total spend through Plan 3A:** $0.0013 (3A probe) + $0.0075 (full-26
+re-run) = $0.0088.
+
+## Plan 4A — GPT-4o (full) on the v1.1.1 residual
+
+**Date:** 2026-05-06. **Status:** complete. Run after the writeup-
+framing review surfaced that v1.1.1's "fixed" verdict was overclaim-
+prone — 5/19 items were recovered, 14 remained unchanged and
+uncharacterized. 4A was originally scoped as conditional on 3A *not*
+being fixed (per the predefined sequencing rule), but became valuable
+as a *post-3A* diagnostic to characterize the residual: is it small-
+model-specific or rubric-under-specified?
+
+**Scope.** GPT-4o (`gpt-4o-2024-08-06`) on 5 of the 14 v1.1.1-unchanged
+items: `k8s_006`, `k8s_018`, `q011`, `q012`, `k8s_001`. Same v1.1.1
+production prompt (paraphrase recency clause active). The first two
+(k8s_006, k8s_018) are the items that didn't shift in the original 3A
+5-item probe — we have gpt-4o-mini's reasoning on those items *with*
+the v1.1.1 intervention, so 4A gives a clean A/B at fixed prompt
+varying only the model. q011, q012, k8s_001 cover the broader
+fastapi/k8s residual surface (k8s_001 also a Haiku miscall — 4A
+checks whether GPT-4o agrees with gold or with Haiku).
+
+**Result: 5/5 correct.** All 5 items scored 2 by GPT-4o, matching gold
+exactly. Cost: $0.0011 reported (caveat: pricing config falls back to
+gpt-4o-mini rates for unlisted models, so actual cost is closer to
+$0.005–0.01 — the reported number under-reports by ~5–10×).
+
+**Sharpened mechanism — criteria-invention, not just literal-match.**
+The original 3-example artifact (q006, k8s_002, k8s_018) was framed
+as gpt-4o-mini "applying a literal-string-match standard" while
+correctly extracting paraphrased coverage into evidence_quotes. 4A's
+side-by-side reasoning on `k8s_018` shows a distinct second mechanism:
+
+  - **gpt-4o-mini (v1.1.1, score 1):** "It mentions some key points
+    from the reference... but does not explicitly state that the new
+    fields in `autoscaling/v2` are preserved as annotations when using
+    `autoscaling/v1`, nor does it mention the need to use
+    `autoscaling/v2` directly for memory or custom metric scaling for
+    a Deployment or StatefulSet."
+  - **gpt-4o (4A, score 2):** "The answer covers all the key points
+    from the reference. It mentions that the current stable version is
+    autoscaling/v2, which supports scaling on memory and custom
+    metrics, similar to the reference. It also notes that
+    autoscaling/v1 only supports CPU-based scaling, aligning with the
+    reference's points."
+
+The reference for k8s_018 specifies three points: (1) autoscaling/v2
+is the current stable API, (2) it adds memory metrics support beyond
+v1's CPU-only, (3) it adds custom metrics support. gpt-4o-mini's
+reasoning step *invents additional criteria* the reference does not
+require ("preserved as annotations when using autoscaling/v1," "use
+autoscaling/v2 directly for ... a Deployment or StatefulSet") and then
+deducts against them, scoring 1. GPT-4o reads the reference's three
+points and scores against exactly those, scoring 2.
+
+This is a *capacity* finding distinct from the paraphrase-recency
+finding: gpt-4o-mini's reasoning, even with the v1.1.1 prompt directing
+it toward paraphrase semantics, manufactures additional gold criteria
+during scoring that aren't in the reference. Recency-positioning the
+"paraphrase allowed" clause doesn't address this — the bias isn't
+"missed paraphrase," it's "invented extra requirements." Two failure
+modes were stacked; v1.1.1 fixed one; the second is what 4A surfaces.
+
+**Implication for v1.2.** With 5/5 confirmed, v1.2 fix #3 (per-
+dimension membership) gets clean empirical support: gpt-4o-mini is
+the wrong tool for 3-point completeness with paraphrase semantics, and
+no amount of prompt engineering on this rubric is going to bridge the
+capacity gap. The right v1.2 path is one of:
+
+  - **Exclude gpt-4o-mini from completeness scoring** (per-dim
+    membership; jury reduces to single-judge Haiku on completeness;
+    explicit and visible in config).
+  - **Replace gpt-4o-mini with GPT-4o on completeness** (per-dim
+    judge selection; jury keeps two members but the second is a
+    frontier-class model on the dimension that needs it).
+
+Both are defensible v1.2 designs. The choice depends on cost
+budget — gpt-4o is ~10× the per-call cost of gpt-4o-mini. For
+agent-bench's calibration set scale (~30 items × per-row), even gpt-
+4o is trivially cheap; for production deployment evaluating thousands
+of agent outputs, the cost trade-off matters more.
+
+**4A artifact:** `measurements/2026-05-06-4a-gpt4o-full-probe.jsonl`
+(per-item reasoning + evidence_quotes for the 5 GPT-4o calls; pairs
+with the v1.1 sidecar's gpt-4o-mini reasoning on the same items for
+the side-by-side analysis above).
+
+**Updated honest framing for the writeup.** "v1.1.1 addressed one
+identified failure mode (paraphrase-instruction-loss across reasoning,
+recovered 5/19 disputed items via positional change). 4A confirmed the
+residual 14 are a distinct failure mode (capacity-limited criteria
+invention during the reasoning step) — GPT-4o handles all 5 sampled
+residuals at the same v1.1.1 prompt, so the failure is small-model-
+specific rather than rubric-limited. v1.2 fix #3 (per-dimension judge
+membership / model selection) is the right escalation; the rubric
+itself doesn't need changes."
+
+**Total session spend:** $0.0099 reported (~$0.013–0.018 actual after
+gpt-4o pricing correction).
