@@ -380,7 +380,11 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
             ]
             sidecar = REPO / row["sidecar_path"]
             weights = (
-                _load_weights_from_baseline(REPO / row["weights_source"], dim)
+                _compute_kappa_weights(
+                    REPO / row["weights_source"],
+                    dim,
+                    expected_judge_ids={m.judge_id for m in members},
+                )
                 if row.get("aggregation") == "kappa_weighted"
                 else None
             )
@@ -411,29 +415,113 @@ async def cmd_run_judges(row_config_path: Path, concurrency: int) -> None:
     )
 
 
-def _load_weights_from_baseline(
-    baseline_path: Path, dimension: str
+def _compute_kappa_weights(
+    predictions_path: Path,
+    dimension: str,
+    expected_judge_ids: set[str],
 ) -> dict[str, float]:
-    """Compute per-judge weight = κ vs labels for the dimension, from baseline run.
+    """Compute per-judge weight = max(0, Cohen's κ vs gold labels) for the
+    dimension, from a predictions file (JSON list or JSONL).
 
-    Stub for v1: returns equal weights (1.0 for each judge_id seen in
-    the baseline file). Replaced by real κ-derived weights once labels
-    + baseline are both populated. Documented in writeup as caveat:
-    'weights estimated on calibration set; production deployment would
-    use a held-out validation set'.
+    v1.1 replaces v1's stub (which returned 1.0 for every judge_id seen,
+    causing asymmetric coverage to amplify rather than suppress an
+    unweighted member). Hard-errors if `predictions_path` is missing,
+    if any `expected_judge_ids` member has no scored (non-abstain)
+    predictions for `dimension`, or if no labels are available for the
+    dimension.
+
+    The κ → weight mapping clips negative κ to 0; a member with κ ≤ 0 on
+    a dimension contributes weight 0 (effective exclusion via weighting).
+    This is the "soft exclusion" behavior — explicit per-dimension
+    exclusion is tracked separately on the v1.2 fix-list.
+
+    Pragmatic v1.1: `predictions_path` may point at the same calibration
+    set used for κ reporting (circular weighting); this is documented in
+    the v1.1 jury-rescue DECISIONS entry. v1.2 will require a held-out
+    validation set.
     """
-    if not baseline_path.exists():
-        logger.warning(
-            "weights_source_missing",
-            path=str(baseline_path),
-            fallback="equal_weights",
+    from agent_bench.evaluation.calibration.metrics import cohen_kappa
+
+    if not predictions_path.exists():
+        raise FileNotFoundError(
+            f"weights source {predictions_path} does not exist; v1.1 "
+            f"requires explicit κ-derived weights — no silent fallback"
         )
-        return {}
-    baseline = json.loads(baseline_path.read_text())
-    judge_ids = {
-        r["judge_id"] for r in baseline if r.get("dimension") == dimension
-    }
-    return {jid: 1.0 for jid in judge_ids}
+
+    # Load predictions: JSON list (baseline-style) or JSONL (sidecar-style).
+    raw = predictions_path.read_text()
+    if predictions_path.suffix == ".jsonl":
+        preds = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    else:
+        preds = json.loads(raw)
+
+    if not LABELS_PATH.exists():
+        raise FileNotFoundError(
+            f"labels file {LABELS_PATH} does not exist; cannot compute "
+            f"κ-derived weights"
+        )
+    labels: dict[str, int] = {}
+    for line in LABELS_PATH.read_text().splitlines():
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        if rec.get("dimension") != dimension or rec.get("abstained"):
+            continue
+        labels[rec["system_output_hash"]] = int(rec["score"])
+
+    if not labels:
+        raise ValueError(
+            f"no gold labels for dimension={dimension!r} in {LABELS_PATH}; "
+            f"cannot compute κ-derived weights"
+        )
+
+    # Group predictions by judge_id, joining to labels by system_output_hash.
+    # The sidecar JSONL has one record per (judge × item × dim); the baseline
+    # JSON has the same. Both expose `judge_id` of the form `{model}_{dim}`,
+    # `system_output_hash`, `score`, and (for the abstain-aware filter) the
+    # `Unknown` sentinel.
+    by_judge: dict[str, list[tuple[int, int]]] = {}
+    for p in preds:
+        # JSONL sidecar lacks `dimension` field; we filter by suffix on
+        # judge_id instead, which encodes dimension.
+        if not p["judge_id"].endswith(f"_{dimension}"):
+            continue
+        if p["score"] == "Unknown":
+            continue
+        h = p["system_output_hash"]
+        if h not in labels:
+            continue
+        by_judge.setdefault(p["judge_id"], []).append(
+            (labels[h], int(p["score"]))
+        )
+
+    missing = expected_judge_ids - by_judge.keys()
+    if missing:
+        raise ValueError(
+            f"weights source {predictions_path} has no predictions for "
+            f"expected judge_ids {sorted(missing)} on dimension={dimension!r}. "
+            f"Source covers {sorted(by_judge.keys())}. v1.1 requires "
+            f"symmetric coverage — point weights_source at a predictions "
+            f"file containing every jury member's verdicts (e.g. the jury "
+            f"sidecar from a prior run)."
+        )
+
+    weights: dict[str, float] = {}
+    for jid in expected_judge_ids:
+        pairs = by_judge[jid]
+        y_lab = [a for a, _ in pairs]
+        y_pred = [b for _, b in pairs]
+        kappa = cohen_kappa(y_lab, y_pred)
+        weights[jid] = max(0.0, kappa)
+        logger.info(
+            "kappa_weight_computed",
+            judge_id=jid,
+            dimension=dimension,
+            kappa=kappa,
+            weight=weights[jid],
+            n=len(pairs),
+        )
+    return weights
 
 
 # --- Subcommand: build-table (Step D) ---

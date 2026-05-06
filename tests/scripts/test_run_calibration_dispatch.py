@@ -158,3 +158,99 @@ async def test_unknown_corpus_raises(monkeypatch, tmp_path):
     assert "phantom_corpus" in msg
     assert "not in cfg.corpora" in msg
     assert spec["items"][0]["id"] in msg
+
+
+def _write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+
+
+def test_compute_kappa_weights_returns_real_kappa(monkeypatch, tmp_path):
+    """Two judges over 4 items with known agreement patterns. Cohen's κ
+    must come out positive for the high-agreement judge and zero for the
+    chance-agreement judge.
+    """
+    runner = importlib.import_module("scripts.run_calibration")
+
+    labels_path = tmp_path / "labels.jsonl"
+    _write_jsonl(
+        labels_path,
+        [
+            {
+                "item_id": f"i{n}",
+                "dimension": "completeness",
+                "score": gold,
+                "abstained": False,
+                "system_output_hash": f"h{n}",
+            }
+            for n, gold in enumerate([2, 2, 1, 1])
+        ],
+    )
+    monkeypatch.setattr(runner, "LABELS_PATH", labels_path)
+
+    sidecar = tmp_path / "predictions.jsonl"
+    rows = []
+    for n, gold in enumerate([2, 2, 1, 1]):
+        rows.append(
+            {
+                "judge_id": "good_completeness",
+                "system_output_hash": f"h{n}",
+                "score": gold,
+            }
+        )
+        rows.append(
+            {
+                "judge_id": "bad_completeness",
+                "system_output_hash": f"h{n}",
+                "score": 1,
+            }
+        )
+    _write_jsonl(sidecar, rows)
+
+    weights = runner._compute_kappa_weights(
+        sidecar,
+        "completeness",
+        expected_judge_ids={"good_completeness", "bad_completeness"},
+    )
+    assert weights["good_completeness"] == pytest.approx(1.0)
+    assert weights["bad_completeness"] == 0.0  # negative κ clipped to 0
+
+
+def test_compute_kappa_weights_hard_errors_on_missing_member(monkeypatch, tmp_path):
+    """Asymmetric coverage in the weights source must hard-error, not
+    silently return partial weights — that was the v1 bug that masked
+    gpt-4o-mini's exclusion."""
+    runner = importlib.import_module("scripts.run_calibration")
+
+    labels_path = tmp_path / "labels.jsonl"
+    _write_jsonl(
+        labels_path,
+        [
+            {
+                "item_id": "i0",
+                "dimension": "completeness",
+                "score": 2,
+                "abstained": False,
+                "system_output_hash": "h0",
+            }
+        ],
+    )
+    monkeypatch.setattr(runner, "LABELS_PATH", labels_path)
+
+    sidecar = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        sidecar,
+        [
+            {
+                "judge_id": "haiku_completeness",
+                "system_output_hash": "h0",
+                "score": 2,
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="symmetric coverage"):
+        runner._compute_kappa_weights(
+            sidecar,
+            "completeness",
+            expected_judge_ids={"haiku_completeness", "gpt4o_completeness"},
+        )

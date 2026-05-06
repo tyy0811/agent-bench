@@ -1,7 +1,12 @@
 # 2-judge jury: Claude-Haiku + gpt-4o-mini, kappa-weighted aggregation.
-# Strict quorum default (any member abstain → jury abstain). Weights are
-# computed offline from per-judge κ on the calibration set's baseline
-# rows (NOT at jury construction — circular).
+# Strict quorum default (any member abstain → jury abstain).
+#
+# v1.1: weights are computed by `_compute_kappa_weights` from the prior
+# jury-run sidecar (which has predictions from BOTH members), not the
+# baseline.json (Haiku-only). v1's pointer at baseline.json was the
+# asymmetric-coverage bug — see DECISIONS "v1.1 jury rescue" entry.
+# This is pragmatic-circular: weights are derived from the same
+# calibration set used for κ reporting; v1.2 will use a held-out set.
 
 label: jury_kappa_weighted
 strategy: jury
@@ -13,6 +18,6 @@ members:
   - provider: openai
     model_id: gpt-4o-mini-2024-07-18
 dimensions: [groundedness, relevance, completeness]
-weights_source: results/calibration_v1_judge_baseline.json  # κ per judge_id from baseline; jury runner computes weights
+weights_source: results/calibration_v1_judge_jury_kappa_weighted_members.jsonl
 output_path: results/calibration_v1_judge_jury_kappa_weighted.json
 sidecar_path: results/calibration_v1_judge_jury_kappa_weighted_members.jsonl

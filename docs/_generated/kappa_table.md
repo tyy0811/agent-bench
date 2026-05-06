@@ -19,6 +19,9 @@ Headline metric per dimension: **groundedness → AC1**, **relevance → AC1**, 
 | jury_kappa_weighted | completeness | κ | 0.014 (-0.077, 0.112) | 26 | 0.0% |  |
 | jury_kappa_weighted | groundedness | AC1 | 1.000 (1.000, 1.000) | 26 | 0.0% |  |
 | jury_kappa_weighted | relevance | AC1 | 1.000 (1.000, 1.000) | 30 | 0.0% |  |
+| jury_kappa_weighted_v1_1 | completeness | κ | 0.416 (-0.068, 0.866) | 26 | 0.0% |  |
+| jury_kappa_weighted_v1_1 | groundedness | AC1 | 1.000 (1.000, 1.000) | 26 | 0.0% |  |
+| jury_kappa_weighted_v1_1 | relevance | AC1 | 1.000 (1.000, 1.000) | 30 | 0.0% |  |
 | permute | completeness | κ | 0.506 (-0.061, 1.000) | 26 | 0.0% |  |
 | permute | groundedness | AC1 | 1.000 (1.000, 1.000) | 25 | 3.8% |  |
 | permute | relevance | AC1 | 0.966 (0.890, 1.000) | 30 | 0.0% |  |

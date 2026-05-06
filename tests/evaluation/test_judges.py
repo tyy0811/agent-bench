@@ -481,6 +481,25 @@ class TestCompletenessJudge:
         assert result.judge_id == "m_completeness"
         sent_prompt = provider.complete.await_args.args[0][0].content
         assert "The default port is 8080." in sent_prompt
+        # v1.1.1: paraphrase recency clause must appear AFTER the system-
+        # answer section and BEFORE the score instruction. Position is
+        # load-bearing — see the 3A probe entry in DECISIONS for the
+        # empirical motivation.
+        assert "paraphrase that captures the same meaning" in sent_prompt
+        # Anchor on the unique "## Answer to score" header rather than the
+        # answer text itself; the test fixture's reference / answer happen
+        # to match the rubric's Example F, so a substring search for the
+        # answer body matches the rubric example first and silently lets a
+        # mis-positioned clause pass.
+        answer_section_idx = sent_prompt.index("## Answer to score")
+        clause_idx = sent_prompt.index("paraphrase that captures the same meaning")
+        score_idx = sent_prompt.index("Score this answer")
+        assert answer_section_idx < clause_idx < score_idx, (
+            "paraphrase recency clause must be positioned between the "
+            "system-answer section and the score instruction; got order "
+            f"answer/clause/score positions "
+            f"{answer_section_idx}/{clause_idx}/{score_idx}"
+        )
 
 
 class TestAblationKnobs:

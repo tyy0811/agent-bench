@@ -2374,3 +2374,349 @@ AC1 for groundedness/relevance, κ for completeness);
 visible per item); `results/calibration_v1_judge_baseline.json`
 (weights source — note the absence of any gpt-4o-mini-2024-07-18
 entries, which is why the missing-weight fallback fires).
+
+## v1.1 jury rescue — sharpened diagnostic + pre-committed A+B success criteria
+
+**Date:** 2026-05-06. **Status:** in-flight; this entry is the pre-experiment
+contract that pins down what counts as success before the re-aggregation
+runs, so the outcome can't be negotiated post-hoc.
+
+**Sharpened diagnostic — extraction-vs-reasoning split, not just "model is
+biased".** Re-reading the per-member sidecar (item-level, not aggregate)
+on the gpt-4o-mini completeness disputes shows a more specific failure
+mode than "harsh on 3-point". On the three representative gold=2 / Haiku=2
+/ gpt=1 cases (q006, k8s_002, k8s_018), gpt-4o-mini's `evidence_quotes`
+field correctly extracts the paraphrased coverage from the agent answer
+— and then its `reasoning` field denies that those very quotes constitute
+coverage. k8s_002 is the cleanest instance: the model quotes the strings
+"declarative updates" and "sticky identity" into evidence, then writes
+"the answer does not explicitly mention 'declarative updates' and 'sticky
+identity'". The score follows the reasoning, not the evidence. The
+mechanism is that the model's *post-extraction reasoning step* applies a
+literal-string-match standard to the answer text while the rubric
+requires "paraphrase allowed" — i.e., the structured-output discipline
+forced an extraction step that the reasoning step then contradicted on
+autopilot. This is a known failure mode in chain-of-thought judges and
+shows up more in smaller models because the reasoning step has less
+capacity to integrate the rubric's instruction with the literal-text
+comparison the model is running by default. The artifact for the writeup
+is `measurements/2026-05-06-gpt4o-extraction-reasoning-split.md` (three
+side-by-side reasoning + evidence_quotes excerpts).
+
+**Pragmatic v1.1 weights-source decision.** The v1.2 fix-list above
+specifies a held-out validation set for jury weights — methodologically
+clean but requires either splitting N=30 (loses statistical power on
+both halves) or labeling more items (eats interview prep time). v1.1
+chooses pragmatic: weights computed from the same calibration set used
+for κ reporting, with the circularity flagged in the writeup. Reason:
+(a) the alternative is splitting N=30, (b) the per-member κ values used
+as weights are internally consistent, (c) v1.2 will use a held-out 20-
+item set. The writeup will contain a sentence acknowledging the
+circularity rather than hiding it.
+
+**v1.1 elevated fix-list (subset of the v1.2 list above).** Items 2
+(symmetric coverage / hard-error) is elevated unconditionally. Item 1
+(real κ-derived weights) is elevated in pragmatic form (same set with
+circularity caveat). Items 3 (per-dimension exclusion) and 4 (per-
+dimension tie-break) remain v1.2 unless B's outcome forces them up.
+
+**Pre-committed B success criteria.** Plan B is "re-aggregate the existing
+164 member-rows in `calibration_v1_judge_jury_kappa_weighted_members.jsonl`
+with corrected κ-derived weights, no new API spend." The outcome maps
+deterministically to one of three predefined responses, picked *before*
+B runs:
+
+- **Outcome 1 — jury κ on completeness exceeds Haiku-baseline κ by ≥
+  0.05** (i.e., new jury κ ≥ 0.466, vs Haiku-alone 0.416). Writeup story:
+  "v1's weights-source bug masked correct aggregation; once both bugs
+  (asymmetric coverage + missing-weight fallback) are fixed, the jury
+  improves on baseline. Per-dimension exclusion remains a v1.2 design
+  pattern but is not needed at v1.1." This is the strong story.
+- **Outcome 2 — jury κ within ±0.05 of Haiku-baseline** (i.e., 0.366 ≤
+  jury κ ≤ 0.466). Writeup story: "weights-source fix recovers parity
+  but the jury isn't doing meaningful work on completeness — gpt-4o-
+  mini's near-zero weight makes it effectively excluded by aggregation.
+  This is *soft exclusion via weighting*; v1.2 will make exclusion
+  explicit." Defensible but less clean.
+- **Outcome 3 — jury κ falls below Haiku-baseline κ by >0.05** (i.e.,
+  jury κ < 0.366). Writeup story: "weights-source fix is necessary but
+  not sufficient; even at near-zero weight gpt-4o-mini's verdict tips
+  disputed (1, 2) ties due to the round-down rule. v1.1 escalates to
+  per-dimension exclusion." Item 3 of the v1.2 fix-list moves into v1.1.
+
+**Why the predefined-criteria framing matters.** "I ran B, looked at the
+number, decided it was good enough" is the same data with a weaker frame
+than "I predefined the success criteria before running the experiment, B
+landed at outcome X, which mapped to predefined response Y". The latter
+demonstrates evaluation maturity in the writeup; the former invites
+post-hoc reading of the outcome.
+
+**B outcome — 2026-05-06.** Plan B re-aggregated the existing 164 sidecar
+rows with κ-derived weights (Haiku=0.416, gpt-4o-mini=0.020 on
+completeness; clipped at 0 from raw κ values). Result: **jury κ on
+completeness = 0.416**, exactly matching Haiku-baseline. Δ = 0.000;
+maps to **Outcome 2 (soft exclusion via weighting)**. Per the
+pre-committed response, v1.1 stops here and writes up; per-dimension
+member exclusion (item C / v1.2 fix #3) is not escalated to v1.1.
+
+Mechanism, validated empirically — a disputed cell (Haiku=2, gpt=1)
+with corrected weights aggregates as `(2 × 0.416 + 1 × 0.020) / 0.436 =
+1.954`. The frac (0.954) > 0.5 round-up rule ceils to 2, giving the
+correct verdict. v1's two compounding bugs (asymmetric source returning
+weight=1.0 for Haiku and the missing-key fallback returning 1.0 for gpt-
+4o-mini) jointly forced equal weights, and equal-weights with the same
+round-up rule produced `(2 × 1 + 1 × 1) / 2 = 1.5`, which has frac
+exactly 0.5 (not > 0.5), and floored to 1 — gpt's verdict winning every
+disputed cell. The bug fixes recover the right verdict purely
+mechanically; no judge model behavior changes.
+
+The empirical reading: the weighting is *not doing meaningful work* —
+gpt-4o-mini's near-zero weight effectively excludes it on completeness,
+and the jury's κ matches Haiku-alone exactly because Haiku's verdict
+wins every disputed cell. This is "soft exclusion via weighting"; v1.2's
+explicit per-dimension exclusion (item 3 of the v1.2 fix-list) makes the
+exclusion visible in the jury config rather than emergent from κ-derived
+weight collapse.
+
+**v1.1 code changes (this commit):**
+- `agent_bench/evaluation/variance/jury.py` — silent missing-weight
+  fallback to 1.0 → hard `ValueError`. Two existing tests that asserted
+  the old contract (`test_kappa_weighted_reasoning_reports_applied_weights_not_dict`,
+  `test_kappa_weighted_logs_warning_on_missing_weight`) updated to
+  assert the new contract.
+- `scripts/run_calibration.py::_load_weights_from_baseline` →
+  `_compute_kappa_weights` — replaces the v1 stub with real per-judge
+  Cohen's κ on the dimension; hard-errors when any expected member is
+  missing from the source. Clips κ < 0 to weight = 0 (soft exclusion).
+- `configs/calibration/rows/jury_kappa_weighted.yaml` — `weights_source`
+  re-pointed from `calibration_v1_judge_baseline.json` (Haiku-only,
+  asymmetric coverage) to
+  `calibration_v1_judge_jury_kappa_weighted_members.jsonl` (both judges,
+  same calibration set with documented circularity).
+- `tests/scripts/test_run_calibration_dispatch.py` — two new tests cover
+  `_compute_kappa_weights`: (a) computes real κ (high-agreement judge →
+  weight=1.0, chance-agreement judge → 0); (b) hard-errors on
+  asymmetric source coverage.
+- `results/calibration_v1_judge_jury_kappa_weighted_v1_1.json` — new
+  predictions row produced by re-aggregating the existing sidecar
+  offline (no API spend; via `scripts/_dev/reaggregate_jury_v1_1.py`).
+  `docs/_generated/kappa_table.md` regenerated with this row alongside
+  the broken v1 row, giving the writeup a clean before/after diff
+  (completeness: 0.014 → 0.416, n=26).
+- `measurements/2026-05-06-gpt4o-extraction-reasoning-split.md` — the
+  three side-by-side reasoning + evidence_quotes excerpts (q006 /
+  k8s_002 / k8s_018) demonstrating the extraction-vs-reasoning split
+  diagnostic finding.
+
+The v1.2 fix-list above is unchanged in scope; v1.1 elevates items 1
+(pragmatic form) and 2 (full form). Items 3 and 4 remain v1.2.
+
+## Plan 3A — recency-positioned paraphrase instruction (pre-committed criteria)
+
+**Date:** 2026-05-06. **Status:** in-flight; this entry pins down the
+hypothesis and success criteria before the experiment runs.
+
+**Hypothesis sharpened by the 1A direction-of-bias finding.** GPT-4o-
+mini's completeness disagreements are 17/19 gold=2/pred=1 with zero
+up-mistakes across 26 items spanning two corpora — direction-aware noise,
+not balanced random labeling. The model is consistently applying *some*
+rule stricter than the rubric requires. The hypothesis under test: that
+stricter rule is "literal-string match required, paraphrase doesn't
+count," and the bias is fixable by recency-positioning the rubric's
+"paraphrase allowed" instruction adjacent to the commit-to-score
+decision instead of leaving it 500+ tokens upstream in the rubric body.
+
+**The intervention is positional, not lexical.** The current
+`CompletenessJudge` prompt (`agent_bench/evaluation/judges/completeness.py`)
+sends the rubric body, then the gold reference, then the system answer,
+then a one-line "Score this answer..." instruction immediately followed
+by the JSON schema clause. The rubric body's "paraphrase allowed" clause
+appears in the introductory paragraphs, hundreds of tokens before the
+score decision. The intervention adds one sentence between the system
+answer and the score instruction:
+
+> *"Note: a paraphrase that captures the same meaning as a gold-answer
+> point counts as covered. Score on content equivalence, not surface
+> form."*
+
+This is the recency-positioning hypothesis: the model loses the
+paraphrase conditioning across the rubric anchors and the reasoning
+step. Restating the instruction adjacent to the score decision tests
+whether the bias is positionally correctable.
+
+**Selected 5 disputed items** (representative of the gold=2 / Haiku=2 /
+gpt=1 pattern across both corpora): `q006`, `q011`, `k8s_002`, `k8s_006`,
+`k8s_018`. All four are pure paraphrase-coverage cases (the system
+answer paraphrases the gold's points; Haiku scored 2; GPT-4o-mini scored
+1 with the extraction-vs-reasoning split documented in
+`measurements/2026-05-06-gpt4o-extraction-reasoning-split.md`).
+
+**Pre-committed 3A success criteria.**
+
+- **Fixed (≥3/5 shift from 1 → 2):** Recency-positioning is sufficient.
+  Re-run GPT-4o-mini on the full 26 disputed items with the corrected
+  prompt, recompute κ, update the writeup table. Story: "rubric-
+  engineering matters more than judge model choice for ordinal scales —
+  recency-positioning the paraphrase instruction recovered N% of
+  disputed items." The completeness story becomes actionable, not
+  diagnostic-only.
+- **Partially fixed (1–2/5 shift):** Inconclusive at N=5 (binomial-
+  significance line is ~3+). Re-run on the full 26 disputed items
+  (~$0.20) to get a clean number; write up whatever the full-26 says.
+- **Not fixed (0/5 shift):** The instruction is being received and
+  ignored — the model can't act on it under reasoning load. Escalate
+  to 4A (GPT-4o full on the same 5 items) to verify the small-model-
+  specific claim. Story: "repositioning the paraphrase instruction
+  adjacent to the score decision did not shift any of 5 disputed items;
+  GPT-4o handled the same prompts. The bias is small-model-specific,
+  not prompt-fixable."
+
+The 3/5 threshold is the binomial-significance line at this N — random
+shifting under the null produces 0 or 1 changes most of the time. Pre-
+committing avoids the "2 shifted, that's kind of a fix" negotiation.
+
+**On the 1A relevance finding — confirmed.** Both judges essentially
+correct on every relevance item (Haiku 29/30, GPT-4o-mini 30/30); κ
+degeneracy is structural under 29/30 prevalence at class-2; AC1 +
+raw agreement is the right reporting. No further investigation on
+relevance. Writeup paragraph is one short sentence: prevalence-induced
+degeneracy → AC1 is load-bearing.
+
+## Plan 3A — outcome on the 5-item probe + full-26 re-run (v1.1.1)
+
+**Date:** 2026-05-06. **Status:** complete; the v1.1.1 prompt is now
+permanent in `agent_bench/evaluation/judges/completeness.py`.
+
+**3A 5-item probe:** 3/5 disputed items shifted 1 → 2 (q006, q011,
+k8s_002), 2/5 unchanged (k8s_006, k8s_018). Cost $0.0013. At pre-
+committed threshold (≥3/5 → "fixed"), so the protocol triggered the
+full-26 re-run on gpt-4o-mini only (Haiku held as control to make the
+v1.1 → v1.1.1 delta cleanly attributable to the intervention's effect on
+the affected judge).
+
+**Full-26 re-run (gpt-4o-mini completeness, v1.1.1 prompt):**
+
+|                              | n  | raw    | κ      | AC1    |
+|------------------------------|----|--------|--------|--------|
+| v1.1   gpt-4o-mini           | 26 | 26.9%  | +0.020 | +0.006 |
+| **v1.1.1 gpt-4o-mini**       | 28 | **42.9%** | **+0.000** | **+0.232** |
+| v1.1   Haiku (control)       | 26 | 84.6%  | +0.416 | +0.792 |
+
+**Per-item delta (v1.1 → v1.1.1):** 7 items shifted up (1 → 2 or 1 → 2),
+0 shifted down, 19 unchanged. Of the 7 up-shifts: 6 are correct (gold=2
+items moving from pred=1 to pred=2: k8s_002, k8s_013, k8s_015, k8s_016,
+k8s_017, q006), 1 is a regression (k8s_025: gold=1, was correctly pred=1
+in v1.1, now over-credited at pred=2). Net per-item correctness delta:
++5 items.
+
+**Cohen's κ is misleading on this comparison.** v1.1.1 raw agreement
+rose from 26.9% to 42.9% (+16 percentage points), and AC1 rose from
+0.006 to 0.232 (38× improvement). But Cohen's κ stayed at ~0 — slightly
+*lower* than v1.1's 0.020. The mechanism is prevalence-rebalancing in
+the marginals: gpt-4o-mini's pred distribution shifted from `{0:2, 1:19,
+2:5}` (concentrated at 1) to `{0:4, 1:12, 2:12}` (more balanced, closer
+to gold's `{1:5, 2:23}` over n=28). Cohen's κ = `(P_o - P_e)/(1 - P_e)`;
+when marginals become more diverse, P_e (chance agreement) rises in
+lockstep with P_o (observed agreement), and κ deflates. AC1 uses
+prevalence-robust chance correction (`P_e = (1/(q-1)) Σ pi_k(1-pi_k)`)
+and reads the actual signal.
+
+This is the same trap that motivated AC1 over κ on the relevance and
+groundedness rows of the original κ table, surfacing here at a
+different distribution boundary. The κ table footer already explains
+why per-dimension metric selection matters; v1.1.1's outcome
+demonstrates the trap *induced by the intervention itself*.
+
+**Effect on the jury aggregate.** With κ-derived weights and gpt-4o-
+mini's v1.1.1 κ at 0 (clipped from +0.000 to weight=0), the jury
+verdict on completeness is now mathematically equivalent to Haiku-alone
+on every item (gpt's contribution is multiplied by zero). Jury κ stays
+at 0.416, identical to v1.1's corrected aggregate. The intervention's
+per-member improvement is *invisible at the jury level* under this
+weighting scheme.
+
+**Methodological consequence — v1.2 fix-list addition.** The v1.2 fix-
+list now expands by one item:
+
+5. **Prevalence-robust weights for prevalence-skewed dimensions.**
+   v1.1's `_compute_kappa_weights` uses Cohen's κ for every dimension,
+   which has a *self-defeating property* on prevalence-skewed gold:
+   improving a member can lower its weight even as it gets more
+   accurate.
+
+   **Mechanism.** Cohen's κ = `(P_o - P_e) / (1 - P_e)`, where
+   `P_e = Σ_k P(gold=k) × P(pred=k)` is the chance-agreement term
+   computed from the marginal distributions. P_e is *not* invariant to
+   the predictor's marginal distribution — when a member's predictions
+   become more diverse (less concentrated at one class), P_e *rises*
+   as the marginals approach gold's marginals. Concretely: when an
+   intervention moves a member's pred distribution from concentrated-
+   at-one-class toward gold's distribution, P_o and P_e rise together
+   in lockstep. The numerator `P_o - P_e` stays small, and κ deflates
+   even as raw accuracy improves. This is the same prevalence-induced
+   degeneracy that motivated AC1 over κ on relevance/groundedness rows
+   in the κ table — it surfaces in jury weighting at any
+   distribution-shifting intervention's boundary.
+
+   **Empirically observed in v1.1.1.** The recency-positioning
+   intervention shifted gpt-4o-mini completeness pred dist from
+   `{0:2, 1:19, 2:5}` to `{0:4, 1:12, 2:12}`, closer to gold's
+   `{1:5, 2:23}` over n=28. Per-cell raw agreement 26.9% → 42.9%.
+   AC1 (Gwet 2008) reads the change correctly: 0.006 → 0.232 (38×).
+   Cohen's κ stays at ~0 (0.020 → 0.000) because P_e is now ≈ P_o
+   ≈ 0.43. v1.1's `_compute_kappa_weights` clips the new κ at zero,
+   producing weight = 0 — and the jury aggregate loses access to a
+   member that was empirically improved. The intervention's per-
+   member improvement is invisible at the jury level under κ-weighting.
+
+   **Architectural decomposition for v1.2.** The right separation:
+   - **Per-dimension metric for κ table reporting** (already in v1.1
+     via `agent_bench/evaluation/calibration/report.py::_DIM_METRIC`).
+   - **Per-dimension weight metric for jury aggregation** (new in
+     v1.2, reuses `_DIM_METRIC`). Use κ where the gold's prevalence
+     supports it, AC1 where κ degenerates. Same lookup, same per-
+     dimension policy at both reporting and weighting layers.
+   - **Per-dimension membership as explicit configuration override**
+     for members that are structurally inappropriate (v1.2 fix #3,
+     unchanged) — distinct from "low score on the chosen metric,"
+     which is handled by the weight floor.
+
+   **Why this is non-obvious.** A reader's first instinct is that
+   "weight by κ" is a sensible default — κ is *the* standard inter-
+   rater statistic. The self-defeating property is invisible until
+   you observe a real intervention that shifts marginals; in static
+   conditions (no intervention, fixed prompts), the κ-weight choice
+   is benign. The v1.1.1 outcome is the first time the agent-bench
+   calibration set has produced an intervention-induced marginal
+   shift on the same gold; the failure mode wouldn't have been
+   visible in v1.0's static calibration sweep.
+
+**v1.1.1 code changes (this commit):**
+- `agent_bench/evaluation/judges/completeness.py` — adds
+  `PARAPHRASE_RECENCY_CLAUSE` constant, inserted between the system
+  answer and the score instruction. Comment cites the 3A probe.
+- `tests/evaluation/test_judges.py::TestCompletenessJudge::test_reference_answer_in_prompt`
+  — extends to assert the recency clause appears AND is positioned
+  between the answer and the score instruction (position is load-
+  bearing, not just lexical inclusion).
+- `results/calibration_v1_judge_jury_kappa_weighted_v1_1_1_members.jsonl`
+  — merged sidecar: v1.1 groundedness/relevance rows (unchanged
+  judges) + fresh v1.1.1 gpt-4o-mini completeness rows + v1.1 Haiku
+  completeness rows.
+- `measurements/2026-05-06-3a-paraphrase-recency-probe.jsonl` — the
+  5-item probe artifact with reasoning + evidence_quotes for each.
+- `scripts/_dev/probe_3a_paraphrase_recency.py`,
+  `scripts/_dev/rerun_completeness_v1_1_1.py` — reproducers; not
+  part of the production calibration runner.
+
+**No changes to the κ table.** The jury aggregate κ on completeness is
+unchanged (0.416 → 0.416) because of the κ-as-weight degeneracy
+described above; adding a `jury_kappa_weighted_v1_1_1` row with
+identical numbers would be visual noise. The v1.1.1 finding lives in
+the writeup body, not the table — the per-member AC1 improvement
+(0.006 → 0.232) is the headline number, surfaced as a separate
+paragraph next to the κ table rather than inside it.
+
+**Total spend this session:** $0.0013 (3A probe) + $0.0075 (full-26
+re-run) = $0.0088. Well under budget; the 4A escalation (GPT-4o full)
+is not needed because 3A satisfied the "fixed" criterion.

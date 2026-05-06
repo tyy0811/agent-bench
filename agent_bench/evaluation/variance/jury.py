@@ -115,19 +115,24 @@ class Jury:
         if self.aggregation == "mean":
             agg = _aggregate_scores(scores, scale)
         else:  # kappa_weighted
-            # Weight successful members by judge_id; missing weights → 1.0
-            # (mean fallback). Warn loudly when this fallback fires —
-            # `kappa_weighted` is supposed to use explicit weights, and
-            # silently substituting 1.0 violates that contract.
+            # Weight successful members by judge_id. v1.1: missing weight is
+            # a hard error (was a silent fallback to 1.0 in v1, which let an
+            # asymmetric weights source amplify the unweighted member rather
+            # than suppressing it — see the v1.1 jury-rescue entry in
+            # DECISIONS.md for the calibration evidence).
+            missing = [r.judge_id for r in successful if r.judge_id not in self.weights]
+            if missing:
+                raise ValueError(
+                    f"jury kappa_weighted: weights dict missing entries for "
+                    f"member judge_ids {sorted(set(missing))}. Configured "
+                    f"weights cover {sorted(self.weights.keys())}. "
+                    f"v1.1 requires symmetric coverage — every jury member "
+                    f"must have an explicit weight in the source. The v1 "
+                    f"silent fallback to 1.0 was a documented contract "
+                    f"violation that masked the source's asymmetric coverage."
+                )
             for r in successful:
-                if r.judge_id not in self.weights:
-                    logger.warning(
-                        "jury_missing_weight_fallback_to_one",
-                        judge_id=r.judge_id,
-                        aggregation=self.aggregation,
-                        configured_weights=sorted(self.weights.keys()),
-                    )
-                applied_weights.append(self.weights.get(r.judge_id, 1.0))
+                applied_weights.append(self.weights[r.judge_id])
             weighted_sum = sum(s * w for s, w in zip(scores, applied_weights))
             weight_total = sum(applied_weights)
             weighted_mean = (

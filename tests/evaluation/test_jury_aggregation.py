@@ -195,13 +195,12 @@ class TestJury:
         )
 
     @pytest.mark.asyncio
-    async def test_kappa_weighted_reasoning_reports_applied_weights_not_dict(
+    async def test_kappa_weighted_reasoning_reports_applied_weights(
         self, tmp_path
     ):
-        """Regression: when the weights dict is missing a member's judge_id,
-        the runtime applies 1.0 silently. The reasoning string MUST report
-        the per-member weights actually used (so the fallback is visible),
-        not the constructor's dict (which would conceal it).
+        """The reasoning string must surface the per-member weights actually
+        used so the aggregation is auditable from the sidecar alone (no need
+        to re-derive weights from the source).
         """
         from agent_bench.evaluation.variance.jury import jury
 
@@ -210,8 +209,10 @@ class TestJury:
         j2 = _relevance_judge_with_responses([_vj(2)])
         j2.judge_id = "gpt-4o-mini_relevance"
 
-        # weights dict only covers j1 — j2 should fall back to 1.0
-        weights = {"claude-haiku_relevance": 5.0}
+        weights = {
+            "claude-haiku_relevance": 5.0,
+            "gpt-4o-mini_relevance": 0.25,
+        }
         ju = jury(
             judges=[j1, j2],
             aggregation="kappa_weighted",
@@ -219,21 +220,20 @@ class TestJury:
             sidecar_path=tmp_path / "jury.jsonl",
         )
         result = await ju.score(_item(), _output())
-        # Reasoning must surface BOTH applied weights (5.0 and 1.0)
         assert "5.0" in result.reasoning, (
             f"applied weight 5.0 missing from reasoning: {result.reasoning!r}"
         )
-        assert "1.0" in result.reasoning, (
-            f"fallback weight 1.0 missing from reasoning: {result.reasoning!r}"
+        assert "0.25" in result.reasoning, (
+            f"applied weight 0.25 missing from reasoning: {result.reasoning!r}"
         )
 
     @pytest.mark.asyncio
-    async def test_kappa_weighted_logs_warning_on_missing_weight(self, tmp_path):
-        """Regression: silent 1.0 substitution for a missing judge_id should
-        emit a structlog WARN so the operator notices a contract violation.
+    async def test_kappa_weighted_hard_errors_on_missing_weight(self, tmp_path):
+        """v1.1 regression: a member judge_id missing from the weights dict
+        is a hard error, not a silent fallback to 1.0. v1's silent fallback
+        let an asymmetric weights source amplify the unweighted member —
+        see DECISIONS "v1.1 jury rescue" entry for the calibration evidence.
         """
-        import structlog
-
         from agent_bench.evaluation.variance.jury import jury
 
         j1 = _relevance_judge_with_responses([_vj(1)])
@@ -248,12 +248,8 @@ class TestJury:
             weights=weights,
             sidecar_path=tmp_path / "jury.jsonl",
         )
-        with structlog.testing.capture_logs() as logs:
+        with pytest.raises(ValueError, match="missing entries.*gpt-4o-mini"):
             await ju.score(_item(), _output())
-        assert any(
-            entry.get("event") == "jury_missing_weight_fallback_to_one"
-            for entry in logs
-        ), f"no missing-weight warning in {logs!r}"
 
     @pytest.mark.asyncio
     async def test_cancel_on_non_retryable(self, tmp_path):
