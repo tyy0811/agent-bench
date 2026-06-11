@@ -9,9 +9,9 @@ test:
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 lint:
-	ruff check agent_bench/ tests/
-	ruff format --check agent_bench/ tests/
-	mypy agent_bench/ --ignore-missing-imports
+	ruff check agent_bench/ stats/ stats_adapters/ tests/
+	ruff format --check stats/ stats_adapters/ tests/stats/
+	mypy agent_bench/ stats/ stats_adapters/ --ignore-missing-imports
 
 serve:
 	$(PYTHON) -m uvicorn agent_bench.serving.app:create_app --factory --reload --port 8000
