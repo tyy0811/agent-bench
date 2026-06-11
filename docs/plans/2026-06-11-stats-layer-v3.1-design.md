@@ -161,7 +161,7 @@ The three degradation branches are report logic with fixture-backed golden-file 
 
 Always printed: n_clusters and the design effect (clustered variance over naive variance) for both corpora. The methods appendix carries estimators, seeds, replicate counts, the multiplicity stance, and the any-of-k bounding argument. The variance-decomposition section carries the one-line error-budget preview: the reported interval is the statistical term; template sensitivity and judge bias are named systematic terms, v3.2 scope.
 
-Byte-stability: no wall-clock timestamps anywhere in the report body; the report embeds input-table content hashes and seeds instead. The golden-file test on the fixture table is byte-stable under pinned seeds. The fixture set includes a nonzero-failure variant, a failed-equivalence variant, and a divergent-SE variant, so all three degradation branches run in CI.
+Byte-stability: no wall-clock timestamps anywhere in the report body; the report embeds input-table content hashes and seeds instead. The golden-file test on the fixture table is byte-stable under pinned seeds. Every number in the report body is formatted explicitly (fixed precision, explicit float-to-string); the renderer never relies on dataframe repr or library default formatting, so golden files survive pandas and numpy version bumps (added 2026-06-11 after the dev environment resolved pandas 3.0.2). The fixture set includes a nonzero-failure variant, a failed-equivalence variant, and a divergent-SE variant, so all three degradation branches run in CI.
 
 ## 8. Import isolation and testing rules
 
@@ -169,6 +169,7 @@ Byte-stability: no wall-clock timestamps anywhere in the report body; the report
 - All randomness is seeded; tests pin seeds; a test that can flake is a bug (guardrail 3).
 - Numerical tests assert against independently computed reference values (statsmodels or R), with provenance comments stating tool and version (guardrail 4).
 - Edge cases required by the actual data: zero failures, all-ties pairs, single cluster (the K8s `set` type is a real singleton), missing `refused`.
+- Format enforcement is two tier by decision (Jane Yeung, 2026-06-11): `ruff check` and mypy run repo-wide, while `ruff format --check` covers only the new packages (`stats/`, `stats_adapters/`, `tests/stats/`). The pre-existing files have never been format-clean under any ruff version (probed 0.6.9 through 0.15.10) and are never reformatted in passing; a repo-wide reformat is a standalone chore PR after v3.1 ships, decided then. CI runs `make lint` so CI and local enforcement cannot drift.
 
 ## 9. Backlog notes (v3.2, recorded for adjacency, not v3.1 scope)
 
