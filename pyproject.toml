@@ -36,7 +36,7 @@ dev = [
 ]
 stats = [
     "scipy>=1.11.0",
-    "pandas>=2.2.0",
+    "pandas>=3.0,<4",
 ]
 modal = [
     "modal>=0.66.0",
