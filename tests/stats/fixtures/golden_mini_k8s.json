@@ -1,0 +1,46 @@
+{
+  "corpus": "k8s",
+  "version": "v1.31",
+  "snapshot_date": "2026-06-11",
+  "questions": [
+    {
+      "id": "mini_k1",
+      "question": "What does a liveness probe do?",
+      "expected_answer_keywords": ["restart"],
+      "expected_sources": ["mini_probes.md"],
+      "category": "retrieval",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "It restarts unhealthy containers.",
+      "question_type": "simple",
+      "is_multi_hop": false,
+      "time_sensitive": false
+    },
+    {
+      "id": "mini_k2",
+      "question": "Compare liveness and readiness probes.",
+      "expected_answer_keywords": ["traffic", "restart"],
+      "expected_sources": ["mini_probes.md"],
+      "category": "retrieval",
+      "difficulty": "medium",
+      "requires_calculator": false,
+      "reference_answer": "Liveness restarts; readiness gates traffic.",
+      "question_type": "comparison",
+      "is_multi_hop": false,
+      "time_sensitive": false
+    },
+    {
+      "id": "mini_k3",
+      "question": "Does Kubernetes ship a built-in time-travel debugger?",
+      "expected_answer_keywords": [],
+      "expected_sources": [],
+      "category": "out_of_scope",
+      "difficulty": "easy",
+      "requires_calculator": false,
+      "reference_answer": "",
+      "question_type": "false_premise",
+      "is_multi_hop": false,
+      "time_sensitive": false
+    }
+  ]
+}

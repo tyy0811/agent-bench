@@ -1,0 +1,32 @@
+[
+  {
+    "id": "mini_q1",
+    "question": "How do you paginate results?",
+    "expected_answer_keywords": ["limit", "offset"],
+    "expected_sources": ["mini_pagination.md", "mini_auth.md"],
+    "category": "retrieval",
+    "difficulty": "easy",
+    "requires_calculator": false,
+    "reference_answer": "Use limit and offset query parameters."
+  },
+  {
+    "id": "mini_q2",
+    "question": "What is the capital of France?",
+    "expected_answer_keywords": [],
+    "expected_sources": [],
+    "category": "out_of_scope",
+    "difficulty": "easy",
+    "requires_calculator": false,
+    "reference_answer": ""
+  },
+  {
+    "id": "mini_q3",
+    "question": "If each page holds 25 items, how many pages for 120 items?",
+    "expected_answer_keywords": ["5"],
+    "expected_sources": ["mini_pagination.md"],
+    "category": "calculation",
+    "difficulty": "easy",
+    "requires_calculator": true,
+    "reference_answer": "5 pages."
+  }
+]

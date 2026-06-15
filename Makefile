@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -48,6 +48,13 @@ evaluate-judges:  ## Re-run all rows + build-table against existing system_outpu
 		$(PYTHON) scripts/run_calibration.py run-judges --row-config=$$cfg || exit 1; \
 	done
 	$(PYTHON) scripts/run_calibration.py build-table --strict
+
+stats-table:  ## Convert legacy results JSON to validated long CSV (free, offline)
+	$(PYTHON) -m stats_adapters.from_results_json --legacy \
+		--input results/fastapi_postedit.json \
+		--golden agent_bench/evaluation/datasets/tech_docs_golden.json \
+		--config-id custom-openai-legacy \
+		--out-dir results/long
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build
