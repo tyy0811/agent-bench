@@ -43,3 +43,10 @@ terraform.tfvars
 *.tfstate
 *.tfstate.backup
 .DS_Store
+
+# Claude Code local state: machine-local settings and transient runtime
+# locks. settings.local.json is per-machine; a shareable settings.json,
+# if ever added, stays committable. The scheduler lock is runtime state.
+# Neither belongs in version control.
+.claude/settings.local.json
+.claude/*.lock
