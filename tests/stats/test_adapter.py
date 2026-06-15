@@ -181,6 +181,36 @@ def test_nested_golden_without_questions_key_raises(tmp_path):
         adapter.load_golden(g)
 
 
+def test_null_answer_does_not_crash():
+    # A record with JSON null answer must not raise TypeError (Codex review).
+    rec = dict(_results()[0], answer=None)
+    rows = adapter.rows_from_result(rec, _meta(), _golden_fastapi())
+    assert {r["metric"] for r in rows} == {"p_at_5", "r_at_5", "khr"}
+    assert all(r["refused"] is None for r in rows)
+
+
+def test_null_cluster_source_rejected(tmp_path):
+    g = tmp_path / "g.json"
+    g.write_text(
+        json.dumps(
+            {
+                "corpus": "k8s",
+                "questions": [
+                    {
+                        "id": "x",
+                        "category": "retrieval",
+                        "requires_calculator": False,
+                        "expected_sources": ["a.md"],
+                        "question_type": None,
+                    }
+                ],
+            }
+        )
+    )
+    with pytest.raises(ValueError, match="cluster source"):
+        adapter.load_golden(g)
+
+
 def test_nested_out_of_scope_clusters_by_question_type():
     # Pre-registered design (stats-design.md section 2.1): K8s clusters by
     # question_type, so an out_of_scope k8s row clusters under its type, not

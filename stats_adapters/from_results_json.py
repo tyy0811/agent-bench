@@ -62,6 +62,11 @@ def load_golden(path: Path) -> GoldenIndex:
                 cluster = q["expected_sources"][0]
             else:
                 cluster = "out_of_scope"
+            if not isinstance(cluster, str) or not cluster:
+                raise ValueError(
+                    f"golden {path}: question {q.get('id', '?')!r} has an empty or "
+                    "null cluster source (question_type / expected_sources)"
+                )
             index[q["id"]] = GoldenQuestion(
                 category=q["category"],
                 requires_calculator=q["requires_calculator"],
@@ -86,7 +91,7 @@ def _metric_values(rec: dict, golden_q: GoldenQuestion) -> dict[str, float]:
     # on citation-free answers never enters the table (spec section 3.4). The
     # rule-of-three inclusion rule (spec section 2.3) then falls out of the
     # table itself: a question enters n if any epoch emitted a citation_acc row.
-    if CITATION_RE.search(rec.get("answer", "")):
+    if CITATION_RE.search(rec.get("answer") or ""):
         values["citation_acc"] = float(rec["citation_accuracy"])
     if golden_q.requires_calculator:
         values["calculator_correct"] = 1.0 if rec["calculator_used_correctly"] else 0.0
@@ -103,7 +108,7 @@ def rows_from_result(rec: dict, meta: RowMeta, golden: GoldenIndex) -> list[dict
             "questions); check that the results file and --golden correspond"
         )
     golden_q = golden.questions[qid]
-    answer = rec.get("answer", "")
+    answer = rec.get("answer") or ""  # JSON null or missing -> empty (no answer)
     refused: bool | None = is_refusal(answer) if answer else None
     rows = []
     for metric, score in _metric_values(rec, golden_q).items():
