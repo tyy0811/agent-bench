@@ -185,6 +185,40 @@ def convert_legacy_file(
     return df
 
 
+def convert_envelopes(paths: list[Path], golden_path: Path, out_dir: Path) -> pd.DataFrame:
+    """Convert WP2 epoch envelopes into one validated long table (CSV per run_id)."""
+    golden = load_golden(golden_path)
+    frames = []
+    for path in paths:
+        env = json.loads(path.read_text())
+        meta = RowMeta(
+            run_id=env["run_id"],
+            timestamp=env["timestamp"],
+            config_id=env["config_id"],
+            code_version=env["code_version"],
+            dataset_version=env["dataset_version"],
+            epoch=env["epoch"],
+        )
+        rows: list[dict] = []
+        for i, rec in enumerate(env["results"]):
+            try:
+                rows.extend(rows_from_result(rec, meta, golden))
+            except KeyError as e:
+                raise ValueError(
+                    f"{path}: record {i} (question_id={rec.get('question_id', '?')!r}) "
+                    f"missing field {e}"
+                ) from e
+        frames.append(pd.DataFrame(rows))
+    df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if df.empty:
+        raise ValueError(f"no rows produced from {len(paths)} envelope(s)")
+    df["refused"] = df["refused"].astype("boolean")
+    schema.validate_table(df)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_dir / f"{df['run_id'].iloc[0]}.csv", index=False)
+    return df
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, help="results JSON path, or envelope dir in WP2")
@@ -197,14 +231,20 @@ def main() -> None:
         "--legacy", action="store_true", help="pre-v3.1 file: synthesize provenance"
     )
     args = parser.parse_args()
-    if not args.legacy:
-        raise SystemExit("epoch-envelope inputs arrive in WP2; use --legacy for existing files")
-    if args.config_id is None:
-        parser.error("--config-id is required with --legacy; no guessing (spec section 4)")
-    df = convert_legacy_file(
-        Path(args.input), Path(args.golden), args.config_id, Path(args.out_dir)
-    )
-    print(f"wrote {len(df)} rows for {args.input}")
+    if args.legacy:
+        if args.config_id is None:
+            parser.error("--config-id is required with --legacy; no guessing (spec section 4)")
+        df = convert_legacy_file(
+            Path(args.input), Path(args.golden), args.config_id, Path(args.out_dir)
+        )
+        print(f"wrote {len(df)} rows for {args.input}")
+        return
+    # Envelope mode (WP2): --input is a directory of epoch envelopes.
+    paths = sorted(Path(args.input).glob("*.json"))
+    if not paths:
+        parser.error(f"no envelope *.json files found in {args.input}")
+    df = convert_envelopes(paths, Path(args.golden), Path(args.out_dir))
+    print(f"wrote {len(df)} rows from {len(paths)} envelopes")
 
 
 if __name__ == "__main__":
