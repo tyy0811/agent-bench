@@ -44,6 +44,11 @@ terraform.tfvars
 *.tfstate.backup
 .DS_Store
 
+# Epoch-runner outputs from `make epochs` (PAID, human-run): raw per-config
+# outputs and run-id envelope dirs. Real-run results must not be accidentally
+# committed or git-clean'd; convert them to results/long/ via the adapter.
+results/epochs/
+
 # Claude Code local state: machine-local settings and transient runtime
 # locks. settings.local.json is per-machine; a shareable settings.json,
 # if ever added, stays committable. The scheduler lock is runtime state.

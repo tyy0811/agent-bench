@@ -211,6 +211,34 @@ def test_null_cluster_source_rejected(tmp_path):
         adapter.load_golden(g)
 
 
+def test_convert_envelopes_refuses_mixed_run_ids(tmp_path):
+    recs = json.loads((FIXTURES / "results_mini.json").read_text())
+
+    def _env(path, run_id):
+        path.write_text(
+            json.dumps(
+                {
+                    "run_id": run_id,
+                    "timestamp": "2026-06-15T10:00:00+00:00",
+                    "config_id": "custom-mock+00000000",
+                    "code_version": "x",
+                    "dataset_version": "sha-deadbeef",
+                    "epoch": 1,
+                    "results": recs,
+                }
+            )
+        )
+
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    _env(a, "01HZXJ5M8N9PQRSTVWXYZ01234")
+    _env(b, "01HZXJ5M8N9PQRSTVWXYZ09999")
+    with pytest.raises(ValueError, match="run_ids"):
+        adapter.convert_envelopes(
+            [a, b], golden_path=FIXTURES / "golden_mini_fastapi.json", out_dir=tmp_path / "out"
+        )
+
+
 def test_nested_out_of_scope_clusters_by_question_type():
     # Pre-registered design (stats-design.md section 2.1): K8s clusters by
     # question_type, so an out_of_scope k8s row clusters under its type, not
