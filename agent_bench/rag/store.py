@@ -45,7 +45,9 @@ class HybridStore:
         self._rrf_k = rrf_k
         self._chunks: list[Chunk] = []
         self._embeddings: np.ndarray | None = None
-        self._faiss_index: faiss.IndexFlatIP = faiss.IndexFlatIP(dimension)
+        # Base-class annotation: the attribute is created as IndexFlatIP here
+        # but reassigned faiss.read_index()'s return (base Index) in load().
+        self._faiss_index: faiss.Index = faiss.IndexFlatIP(dimension)
         self._bm25: BM25Okapi | None = None
         self._tokenized_corpus: list[list[str]] = []
 

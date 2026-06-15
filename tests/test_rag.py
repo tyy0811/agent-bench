@@ -268,12 +268,8 @@ class TestCrossEncoderReranker:
 
         import asyncio
 
-        results_a = asyncio.get_event_loop().run_until_complete(
-            retriever_no_reranker.search("path parameters", top_k=3)
-        )
-        results_b = asyncio.get_event_loop().run_until_complete(
-            retriever_with_none.search("path parameters", top_k=3)
-        )
+        results_a = asyncio.run(retriever_no_reranker.search("path parameters", top_k=3))
+        results_b = asyncio.run(retriever_with_none.search("path parameters", top_k=3))
         assert [r.chunk.id for r in results_a.results] == [r.chunk.id for r in results_b.results]
 
     def test_reranker_empty_input(self):
