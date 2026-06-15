@@ -81,7 +81,7 @@ Frozen 2026-06-11. No WP5 epoch data existed when these rules were fixed; the WP
 - The restatement in section 3.2 is a verbatim copy of section 5.1 text pasted into the design session by Jane Yeung on 2026-06-11. The paste attributed it to `IMPLEMENTATION_PLAN_eval-statistics-engine.md` v0.2, lines 71 to 88.
 - Evidence status: the v0.2 attribution comes from the paste's own header line. The agent session had no access to the file, so the attribution is relayed, not independently verified.
 - Verification protocol: Jane Yeung opens the local `IMPLEMENTATION_PLAN_eval-statistics-engine.md` (the artifact of record), reads its status header and changelog, and diffs its section 5.1 against section 3.2 below character for character. The version carried by the matching local file is the value pinned here and in `stats/schema.py`.
-- Verification status: pending as of 2026-06-11. This subsection is updated with the verified version identifier and the diff date during spec review. `SCHEMA_VERSION` in `stats/schema.py` is written from the verified value, not from the paste attribution.
+- Verification status: verified 2026-06-13 (Jane Yeung). The local `IMPLEMENTATION_PLAN_eval-statistics-engine.md` section 5.1 was diffed against section 3.2 above and is byte-identical: 906 bytes each, no non-ASCII characters, no non-breaking spaces, no trailing whitespace. The file is internally inconsistent on version: its status header reads v0.1, while its changelog's latest entry is v0.2 whose scope is section 8 only, so section 5.1 is unchanged from v0.1. `SCHEMA_VERSION` in `stats/schema.py` is pinned to `eval-statistics-engine/v0.2#5.1`, taking the changelog as the authoritative version record; the value is reached by changelog reading plus the clean diff, not relayed from the paste attribution. Correction to the evidence-status line above: the v0.2 designation comes from the changelog, not the status header (which reads v0.1). The stale header is corrected to v0.2 in Jane's local artifact, which is never committed to agent-bench.
 - Drift policy: when the evidence-engine repository eventually owns the schema, agent-bench pins the version it implements via `SCHEMA_VERSION` and updates deliberately, never implicitly.
 
 ### 3.2 Verbatim restatement (engine plan section 5.1)
@@ -161,7 +161,7 @@ The three degradation branches are report logic with fixture-backed golden-file 
 
 Always printed: n_clusters and the design effect (clustered variance over naive variance) for both corpora. The methods appendix carries estimators, seeds, replicate counts, the multiplicity stance, and the any-of-k bounding argument. The variance-decomposition section carries the one-line error-budget preview: the reported interval is the statistical term; template sensitivity and judge bias are named systematic terms, v3.2 scope.
 
-Byte-stability: no wall-clock timestamps anywhere in the report body; the report embeds input-table content hashes and seeds instead. The golden-file test on the fixture table is byte-stable under pinned seeds. The fixture set includes a nonzero-failure variant, a failed-equivalence variant, and a divergent-SE variant, so all three degradation branches run in CI.
+Byte-stability: no wall-clock timestamps anywhere in the report body; the report embeds input-table content hashes and seeds instead. The golden-file test on the fixture table is byte-stable under pinned seeds. Every number in the report body is formatted explicitly (fixed precision, explicit float-to-string); the renderer never relies on dataframe repr or library default formatting, so golden files survive pandas and numpy version bumps (added 2026-06-11 after the dev environment resolved pandas 3.0.2). The fixture set includes a nonzero-failure variant, a failed-equivalence variant, and a divergent-SE variant, so all three degradation branches run in CI.
 
 ## 8. Import isolation and testing rules
 
@@ -169,6 +169,7 @@ Byte-stability: no wall-clock timestamps anywhere in the report body; the report
 - All randomness is seeded; tests pin seeds; a test that can flake is a bug (guardrail 3).
 - Numerical tests assert against independently computed reference values (statsmodels or R), with provenance comments stating tool and version (guardrail 4).
 - Edge cases required by the actual data: zero failures, all-ties pairs, single cluster (the K8s `set` type is a real singleton), missing `refused`.
+- Format enforcement is two tier by decision (Jane Yeung, 2026-06-11): `ruff check` and mypy run repo-wide, while `ruff format --check` covers only the new packages (`stats/`, `stats_adapters/`, `tests/stats/`). The pre-existing files have never been format-clean under any ruff version (probed 0.6.9 through 0.15.10) and are never reformatted in passing; a repo-wide reformat is a standalone chore PR after v3.1 ships, decided then. CI runs `make lint` so CI and local enforcement cannot drift.
 
 ## 9. Backlog notes (v3.2, recorded for adjacency, not v3.1 scope)
 

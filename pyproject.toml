@@ -32,6 +32,11 @@ dev = [
     "mypy>=1.11.0",
     "respx>=0.21.0",
     "types-PyYAML",
+    "agent-bench[stats]",
+]
+stats = [
+    "scipy>=1.11.0",
+    "pandas>=3.0,<4",
 ]
 modal = [
     "modal>=0.66.0",
