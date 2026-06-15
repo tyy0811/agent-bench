@@ -50,20 +50,27 @@ class GoldenIndex:
 def load_golden(path: Path) -> GoldenIndex:
     raw = json.loads(path.read_text())
     is_nested = isinstance(raw, dict)
+    if is_nested and "questions" not in raw:
+        raise ValueError(f"nested golden {path} has no 'questions' key")
     questions = raw["questions"] if is_nested else raw
     index: dict[str, GoldenQuestion] = {}
     for q in questions:
-        if is_nested:
-            cluster = q["question_type"]
-        elif q["expected_sources"]:
-            cluster = q["expected_sources"][0]
-        else:
-            cluster = "out_of_scope"
-        index[q["id"]] = GoldenQuestion(
-            category=q["category"],
-            requires_calculator=q["requires_calculator"],
-            cluster_id=cluster,
-        )
+        try:
+            if is_nested:
+                cluster = q["question_type"]
+            elif q["expected_sources"]:
+                cluster = q["expected_sources"][0]
+            else:
+                cluster = "out_of_scope"
+            index[q["id"]] = GoldenQuestion(
+                category=q["category"],
+                requires_calculator=q["requires_calculator"],
+                cluster_id=cluster,
+            )
+        except KeyError as e:
+            raise ValueError(
+                f"golden {path}: question {q.get('id', '?')!r} missing field {e}"
+            ) from e
     return GoldenIndex(questions=index)
 
 
@@ -87,7 +94,15 @@ def _metric_values(rec: dict, golden_q: GoldenQuestion) -> dict[str, float]:
 
 
 def rows_from_result(rec: dict, meta: RowMeta, golden: GoldenIndex) -> list[dict]:
-    golden_q = golden.questions[rec["question_id"]]
+    qid = rec.get("question_id")
+    if qid is None:
+        raise ValueError("results record missing 'question_id'")
+    if qid not in golden.questions:
+        raise ValueError(
+            f"question_id {qid!r} not in golden index ({len(golden.questions)} "
+            "questions); check that the results file and --golden correspond"
+        )
+    golden_q = golden.questions[qid]
     answer = rec.get("answer", "")
     refused: bool | None = is_refusal(answer) if answer else None
     rows = []
@@ -99,7 +114,7 @@ def rows_from_result(rec: dict, meta: RowMeta, golden: GoldenIndex) -> list[dict
                 "config_id": meta.config_id,
                 "code_version": meta.code_version,
                 "dataset_version": meta.dataset_version,
-                "question_id": rec["question_id"],
+                "question_id": qid,
                 "cluster_id": golden_q.cluster_id,
                 "epoch": meta.epoch,
                 "metric": metric,
@@ -146,7 +161,16 @@ def convert_legacy_file(
         epoch=1,
     )
     records = json.loads(src.read_text())
-    rows = [row for rec in records for row in rows_from_result(rec, meta, golden)]
+    rows: list[dict] = []
+    for i, rec in enumerate(records):
+        try:
+            rows.extend(rows_from_result(rec, meta, golden))
+        except KeyError as e:
+            raise ValueError(
+                f"{src}: record {i} (question_id={rec.get('question_id', '?')!r}) missing field {e}"
+            ) from e
+    if not rows:
+        raise ValueError(f"{src}: produced no rows (empty file or no records?)")
     df = pd.DataFrame(rows)
     df["refused"] = df["refused"].astype("boolean")
     schema.validate_table(df)

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from stats import schema
 from stats_adapters import from_results_json as adapter
@@ -131,3 +132,61 @@ def test_legacy_round_trip_deterministic(tmp_path):
         FIXTURES / "results_mini.json", out_dir=tmp_path / "b", **kwargs
     )
     pd.testing.assert_frame_equal(a, b)
+
+
+# --- Robustness: clear errors instead of bare KeyError on bad input ---
+
+
+def test_empty_input_raises_clear_error(tmp_path):
+    src = tmp_path / "empty.json"
+    src.write_text("[]")
+    with pytest.raises(ValueError, match="no rows"):
+        adapter.convert_legacy_file(
+            src,
+            golden_path=FIXTURES / "golden_mini_fastapi.json",
+            config_id="custom-openai-legacy",
+            out_dir=tmp_path,
+        )
+
+
+def test_unknown_question_id_raises_clear_error():
+    rec = dict(_results()[0], question_id="does_not_exist")
+    with pytest.raises(ValueError, match="not in golden"):
+        adapter.rows_from_result(rec, _meta(), _golden_fastapi())
+
+
+def test_record_missing_question_id_raises_clear_error():
+    rec = {k: v for k, v in _results()[0].items() if k != "question_id"}
+    with pytest.raises(ValueError, match="missing 'question_id'"):
+        adapter.rows_from_result(rec, _meta(), _golden_fastapi())
+
+
+def test_missing_metric_field_raises_contextual_error(tmp_path):
+    bad = {k: v for k, v in _results()[0].items() if k != "retrieval_precision"}
+    src = tmp_path / "bad.json"
+    src.write_text(json.dumps([bad]))
+    with pytest.raises(ValueError, match="missing field"):
+        adapter.convert_legacy_file(
+            src,
+            golden_path=FIXTURES / "golden_mini_fastapi.json",
+            config_id="custom-openai-legacy",
+            out_dir=tmp_path,
+        )
+
+
+def test_nested_golden_without_questions_key_raises(tmp_path):
+    g = tmp_path / "g.json"
+    g.write_text(json.dumps({"corpus": "k8s"}))
+    with pytest.raises(ValueError, match="no 'questions' key"):
+        adapter.load_golden(g)
+
+
+def test_nested_out_of_scope_clusters_by_question_type():
+    # Pre-registered design (stats-design.md section 2.1): K8s clusters by
+    # question_type, so an out_of_scope k8s row clusters under its type, not
+    # the literal "out_of_scope". _results()[1] is the OOS refusal record.
+    golden = adapter.load_golden(FIXTURES / "golden_mini_k8s.json")
+    rec = dict(_results()[1], question_id="mini_k3")
+    rows = adapter.rows_from_result(rec, _meta(), golden)
+    assert {r["metric"] for r in rows} == {"refusal_correct"}
+    assert {r["cluster_id"] for r in rows} == {"false_premise"}
