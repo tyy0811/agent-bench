@@ -60,13 +60,17 @@ def mini_store():
     )
 
 
-def test_mock_epoch_run_end_to_end(tmp_path, mini_store):
-    run_epochs.REGISTRY["custom-mock"] = {
-        "entry": "custom",
-        "config": FIXTURES / "mock_config.yaml",
-        "corpus": "mini",
-        "golden": FIXTURES / "golden_mini_fastapi.json",
-    }
+def test_mock_epoch_run_end_to_end(tmp_path, mini_store, monkeypatch):
+    monkeypatch.setitem(
+        run_epochs.REGISTRY,
+        "custom-mock",
+        {
+            "entry": "custom",
+            "config": FIXTURES / "mock_config.yaml",
+            "corpus": "mini",
+            "golden": FIXTURES / "golden_mini_fastapi.json",
+        },
+    )
     files = run_epochs.run_config_epochs(
         "custom-mock", k=2, dest_root=tmp_path, mock_config=FIXTURES / "mock_config.yaml"
     )
@@ -86,3 +90,17 @@ def test_mock_epoch_run_end_to_end(tmp_path, mini_store):
     assert per_q["mini_q2"] == {"refusal_correct"}
     assert "calculator_correct" in per_q["mini_q3"]
     assert len(df) == 2 * df[df["epoch"] == 1].shape[0]  # epochs emit identical shapes
+
+
+# Guardrail 2: no silent paid calls. These refuse BEFORE any subprocess runs,
+# so they spend nothing and need no API key.
+
+
+def test_paid_guard_refuses_langchain_without_allow_paid(tmp_path):
+    with pytest.raises(SystemExit, match="paid"):
+        run_epochs.run_config_epochs("langchain-openai", k=1, dest_root=tmp_path)
+
+
+def test_paid_guard_refuses_custom_without_mock_config(tmp_path):
+    with pytest.raises(SystemExit, match="paid"):
+        run_epochs.run_config_epochs("custom-openai", k=1, dest_root=tmp_path)

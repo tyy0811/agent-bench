@@ -212,6 +212,14 @@ def convert_envelopes(paths: list[Path], golden_path: Path, out_dir: Path) -> pd
     df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if df.empty:
         raise ValueError(f"no rows produced from {len(paths)} envelope(s)")
+    # The output CSV is named per run_id; refuse mixed-run inputs so rows from
+    # one run can never be silently written under another run's filename.
+    run_ids = list(df["run_id"].unique())
+    if len(run_ids) > 1:
+        raise ValueError(
+            f"convert_envelopes received envelopes from {len(run_ids)} run_ids "
+            f"({run_ids[:3]}); pass one run's envelopes per call"
+        )
     df["refused"] = df["refused"].astype("boolean")
     schema.validate_table(df)
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -1,9 +1,15 @@
 """Repeat harness runs k times per configuration with injected provenance.
 
-PAID when run against API configs; the Makefile target requires CONFIRM_PAID=1.
-The mock config path is free and exercised in CI. Provenance is injected by
-post-processing each entry point's --output JSON into an envelope file
-(design spec section 6); harness internals are never edited.
+This script can make real, PAID API calls. The free path is narrow: a *custom*
+entry run with a mock config (provider.default: mock). It is the only path
+exercised in CI. langchain entries always build a real ChatOpenAI/ChatAnthropic
+from their --provider regardless of any config, so a mock config does NOT make
+them free; and a custom entry without a mock config uses its real provider.
+run_config_epochs therefore refuses any paid run unless allow_paid is set
+(--allow-paid on the CLI), so invoking this script directly cannot silently
+spend money -- the Makefile epochs target is not the only guard (guardrail 2).
+Provenance is injected by post-processing each entry point's --output JSON into
+an envelope file (design spec section 6); harness internals are never edited.
 """
 
 import argparse
@@ -139,8 +145,20 @@ def run_config_epochs(
     dest_root: Path,
     mock_config: Path | None = None,
     golden_override: Path | None = None,
+    allow_paid: bool = False,
 ) -> list[Path]:
     spec = REGISTRY[name]
+    # Guardrail 2 (no silent paid calls): the only free path is a custom entry
+    # with a mock config. langchain entries always use a real LLM; a custom
+    # entry without a mock config uses its real provider. Refuse otherwise so
+    # direct script invocation cannot bill around the Makefile's CONFIRM_PAID.
+    is_free = spec["entry"] == "custom" and mock_config is not None
+    if not is_free and not allow_paid:
+        raise SystemExit(
+            f"refusing: config {name!r} would make real (paid) API calls "
+            f"(entry={spec['entry']}, mock_config={'set' if mock_config else 'none'}); "
+            "pass --allow-paid to confirm you intend to spend money"
+        )
     golden = golden_override or spec["golden"]
     config_id = f"{name}+{_config_hash(mock_config or spec.get('config'))}"
     run_id = new_ulid()
@@ -173,6 +191,11 @@ def main() -> None:
         "--mock-config", default=None, help="config YAML forcing provider mock (free)"
     )
     parser.add_argument("--golden", default=None, help="override golden path (tests only)")
+    parser.add_argument(
+        "--allow-paid",
+        action="store_true",
+        help="confirm real (paid) API calls for non-mock runs (langchain or no mock config)",
+    )
     args = parser.parse_args()
     for name in args.configs.split(","):
         files = run_config_epochs(
@@ -181,6 +204,7 @@ def main() -> None:
             Path(args.dest),
             mock_config=Path(args.mock_config) if args.mock_config else None,
             golden_override=Path(args.golden) if args.golden else None,
+            allow_paid=args.allow_paid,
         )
         print(f"{name}: wrote {len(files)} epoch envelopes")
 

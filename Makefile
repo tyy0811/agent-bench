@@ -58,7 +58,7 @@ stats-table:  ## Convert legacy results JSON to validated long CSV (free, offlin
 
 epochs:  ## PAID, HUMAN-RUN: repeat eval k times per config. Usage: make epochs K=5 CONFIGS=custom-openai,custom-anthropic CONFIRM_PAID=1
 	@test "$(CONFIRM_PAID)" = "1" || (echo "Refusing: paid target. Set CONFIRM_PAID=1 to run. Costs real API money." && exit 1)
-	$(PYTHON) scripts/run_epochs.py --k $(K) --configs $(CONFIGS)
+	$(PYTHON) scripts/run_epochs.py --k $(K) --configs $(CONFIGS) --allow-paid
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build
