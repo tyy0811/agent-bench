@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from stats import schema
 from stats_adapters import from_results_json as adapter
@@ -90,3 +89,45 @@ def test_latency_and_cost_mapped():
     rows = adapter.rows_from_result(_results()[0], _meta(), _golden_fastapi())
     assert all(r["latency_ms"] == 1200.5 for r in rows)
     assert all(r["cost_usd"] == 0.0002 for r in rows)
+
+
+def test_legacy_run_id_and_provenance(tmp_path):
+    src = FIXTURES / "results_mini.json"
+    df = adapter.convert_legacy_file(
+        src,
+        golden_path=FIXTURES / "golden_mini_fastapi.json",
+        config_id="custom-openai-legacy",
+        out_dir=tmp_path,
+    )
+    schema.validate_table(df)
+    assert df["run_id"].str.match(schema.LEGACY_RUN_ID_RE).all()
+    assert (df["epoch"] == 1).all()
+    assert (df["code_version"] == "unknown").all()
+    expected_hash = adapter.content_hash(src)
+    assert (df["run_id"] == f"legacy-{expected_hash}").all()
+
+
+def test_legacy_csv_written_under_legacy_dir(tmp_path):
+    adapter.convert_legacy_file(
+        FIXTURES / "results_mini.json",
+        golden_path=FIXTURES / "golden_mini_fastapi.json",
+        config_id="custom-openai-legacy",
+        out_dir=tmp_path,
+    )
+    out = tmp_path / "legacy" / "results_mini.csv"
+    assert out.exists()
+    schema.validate_table(pd.read_csv(out, dtype={"refused": "boolean"}))
+
+
+def test_legacy_round_trip_deterministic(tmp_path):
+    kwargs = dict(
+        golden_path=FIXTURES / "golden_mini_fastapi.json",
+        config_id="custom-openai-legacy",
+    )
+    a = adapter.convert_legacy_file(
+        FIXTURES / "results_mini.json", out_dir=tmp_path / "a", **kwargs
+    )
+    b = adapter.convert_legacy_file(
+        FIXTURES / "results_mini.json", out_dir=tmp_path / "b", **kwargs
+    )
+    pd.testing.assert_frame_equal(a, b)

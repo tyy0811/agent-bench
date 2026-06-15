@@ -110,3 +110,73 @@ def rows_from_result(rec: dict, meta: RowMeta, golden: GoldenIndex) -> list[dict
             }
         )
     return rows
+
+
+def content_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
+def _git_commit_date(path: Path) -> str:
+    proc = subprocess.run(
+        ["git", "log", "-1", "--format=%cI", "--", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    iso = proc.stdout.strip()
+    # Untracked files (tmp fixtures in tests) have no commit date; epoch zero
+    # keeps the row valid and visibly artificial.
+    return iso if iso else "1970-01-01T00:00:00+00:00"
+
+
+def convert_legacy_file(
+    src: Path,
+    golden_path: Path,
+    config_id: str,
+    out_dir: Path,
+) -> pd.DataFrame:
+    """Convert one pre-v3.1 results file. Spec section 4 provenance synthesis."""
+    golden = load_golden(golden_path)
+    meta = RowMeta(
+        run_id=f"legacy-{content_hash(src)}",
+        timestamp=_git_commit_date(src),
+        config_id=config_id,
+        code_version="unknown",
+        dataset_version="unknown",
+        epoch=1,
+    )
+    records = json.loads(src.read_text())
+    rows = [row for rec in records for row in rows_from_result(rec, meta, golden)]
+    df = pd.DataFrame(rows)
+    df["refused"] = df["refused"].astype("boolean")
+    schema.validate_table(df)
+    legacy_dir = out_dir / "legacy"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(legacy_dir / f"{src.stem}.csv", index=False)
+    return df
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", required=True, help="results JSON path, or envelope dir in WP2")
+    parser.add_argument("--golden", required=True, help="golden dataset JSON path")
+    parser.add_argument(
+        "--config-id", default=None, help="explicit config_id; required with --legacy"
+    )
+    parser.add_argument("--out-dir", default="results/long")
+    parser.add_argument(
+        "--legacy", action="store_true", help="pre-v3.1 file: synthesize provenance"
+    )
+    args = parser.parse_args()
+    if not args.legacy:
+        raise SystemExit("epoch-envelope inputs arrive in WP2; use --legacy for existing files")
+    if args.config_id is None:
+        parser.error("--config-id is required with --legacy; no guessing (spec section 4)")
+    df = convert_legacy_file(
+        Path(args.input), Path(args.golden), args.config_id, Path(args.out_dir)
+    )
+    print(f"wrote {len(df)} rows for {args.input}")
+
+
+if __name__ == "__main__":
+    main()

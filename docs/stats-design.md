@@ -88,8 +88,9 @@ Frozen 2026-06-11. No WP5 epoch data existed when these rules were fixed; the WP
 
 | Results file | `config_id` |
 |---|---|
+| `results/fastapi_postedit.json` | `custom-openai-legacy` |
 
-Populated at WP1 when the adapter lands; legacy inputs require explicit `--config-id`, so this table is documentation of the choices made, not a runtime input.
+Populated at WP1 as the adapter landed; legacy inputs require explicit `--config-id`, so this table is documentation of the choices made, not a runtime input. The FastAPI post-edit run predates the Anthropic provider; OpenAI was the only real provider at the time it was produced, hence `custom-openai-legacy`.
 
 ## Blockers
 
