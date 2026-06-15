@@ -6,9 +6,13 @@ post-processing each entry point's --output JSON into an envelope file
 (design spec section 6); harness internals are never edited.
 """
 
+import argparse
 import datetime
+import hashlib
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -51,3 +55,135 @@ def write_envelope(
     out = dest_dir / f"{config_id.split('+')[0]}_e{epoch}.json"
     out.write_text(json.dumps(envelope, indent=1))
     return out
+
+
+def _config_hash(path: Path | None) -> str:
+    if path is None:
+        return "00000000"
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:8]
+
+
+def _dataset_version(golden_path: Path) -> str:
+    return "sha-" + hashlib.sha256(golden_path.read_bytes()).hexdigest()[:8]
+
+
+def _code_version() -> str:
+    sha = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    return sha + ("-dirty" if dirty else "")
+
+
+# name -> (entry, config yaml or None, provider flag or None, corpus, golden path)
+REGISTRY: dict[str, dict] = {
+    "custom-openai": {
+        "entry": "custom",
+        "config": Path("configs/default.yaml"),
+        "corpus": "fastapi",
+        "golden": Path("agent_bench/evaluation/datasets/tech_docs_golden.json"),
+    },
+    "custom-anthropic": {
+        "entry": "custom",
+        "config": Path("configs/anthropic.yaml"),
+        "corpus": "fastapi",
+        "golden": Path("agent_bench/evaluation/datasets/tech_docs_golden.json"),
+    },
+    "langchain-openai": {
+        "entry": "langchain",
+        "provider": "openai",
+        "golden": Path("agent_bench/evaluation/datasets/tech_docs_golden.json"),
+    },
+    "langchain-anthropic": {
+        "entry": "langchain",
+        "provider": "anthropic",
+        "golden": Path("agent_bench/evaluation/datasets/tech_docs_golden.json"),
+    },
+}
+
+
+def _entry_cmd(spec: dict, raw_out: Path, mock_config: Path | None) -> list[str]:
+    config = mock_config or spec.get("config")
+    if spec["entry"] == "custom":
+        cmd = [
+            sys.executable,
+            "scripts/evaluate.py",
+            "--mode",
+            "deterministic",
+            "--output",
+            str(raw_out),
+        ]
+        if config:
+            cmd += ["--config", str(config)]
+        if spec.get("corpus"):
+            cmd += ["--corpus", spec["corpus"]]
+        return cmd
+    cmd = [
+        sys.executable,
+        "scripts/run_langchain_eval.py",
+        "--provider",
+        spec["provider"],
+        "--output",
+        str(raw_out),
+    ]
+    if config:
+        cmd += ["--config", str(config)]
+    return cmd
+
+
+def run_config_epochs(
+    name: str,
+    k: int,
+    dest_root: Path,
+    mock_config: Path | None = None,
+    golden_override: Path | None = None,
+) -> list[Path]:
+    spec = REGISTRY[name]
+    golden = golden_override or spec["golden"]
+    config_id = f"{name}+{_config_hash(mock_config or spec.get('config'))}"
+    run_id = new_ulid()
+    written = []
+    for epoch in range(1, k + 1):
+        raw_out = dest_root / "raw" / f"{name}_e{epoch}.json"
+        raw_out.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(_entry_cmd(spec, raw_out, mock_config), check=True)
+        written.append(
+            write_envelope(
+                raw_output=raw_out,
+                dest_dir=dest_root / run_id,
+                run_id=run_id,
+                config_id=config_id,
+                epoch=epoch,
+                code_version=_code_version(),
+                dataset_version=_dataset_version(golden),
+                timestamp=datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
+            )
+        )
+    return written
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--k", type=int, required=True)
+    parser.add_argument("--configs", required=True, help="comma-separated registry names")
+    parser.add_argument("--dest", default="results/epochs")
+    parser.add_argument(
+        "--mock-config", default=None, help="config YAML forcing provider mock (free)"
+    )
+    parser.add_argument("--golden", default=None, help="override golden path (tests only)")
+    args = parser.parse_args()
+    for name in args.configs.split(","):
+        files = run_config_epochs(
+            name,
+            args.k,
+            Path(args.dest),
+            mock_config=Path(args.mock_config) if args.mock_config else None,
+            golden_override=Path(args.golden) if args.golden else None,
+        )
+        print(f"{name}: wrote {len(files)} epoch envelopes")
+
+
+if __name__ == "__main__":
+    main()

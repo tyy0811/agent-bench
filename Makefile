@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -9,9 +9,9 @@ test:
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 lint:
-	ruff check agent_bench/ stats/ stats_adapters/ tests/
-	ruff format --check stats/ stats_adapters/ tests/stats/
-	mypy agent_bench/ stats/ stats_adapters/ --ignore-missing-imports
+	ruff check agent_bench/ stats/ stats_adapters/ tests/ scripts/run_epochs.py
+	ruff format --check stats/ stats_adapters/ tests/stats/ scripts/run_epochs.py
+	mypy agent_bench/ stats/ stats_adapters/ scripts/run_epochs.py --ignore-missing-imports
 
 serve:
 	$(PYTHON) -m uvicorn agent_bench.serving.app:create_app --factory --reload --port 8000
@@ -55,6 +55,10 @@ stats-table:  ## Convert legacy results JSON to validated long CSV (free, offlin
 		--golden agent_bench/evaluation/datasets/tech_docs_golden.json \
 		--config-id custom-openai-legacy \
 		--out-dir results/long
+
+epochs:  ## PAID, HUMAN-RUN: repeat eval k times per config. Usage: make epochs K=5 CONFIGS=custom-openai,custom-anthropic CONFIRM_PAID=1
+	@test "$(CONFIRM_PAID)" = "1" || (echo "Refusing: paid target. Set CONFIRM_PAID=1 to run. Costs real API money." && exit 1)
+	$(PYTHON) scripts/run_epochs.py --k $(K) --configs $(CONFIGS)
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build
