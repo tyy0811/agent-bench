@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from stats import report
 
@@ -62,3 +63,9 @@ def test_byte_stability_double_render():
     # across processes and machines. Dates in the output may come only from
     # the input table or from pre-registration literals in fixed prose.
     assert _render("long_base.csv") == _render("long_base.csv")
+
+
+@pytest.mark.parametrize("name", ["base", "nonzero_failure", "failed_equivalence", "divergent_se"])
+def test_golden_reports_byte_stable(name):
+    expected = (FIXTURES / f"golden_report_{name}.md").read_text()
+    assert _render(f"long_{name}.csv") == expected
