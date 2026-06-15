@@ -57,24 +57,14 @@ def source_presence(response: AgentResponse) -> bool:
     return len(response.sources) > 0
 
 
-def grounded_refusal(answer: str, category: str) -> bool:
-    """For out_of_scope: does the answer correctly refuse AND cite no sources?
+def is_refusal(answer: str) -> bool:
+    """Does the answer text take the refusal action? Observational only.
 
-    "Cite no sources" means no [source: X.md] citations appear in the answer
-    text, not that retrieval returned zero candidates. On any non-trivial
-    out-of-scope query, retrieval will still return low-relevance candidates
-    (unless the grounded-refusal gate fires at the tool level, which only
-    catches the thinnest queries). The agent is expected to inspect the
-    candidates, find nothing relevant, and refuse without citing anything —
-    and that refusal shape is what this metric measures.
-
-    Returns True if:
-    - Category is not out_of_scope (metric not applicable)
-    - Category is out_of_scope AND answer contains refusal language AND the
-      answer text contains no [source: ...] citations
+    Extracted unchanged from grounded_refusal so the stats adapter can record
+    refusal as an action flag on every question regardless of scope (v3.1
+    design spec section 3.4). Correctness of a refusal is a separate, scope-
+    conditioned judgment and does not belong here.
     """
-    if category != "out_of_scope":
-        return True  # not applicable
     refusal_phrases = [
         "does not contain",
         "no information",
@@ -95,7 +85,28 @@ def grounded_refusal(answer: str, category: str) -> bool:
     has_canonical_refusal = bool(
         re.search(r"\bnot in the\b[^.]{0,60}\bdocumentation\b", answer, re.IGNORECASE)
     )
-    has_refusal = has_phrase_refusal or has_canonical_refusal
+    return has_phrase_refusal or has_canonical_refusal
+
+
+def grounded_refusal(answer: str, category: str) -> bool:
+    """For out_of_scope: does the answer correctly refuse AND cite no sources?
+
+    "Cite no sources" means no [source: X.md] citations appear in the answer
+    text, not that retrieval returned zero candidates. On any non-trivial
+    out-of-scope query, retrieval will still return low-relevance candidates
+    (unless the grounded-refusal gate fires at the tool level, which only
+    catches the thinnest queries). The agent is expected to inspect the
+    candidates, find nothing relevant, and refuse without citing anything —
+    and that refusal shape is what this metric measures.
+
+    Returns True if:
+    - Category is not out_of_scope (metric not applicable)
+    - Category is out_of_scope AND answer contains refusal language AND the
+      answer text contains no [source: ...] citations
+    """
+    if category != "out_of_scope":
+        return True  # not applicable
+    has_refusal = is_refusal(answer)
     cites_in_answer = re.findall(r"\[source:\s*[^\]]+\]", answer, re.IGNORECASE)
     return has_refusal and len(cites_in_answer) == 0
 
