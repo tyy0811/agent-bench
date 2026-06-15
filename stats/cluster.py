@@ -12,6 +12,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from stats._validate import require_finite, require_min_units
+
 PRIMARY_THRESHOLD = 10
 DIVERGENCE_RATIO = 1.5
 DEFAULT_SEED = 20260611
@@ -37,11 +39,14 @@ def cluster_bootstrap(
     n_boot: int = DEFAULT_N_BOOT,
     seed: int = DEFAULT_SEED,
 ) -> ClusterSE:
-    values = np.asarray(values, dtype=float)
+    values = require_finite(values, "values")
     clusters = np.asarray(clusters)
     if values.shape != clusters.shape:
         raise ValueError("values and clusters must align")
     labels = np.unique(clusters)
+    # A single cluster is a point mass under cluster resampling: it would report
+    # clustered_se=0 (false certainty), so reject rather than mislead.
+    require_min_units(len(labels), 2, "clusters")
     groups = [values[clusters == c] for c in labels]
     rng = np.random.default_rng(seed)
     boot_means = np.empty(n_boot)

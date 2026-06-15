@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from stats._validate import require_finite, require_min_units
+
 
 @dataclass(frozen=True)
 class VarianceDecomposition:
@@ -22,6 +24,7 @@ class VarianceDecomposition:
 
 
 def decompose(df: pd.DataFrame, value_col: str, question_col: str) -> VarianceDecomposition:
+    require_finite(df[value_col].to_numpy(), value_col)
     counts = df.groupby(question_col)[value_col].count()
     if counts.nunique() != 1:
         raise ValueError("unbalanced epochs per question; decomposition assumes balance")
@@ -31,6 +34,9 @@ def decompose(df: pd.DataFrame, value_col: str, question_col: str) -> VarianceDe
     means = df.groupby(question_col)[value_col].mean()
     grand = df[value_col].mean()
     q = len(means)
+    # Between-question variance needs >= 2 questions (msb divides by q-1); the
+    # k<2 guard above is the epoch-axis twin of this question-axis guard.
+    require_min_units(q, 2, "questions")
     msb = k * float(((means - grand) ** 2).sum()) / (q - 1)
     ssw = float(((df[value_col] - df[question_col].map(means)) ** 2).sum())
     msw = ssw / (q * (k - 1))

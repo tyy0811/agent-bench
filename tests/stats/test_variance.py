@@ -43,3 +43,17 @@ def test_negative_between_clamped_to_zero():
     df["score"] = [0.0, 1.0, 1.0, 0.0, 0.0, 1.0]  # all variance within
     res = variance.decompose(df, value_col="score", question_col="question_id")
     assert res.between_question == 0.0
+
+
+def test_single_question_rejected():
+    # q=1 would divide by (q-1)=0; the question-axis twin of the k<2 guard.
+    df = pd.DataFrame({"question_id": ["q1", "q1"], "epoch": [1, 2], "score": [0.1, 0.2]})
+    with pytest.raises(ValueError, match="questions"):
+        variance.decompose(df, value_col="score", question_col="question_id")
+
+
+def test_non_finite_scores_rejected():
+    df = _table()
+    df.loc[0, "score"] = float("nan")
+    with pytest.raises(ValueError, match="non-finite"):
+        variance.decompose(df, value_col="score", question_col="question_id")

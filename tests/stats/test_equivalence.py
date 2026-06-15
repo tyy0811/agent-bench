@@ -145,3 +145,10 @@ def test_degenerate_constant_diffs():
     res = equivalence.tost_paired(np.full(22, 0.02), seed=20260611)
     assert res.equivalent is True
     assert res.ci_low == res.ci_high == pytest.approx(0.02)
+
+
+def test_single_unit_rejected():
+    # One unit would collapse the CI to a point and report equivalent=True
+    # (false certainty); rejected via the paired-bootstrap preflight.
+    with pytest.raises(ValueError, match="units"):
+        equivalence.tost_paired(np.array([0.02]), seed=20260611)

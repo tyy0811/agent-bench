@@ -66,3 +66,18 @@ def test_cluster_mode_resamples_clusters():
     assert res.n_units == 11
     assert free.n_units == 22
     assert (res.ci_low, res.ci_high) != (free.ci_low, free.ci_high)
+
+
+def test_single_unit_rejected():
+    with pytest.raises(ValueError, match="units"):
+        paired.paired_bootstrap(np.array([0.02]), seed=20260611)
+
+
+def test_non_finite_diffs_rejected():
+    with pytest.raises(ValueError, match="non-finite"):
+        paired.paired_bootstrap(np.array([0.02, np.nan, 0.01]), seed=20260611)
+
+
+def test_mcnemar_negative_count_rejected():
+    with pytest.raises(ValueError, match="non-negative"):
+        paired.mcnemar_exact(b=-1, c=2)

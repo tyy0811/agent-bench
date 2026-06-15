@@ -33,3 +33,17 @@ def test_mde_simulation_near_normal_approx():
 def test_seeded_reproducibility():
     d = _diffs()
     assert power.mde(d, seed=20260611) == power.mde(d, seed=20260611)
+
+
+def test_zero_variance_rejected():
+    # All-identical diffs would otherwise report power=1.0 / MDE=0 (false
+    # certainty); the preflight rejects instead (review hardening).
+    with pytest.raises(ValueError, match="zero-variance"):
+        power.simulated_power(np.full(22, 0.05), delta=0.1, seed=20260611)
+    with pytest.raises(ValueError, match="zero-variance"):
+        power.mde(np.full(22, 0.05), seed=20260611)
+
+
+def test_too_few_units_rejected():
+    with pytest.raises(ValueError, match="diffs"):
+        power.mde_normal_approx(np.array([0.05]))

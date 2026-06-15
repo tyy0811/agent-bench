@@ -9,6 +9,8 @@ import pkgutil
 import sys
 from pathlib import Path
 
+import pytest
+
 import stats
 
 
@@ -34,3 +36,15 @@ def test_source_scan_finds_no_agent_bench_string():
     root = Path(stats.__file__).parent
     offenders = [p for p in root.rglob("*.py") if "agent_bench" in p.read_text(encoding="utf-8")]
     assert offenders == []
+
+
+def test_blocker_actually_rejects_agent_bench():
+    # Positive control: prove the blocker mechanism fires. Without this, the
+    # import loop above passes even with a no-op blocker (no stats module imports
+    # agent_bench today), so a dead blocker would give false assurance.
+    blocker = _Blocker()
+    with pytest.raises(ImportError):
+        blocker.find_spec("agent_bench")
+    with pytest.raises(ImportError):
+        blocker.find_spec("agent_bench.evaluation.metrics")
+    assert blocker.find_spec("numpy") is None  # non-agent_bench passes through

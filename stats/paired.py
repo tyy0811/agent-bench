@@ -11,6 +11,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.stats import binom
 
+from stats._validate import require_finite, require_min_units
+
 DEFAULT_SEED = 20260611
 DEFAULT_N_BOOT = 10_000
 
@@ -30,12 +32,15 @@ def paired_bootstrap(
     n_boot: int = DEFAULT_N_BOOT,
     seed: int = DEFAULT_SEED,
 ) -> PairedResult:
-    diffs = np.asarray(diffs, dtype=float)
+    diffs = require_finite(diffs, "diffs")
     if clusters is None:
         groups = [np.array([d]) for d in diffs]
     else:
         clusters = np.asarray(clusters)
         groups = [diffs[clusters == c] for c in np.unique(clusters)]
+    # One resampling unit is a point mass: the CI would collapse to the point
+    # estimate (false certainty), so reject rather than mislead.
+    require_min_units(len(groups), 2, "resampling units")
     rng = np.random.default_rng(seed)
     boot = np.empty(n_boot)
     for i in range(n_boot):
@@ -48,6 +53,9 @@ def paired_bootstrap(
 
 def mcnemar_exact(b: int, c: int) -> float:
     """Exact two-sided McNemar p-value from discordant counts."""
+    for name, v in (("b", b), ("c", c)):
+        if not isinstance(v, (int, np.integer)) or v < 0:
+            raise ValueError(f"{name} must be a non-negative integer, got {v!r}")
     n = b + c
     if n == 0:
         return 1.0

@@ -85,12 +85,18 @@ def test_design_effect_above_one_with_cluster_correlation():
     assert res.design_effect > 1.0
 
 
-def test_single_cluster_se_is_degenerate_zero():
-    res = cluster.cluster_bootstrap(np.array([0.5, 0.6, 0.7]), np.array([1, 1, 1]), seed=20260611)
-    assert res.n_clusters == 1
-    # Resampling one cluster reproduces the sample, so the bootstrap distribution
-    # is a point mass: SE is zero up to float noise in np.std over n_boot means.
-    assert res.clustered_se == pytest.approx(0.0, abs=1e-9)
+def test_single_cluster_rejected():
+    # One cluster is a point mass under resampling: it would report se=0 (false
+    # certainty), so the preflight rejects it instead (review hardening).
+    with pytest.raises(ValueError, match="clusters"):
+        cluster.cluster_bootstrap(np.array([0.5, 0.6, 0.7]), np.array([1, 1, 1]), seed=20260611)
+
+
+def test_non_finite_values_rejected():
+    with pytest.raises(ValueError, match="non-finite"):
+        cluster.cluster_bootstrap(
+            np.array([0.5, np.nan, 0.7, 0.8]), np.array([1, 1, 2, 2]), seed=20260611
+        )
 
 
 def test_primary_rule_threshold():
