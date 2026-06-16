@@ -2997,10 +2997,23 @@ Jane runs, after confirming WP0 through WP4 merged and `.env` keys present:
 
 ```bash
 make epochs K=5 CONFIGS=custom-openai,custom-anthropic,langchain-openai,langchain-anthropic CONFIRM_PAID=1
-python -m stats_adapters.from_results_json --input results/epochs/<run_id> \
-    --golden agent_bench/evaluation/datasets/tech_docs_golden.json --out-dir results/long
+# convert_envelopes writes one CSV per run_id, and each config is its own
+# run_id, so convert EVERY run directory (not one) into the corpus directory.
+# The report loader (stats/report.py load_tables) keys a corpus by its parent
+# directory name and concatenates all per-config CSVs inside it, so the four
+# configs must land together under results/long/fastapi for the framework
+# equivalence and MDE sections to populate. A flat results/long would make each
+# config its own single-config corpus and those headline sections render empty.
+for run in results/epochs/*/; do
+    python -m stats_adapters.from_results_json --input "$run" \
+        --golden agent_bench/evaluation/datasets/tech_docs_golden.json \
+        --out-dir results/long/fastapi
+done
 make evaluate-stats
 ```
+
+(If the campaign spans more than one corpus, send each config's run to its own
+`results/long/<corpus>/` directory.)
 
 Expected scale: 27 questions x 5 epochs x 4 configs = 540 question-runs, cost well under 5 USD. Commit the raw envelopes under `results/epochs/` and the long tables under `results/long/` (storage decision: committed, per the design spec section 1).
 
