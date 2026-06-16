@@ -209,16 +209,35 @@ def render_report(tables: dict[str, pd.DataFrame], seed: int = DEFAULT_SEED) -> 
     return "\n".join(lines) + "\n"
 
 
+def load_tables(tables_dir: Path) -> dict[str, pd.DataFrame]:
+    """Assemble one long table per corpus from the per-config CSVs on disk.
+
+    WP5 directory convention: ``results/long/<corpus>/<run_id>.csv`` -- one CSV
+    per run, and each config is its own run_id, so a corpus directory holds one
+    CSV per config. The corpus is the CSV's parent directory name; all CSVs in
+    a corpus directory are concatenated into a single table so the cross-config
+    sections (framework equivalence, MDE) see every config at once. Keying by
+    file stem instead would split each config into its own single-config corpus
+    and those sections would render empty. Legacy rows land under ``legacy/``
+    and so form their own corpus bucket -- they never silently mix with fresh
+    data (WP1 rule).
+    """
+    groups: dict[str, list[pd.DataFrame]] = {}
+    for path in sorted(tables_dir.rglob("*.csv")):
+        df = pd.read_csv(path, dtype={"refused": "boolean"})
+        groups.setdefault(path.parent.name, []).append(df)
+    return {
+        corpus: pd.concat(frames, ignore_index=True) for corpus, frames in sorted(groups.items())
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tables", default="results/long", help="directory of long CSVs")
     parser.add_argument("--out", default="docs/_generated/stats_report.md")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     args = parser.parse_args()
-    tables = {
-        p.stem: pd.read_csv(p, dtype={"refused": "boolean"})
-        for p in sorted(Path(args.tables).rglob("*.csv"))
-    }
+    tables = load_tables(Path(args.tables))
     if not tables:
         raise SystemExit(f"no CSV tables under {args.tables}")
     out = Path(args.out)

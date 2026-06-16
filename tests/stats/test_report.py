@@ -69,3 +69,43 @@ def test_byte_stability_double_render():
 def test_golden_reports_byte_stable(name):
     expected = (FIXTURES / f"golden_report_{name}.md").read_text()
     assert _render(f"long_{name}.csv") == expected
+
+
+def _split_by_config(df: pd.DataFrame, dest: Path) -> None:
+    # Mirror the real pipeline shape: the adapter writes one CSV per run_id, and
+    # each config is its own run_id, so a corpus directory holds one CSV per
+    # config -- never a single combined table like the goldens use.
+    dest.mkdir(parents=True, exist_ok=True)
+    for i, (_, sub) in enumerate(df.groupby("config_id")):
+        sub.to_csv(dest / f"run{i}.csv", index=False)
+
+
+def test_load_tables_concatenates_per_config_csvs_so_cross_framework_sections_appear(tmp_path):
+    # The committed goldens render from one combined CSV carrying both configs,
+    # a shape the adapter cannot emit. This exercises the shape the WP5 pipeline
+    # actually produces (results/long/<corpus>/<run_id>.csv, one per config) and
+    # asserts the headline cross-framework sections are not silently empty.
+    base = pd.read_csv(FIXTURES / "long_base.csv", dtype={"refused": "boolean"})
+    _split_by_config(base, tmp_path / "fastapi")
+
+    tables = report.load_tables(tmp_path)
+
+    assert set(tables) == {"fastapi"}
+    assert sorted(tables["fastapi"]["config_id"].unique()) == sorted(base["config_id"].unique())
+    text = report.render_report(tables, seed=20260611)
+    assert "custom-mock+00000000 vs langchain-mock+00000000" in text  # equivalence populated
+    assert "Minimum detectable p_at_5 difference" in text  # MDE populated
+
+
+def test_load_tables_keeps_legacy_in_its_own_corpus_bucket(tmp_path):
+    # WP1 rule: legacy rows never silently mix with fresh data. Under the
+    # parent-directory convention, results/long/legacy/ is just another corpus
+    # bucket, kept separate by construction.
+    base = pd.read_csv(FIXTURES / "long_base.csv", dtype={"refused": "boolean"})
+    _split_by_config(base, tmp_path / "fastapi")
+    (tmp_path / "legacy").mkdir()
+    base.to_csv(tmp_path / "legacy" / "fastapi_postedit.csv", index=False)
+
+    tables = report.load_tables(tmp_path)
+
+    assert set(tables) == {"fastapi", "legacy"}
