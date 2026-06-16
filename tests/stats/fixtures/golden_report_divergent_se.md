@@ -1,0 +1,36 @@
+# Statistics report
+
+## Headline intervals: mini
+
+| config | metric | mean | 95 percent interval (primary) | naive SE | clustered SE | n_clusters | design effect |
+|---|---|---|---|---|---|---|---|
+| custom-mock+00000000 | p_at_5 | 0.750 | [0.681, 0.819] (question-level) | 0.0351 | 0.0526 | n_clusters=4 | design effect=2.25 |
+| custom-mock+00000000 | r_at_5 | 0.850 | [0.819, 0.880] (question-level) | 0.0155 | 0.0016 | n_clusters=4 | design effect=0.01 |
+| langchain-mock+00000000 | p_at_5 | 0.727 | [0.661, 0.793] (question-level) | 0.0337 | 0.0517 | n_clusters=4 | design effect=2.36 |
+| langchain-mock+00000000 | r_at_5 | 0.827 | [0.801, 0.853] (question-level) | 0.0134 | 0.0032 | n_clusters=4 | design effect=0.06 |
+
+correlation-sensitivity caution: mini langchain-mock+00000000 p_at_5: clustered SE 0.0517 exceeds 1.5x the question-level SE 0.0337; the question-level headline interval likely understates uncertainty.
+
+## Citation accuracy zero-failure bound: mini
+
+- custom-mock+00000000: 0 failures in 12 included questions (included n=12, excluded 0 citation-free questions; cited in all epochs: 12, in some epochs: 0). Exact Clopper-Pearson 95 percent upper bound on the per-question failure rate: 0.221 (rule of three approximation 3/n = 0.250).
+- langchain-mock+00000000: 0 failures in 12 included questions (included n=12, excluded 0 citation-free questions; cited in all epochs: 12, in some epochs: 0). Exact Clopper-Pearson 95 percent upper bound on the per-question failure rate: 0.221 (rule of three approximation 3/n = 0.250).
+
+## Framework equivalence (TOST): mini
+
+- custom-mock+00000000 vs langchain-mock+00000000, p_at_5: mean diff +0.023, 90 percent CI [+0.013, +0.031], n=12: equivalent within plus or minus 0.10; the data support equivalence down to plus or minus 0.031.
+- custom-mock+00000000 vs langchain-mock+00000000, r_at_5: mean diff +0.023, 90 percent CI [+0.013, +0.031], n=12: equivalent within plus or minus 0.10; the data support equivalence down to plus or minus 0.031.
+
+## Variance decomposition and power: mini
+
+- p_at_5 variance: between-question 0.01393, within-question 0.00031, ICC 0.98 (12 questions x 2 epochs).
+- Error budget preview: the interval above is the statistical term only; template sensitivity and judge bias are systematic terms, scoped for v3.2.
+- Minimum detectable p_at_5 difference at 80 percent power: 0.019 (normal approximation 0.016).
+
+## Methods appendix
+
+- Estimators: cluster bootstrap over cluster_id (10000 replicates); paired bootstrap on per-question epoch-mean differences; TOST at margin 0.10 absolute, alpha 0.05 per one-sided test, no multiplicity adjustment across P@5 and R@5 (pre-registered, design spec section 2, frozen 2026-06-11 before any WP5 data existed).
+- Zero-failure bounding: a question succeeds only if zero hallucinated citations occurred across all epochs and all citations; collapsing epochs bounds the any-of-k failure rate, which also bounds the per-answer rate.
+- Seed: 20260611. No wall-clock values appear in this report.
+- Input table mini: 144 rows, content hash 82afb1a83d3d.
+

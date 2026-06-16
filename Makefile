@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs evaluate-stats docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -59,6 +59,9 @@ stats-table:  ## Convert legacy results JSON to validated long CSV (free, offlin
 epochs:  ## PAID, HUMAN-RUN: repeat eval k times per config. Usage: make epochs K=5 CONFIGS=custom-openai,custom-anthropic CONFIRM_PAID=1
 	@test "$(CONFIRM_PAID)" = "1" || (echo "Refusing: paid target. Set CONFIRM_PAID=1 to run. Costs real API money." && exit 1)
 	$(PYTHON) scripts/run_epochs.py --k $(K) --configs $(CONFIGS) --allow-paid
+
+evaluate-stats:  ## Regenerate docs/_generated/stats_report.md from results/long (free, offline)
+	$(PYTHON) -m stats.report --tables results/long --out docs/_generated/stats_report.md
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build
