@@ -52,3 +52,27 @@ serving:
 evaluation:
   judge_provider: openai
   golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json
+
+# Mirrors configs/default.yaml so the custom-anthropic registry entry can run
+# `evaluate.py --corpus fastapi`. Without this block load_config leaves corpora
+# empty and the corpus lookup exits 1 mid-campaign (paid-path audit finding #1).
+default_corpus: fastapi
+
+corpora:
+  fastapi:
+    label: "FastAPI Docs"
+    store_path: .cache/store
+    data_path: data/tech_docs
+    refusal_threshold: 0.02
+    top_k: 5
+    max_iterations: 3
+    golden_dataset: agent_bench/evaluation/datasets/tech_docs_golden.json
+  k8s:
+    label: "Kubernetes"
+    store_path: .cache/store_k8s
+    data_path: data/k8s_docs
+    refusal_threshold: 0.015
+    top_k: 5
+    max_iterations: 3
+    golden_dataset: agent_bench/evaluation/datasets/k8s_golden.json
+    available: true

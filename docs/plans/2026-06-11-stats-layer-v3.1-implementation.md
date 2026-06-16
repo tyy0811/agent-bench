@@ -2993,17 +2993,33 @@ git commit -m "stats(wp4): golden report files for all degradation branches"
 
 ## WP5: Paid measurement campaign (HUMAN-RUN, not a Claude Code session)
 
-Jane runs, after confirming WP0 through WP4 merged and `.env` keys present:
+Jane runs, after confirming WP0 through WP4 and the paid-path-hardening PR
+merged and `.env` keys present. Three gates, cheapest first:
 
 ```bash
+# Gate 0 (free): validate every config resolves (corpora, golden, store, keys)
+# with zero API calls. Fix anything it reports BEFORE spending a cent.
+make epochs-dry-run
+
+# Gate 1 (cents): one real epoch of one custom + one langchain config, to exercise
+# the real-key / real-billing / real-CLI path the tests structurally cannot, then
+# convert+load+render and confirm a NON-EMPTY cross-framework section on real data.
+make epochs K=1 CONFIGS=custom-openai,langchain-openai CONFIRM_PAID=1
+for run in results/epochs/*/; do
+    python -m stats_adapters.from_results_json --input "$run" \
+        --golden agent_bench/evaluation/datasets/tech_docs_golden.json \
+        --out-dir results/long/fastapi
+done
+make evaluate-stats   # eyeball: equivalence + MDE sections populated
+
+# Gate 2 (full campaign, only after the smoke run is clean):
+# Raw output lives UNDER each run dir, so results/epochs/ holds only run_id dirs;
+# convert_envelopes writes one CSV per run_id (each config is its own run). Convert
+# EVERY run dir into the corpus dir: load_tables keys a corpus by its parent
+# directory and concatenates the per-config CSVs, so all four configs must land
+# together under results/long/fastapi for the equivalence and MDE sections to
+# populate (a flat results/long would split each config into its own corpus).
 make epochs K=5 CONFIGS=custom-openai,custom-anthropic,langchain-openai,langchain-anthropic CONFIRM_PAID=1
-# convert_envelopes writes one CSV per run_id, and each config is its own
-# run_id, so convert EVERY run directory (not one) into the corpus directory.
-# The report loader (stats/report.py load_tables) keys a corpus by its parent
-# directory name and concatenates all per-config CSVs inside it, so the four
-# configs must land together under results/long/fastapi for the framework
-# equivalence and MDE sections to populate. A flat results/long would make each
-# config its own single-config corpus and those headline sections render empty.
 for run in results/epochs/*/; do
     python -m stats_adapters.from_results_json --input "$run" \
         --golden agent_bench/evaluation/datasets/tech_docs_golden.json \

@@ -151,6 +151,11 @@ async def main_async(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    from dotenv import load_dotenv
+
+    # Load the gitignored .env so the provider's os.environ key reads succeed
+    # (nothing else loads it).
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Run evaluation harness")
     parser.add_argument("--config", default=None, help="Config YAML path")
     parser.add_argument(

@@ -226,9 +226,22 @@ def load_tables(tables_dir: Path) -> dict[str, pd.DataFrame]:
     for path in sorted(tables_dir.rglob("*.csv")):
         df = pd.read_csv(path, dtype={"refused": "boolean"})
         groups.setdefault(path.parent.name, []).append(df)
-    return {
-        corpus: pd.concat(frames, ignore_index=True) for corpus, frames in sorted(groups.items())
-    }
+    tables: dict[str, pd.DataFrame] = {}
+    for corpus, frames in sorted(groups.items()):
+        merged = pd.concat(frames, ignore_index=True)
+        # A config must come from exactly one run per corpus. Two run_ids for the
+        # same config (e.g. a re-run after a partial failure left an orphan run
+        # directory) would double-count that config's epochs, so refuse rather
+        # than silently average a partial and a full run (paid-path audit #9).
+        runs_per_config = merged.groupby("config_id")["run_id"].nunique()
+        dupes = sorted(runs_per_config[runs_per_config > 1].index)
+        if dupes:
+            raise ValueError(
+                f"corpus {corpus!r}: config(s) {dupes} appear under multiple run_ids; "
+                "remove the stale run directory before loading"
+            )
+        tables[corpus] = merged
+    return tables
 
 
 def main() -> None:
