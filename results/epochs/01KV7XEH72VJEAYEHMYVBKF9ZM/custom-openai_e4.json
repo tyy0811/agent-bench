@@ -1,0 +1,779 @@
+{
+ "run_id": "01KV7XEH72VJEAYEHMYVBKF9ZM",
+ "timestamp": "2026-06-16T10:03:02.719453+00:00",
+ "config_id": "custom-openai+470d79fa",
+ "code_version": "7219995-dirty",
+ "dataset_version": "sha-be308fab",
+ "epoch": 4,
+ "results": [
+  {
+   "question_id": "q001",
+   "question": "How do you define a path parameter in FastAPI?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.4,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.75,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7910.081451991573,
+   "tokens_used": {
+    "input_tokens": 1025,
+    "output_tokens": 161,
+    "estimated_cost_usd": 0.00025035
+   },
+   "answer": "In FastAPI, path parameters are defined by capturing variable segments of a URL path and passing them directly to your route handler function. They are declared using curly braces `{}` in the route path string and must have a corresponding parameter in the function signature. \n\nHere is a basic example:\n\n```python\nfrom fastapi import FastAPI\n\napp = FastAPI()\n\n@app.get(\"/users/{user_id}\")\nasync def read_user(user_id: int):\n    return {\"user_id\": user_id}\n```\n\nIn this example, `user_id` is a path parameter that will be captured from the URL when a request is made to `/users/{user_id}` [source: fastapi_path_params.md].",
+   "retrieved_sources": [
+    "fastapi_path_params.md",
+    "fastapi_request_body.md",
+    "fastapi_query_params.md",
+    "fastapi_path_params.md",
+    "fastapi_query_params.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q002",
+   "question": "What is the default page size for pagination in FastAPI and what is the maximum allowed?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6776.820368948393,
+   "tokens_used": {
+    "input_tokens": 1136,
+    "output_tokens": 55,
+    "estimated_cost_usd": 0.00020339999999999998
+   },
+   "answer": "The default page size for pagination in FastAPI is 20 items, and the maximum allowed page size is 100 items per page [source: fastapi_pagination.md].",
+   "retrieved_sources": [
+    "fastapi_pagination.md",
+    "fastapi_pagination.md",
+    "fastapi_path_params.md",
+    "fastapi_websockets.md",
+    "fastapi_pagination.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q003",
+   "question": "How does FastAPI handle CORS and what is the default max_age for preflight caching?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 3669.123077066615,
+   "tokens_used": {
+    "input_tokens": 1075,
+    "output_tokens": 62,
+    "estimated_cost_usd": 0.00019844999999999997
+   },
+   "answer": "FastAPI handles CORS (Cross-Origin Resource Sharing) using the `CORSMiddleware`. The default `max_age` for preflight caching is set to 600 seconds [source: fastapi_middleware.md].",
+   "retrieved_sources": [
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q004",
+   "question": "What algorithm and expiry time does the FastAPI security example use for JWT tokens?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5070.820385008119,
+   "tokens_used": {
+    "input_tokens": 1098,
+    "output_tokens": 56,
+    "estimated_cost_usd": 0.0001983
+   },
+   "answer": "The FastAPI security example uses the \"HS256\" algorithm for JWT tokens and sets the expiry time for access tokens to 30 minutes [source: fastapi_security.md].",
+   "retrieved_sources": [
+    "fastapi_security.md",
+    "fastapi_security.md",
+    "fastapi_security.md",
+    "fastapi_security.md",
+    "fastapi_security.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q005",
+   "question": "What is the recommended formula for calculating the number of Gunicorn workers for a FastAPI deployment?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.5,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6628.882691031322,
+   "tokens_used": {
+    "input_tokens": 1122,
+    "output_tokens": 165,
+    "estimated_cost_usd": 0.0002673
+   },
+   "answer": "The recommended formula for calculating the number of Gunicorn workers for a FastAPI deployment is to use the following command:\n\n```bash\ngunicorn main:app \\\n    --workers 4 \\\n    --worker-class uvicorn.workers.UvicornWorker \\\n    --bind 0.0.0.0:8000 \\\n    --timeout 120 \\\n    --graceful-timeout 30 \\\n    --keep-alive 5 \\\n    --max-requests 1000 \\\n    --max-requests-jitter 50 \\\n    --access-logfile -\n```\n\nIn this example, `--workers 4` specifies the number of worker processes to be used [source: fastapi_deployment.md].",
+   "retrieved_sources": [
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_intro.md",
+    "fastapi_intro.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q006",
+   "question": "How does dependency caching work in FastAPI, and how can you disable it?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5706.033483962528,
+   "tokens_used": {
+    "input_tokens": 1074,
+    "output_tokens": 170,
+    "estimated_cost_usd": 0.0002631
+   },
+   "answer": "In FastAPI, dependency caching works by caching the result of a dependency if it is used multiple times within a single request. This means that if the same dependency is called more than once (for example, in both a route and a sub-dependency), FastAPI will only call the dependency once and reuse the result for subsequent calls within that request.\n\nTo disable this caching behavior and force a fresh call to the dependency each time it is used, you can set the `use_cache` parameter to `False` when declaring the dependency. For example:\n\n```python\nDepends(get_db, use_cache=False)\n```\n\nThis will ensure that the dependency is executed anew each time it is needed, rather than using a cached result [source: fastapi_dependencies.md].",
+   "retrieved_sources": [
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q007",
+   "question": "If a paginated endpoint returns 20 items per page and there are 10,000 items total, how many total pages are there? And if the page size is changed to 30, how many pages would there be?",
+   "category": "calculation",
+   "difficulty": "medium",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.75,
+   "has_source_citation": false,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 2,
+   "latency_ms": 3283.3847819129005,
+   "tokens_used": {
+    "input_tokens": 604,
+    "output_tokens": 110,
+    "estimated_cost_usd": 0.0001566
+   },
+   "answer": "If a paginated endpoint returns 20 items per page, there would be a total of 500 pages. If the page size is changed to 30, there would be approximately 333 pages (specifically, 333.33, which means 334 pages when rounded up).",
+   "retrieved_sources": [],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q008",
+   "question": "Does FastAPI support automatic Kubernetes deployment?",
+   "category": "out_of_scope",
+   "difficulty": "easy",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.3333333333333333,
+   "has_source_citation": true,
+   "grounded_refusal": false,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 3436.477222945541,
+   "tokens_used": {
+    "input_tokens": 1148,
+    "output_tokens": 46,
+    "estimated_cost_usd": 0.00019979999999999998
+   },
+   "answer": "The FastAPI documentation does not explicitly mention support for automatic Kubernetes deployment. Therefore, I cannot provide an answer based on the FastAPI Docs documentation.",
+   "retrieved_sources": [
+    "fastapi_configuration.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q009",
+   "question": "How does FastAPI integrate with Apache Kafka for event streaming?",
+   "category": "out_of_scope",
+   "difficulty": "easy",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.6666666666666666,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 4901.866114931181,
+   "tokens_used": {
+    "input_tokens": 932,
+    "output_tokens": 53,
+    "estimated_cost_usd": 0.0001716
+   },
+   "answer": "The FastAPI Docs documentation does not contain any information regarding the integration of FastAPI with Apache Kafka for event streaming. Therefore, I cannot provide an answer to your question.",
+   "retrieved_sources": [
+    "fastapi_security.md",
+    "fastapi_intro.md",
+    "fastapi_intro.md",
+    "fastapi_websockets.md",
+    "fastapi_intro.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q010",
+   "question": "Can FastAPI generate GraphQL schemas natively?",
+   "category": "out_of_scope",
+   "difficulty": "easy",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.3333333333333333,
+   "has_source_citation": true,
+   "grounded_refusal": false,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 3122.6436039432883,
+   "tokens_used": {
+    "input_tokens": 1003,
+    "output_tokens": 52,
+    "estimated_cost_usd": 0.00018165
+   },
+   "answer": "The FastAPI documentation does not mention the capability to generate GraphQL schemas natively. Therefore, I cannot provide an answer to your question based on the FastAPI Docs documentation.",
+   "retrieved_sources": [
+    "fastapi_openapi.md",
+    "fastapi_openapi.md",
+    "fastapi_openapi.md",
+    "fastapi_response_model.md",
+    "fastapi_openapi.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q011",
+   "question": "What is the default Swagger UI endpoint in FastAPI?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.6666666666666666,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 4301.671109045856,
+   "tokens_used": {
+    "input_tokens": 1027,
+    "output_tokens": 39,
+    "estimated_cost_usd": 0.00017744999999999998
+   },
+   "answer": "The default Swagger UI endpoint in FastAPI is `/docs` [source: fastapi_openapi.md].",
+   "retrieved_sources": [
+    "fastapi_openapi.md",
+    "fastapi_openapi.md",
+    "fastapi_openapi.md",
+    "fastapi_intro.md",
+    "fastapi_intro.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q012",
+   "question": "How do you raise an HTTP error in a FastAPI route handler?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7092.094245017506,
+   "tokens_used": {
+    "input_tokens": 1091,
+    "output_tokens": 176,
+    "estimated_cost_usd": 0.00026924999999999996
+   },
+   "answer": "To raise an HTTP error in a FastAPI route handler, you can use the `HTTPException` class. Here is an example of how to do this:\n\n```python\nfrom fastapi import FastAPI, HTTPException\n\napp = FastAPI()\n\n@app.get(\"/items/{item_id}\")\nasync def read_item(item_id: str):\n    if item_id not in items:\n        raise HTTPException(status_code=404, detail=\"Item not found\")\n    return items[item_id]\n```\n\nWhen you raise `HTTPException`, it immediately terminates request processing and returns the specified status code and detail message. The `detail` parameter can be a string, list, or dictionary, and FastAPI will serialize it to JSON automatically [source: fastapi_error_handling.md].",
+   "retrieved_sources": [
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_dependencies.md",
+    "fastapi_error_handling.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q013",
+   "question": "How do you define a request body in FastAPI?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.4,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7246.4755330001935,
+   "tokens_used": {
+    "input_tokens": 1024,
+    "output_tokens": 207,
+    "estimated_cost_usd": 0.0002778
+   },
+   "answer": "In FastAPI, a request body is defined using Pydantic models. A request body typically contains data sent by the client to your API, often in JSON format for POST, PUT, or PATCH requests. Here\u2019s how you can define a request body:\n\n1. Import FastAPI and Pydantic's BaseModel.\n2. Create a Pydantic model that represents the structure of the request body.\n\nHere is an example:\n\n```python\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass Item(BaseModel):\n    name: str\n    description: str | None = None\n    price: float\n    tax: float = 0.0\n```\n\nIn this example, the `Item` class is a Pydantic model that defines the expected fields in the request body, including their types and optional values [source: fastapi_request_body.md].",
+   "retrieved_sources": [
+    "fastapi_request_body.md",
+    "fastapi_request_body.md",
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q014",
+   "question": "What testing tools does FastAPI use, and what class provides the test client?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.3333333333333333,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6029.510607011616,
+   "tokens_used": {
+    "input_tokens": 1129,
+    "output_tokens": 72,
+    "estimated_cost_usd": 0.00021255
+   },
+   "answer": "FastAPI applications are tested using the `TestClient` class, which provides a synchronous interface for sending requests to your application without running an actual server. For asynchronous testing, you can use `httpx.AsyncClient` [source: fastapi_testing.md].",
+   "retrieved_sources": [
+    "fastapi_testing.md",
+    "fastapi_testing.md",
+    "fastapi_testing.md",
+    "fastapi_openapi.md",
+    "fastapi_testing.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q015",
+   "question": "How does FastAPI manage application configuration and environment variables?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 8302.640245994553,
+   "tokens_used": {
+    "input_tokens": 1072,
+    "output_tokens": 202,
+    "estimated_cost_usd": 0.000282
+   },
+   "answer": "FastAPI manages application configuration and environment variables using Pydantic's `BaseSettings` class. This allows for type-safe configuration with validation, default values, and automatic reading of environment variables and `.env` files. The priority order for reading configuration values is as follows:\n\n1. Constructor arguments passed directly to `Settings()`\n2. Environment variables\n3. Variables from the `.env` file\n4. Default values defined in the model\n\nAdditionally, FastAPI supports secrets management, where if `secrets_dir` is set, Pydantic looks for files named after each field, and the contents of these files become the field values. The priority order for secrets is:\n\n1. Constructor arguments\n2. Environment variables\n3. Secret files\n4. `.env` file\n5. Default values\n\nThis setup allows for flexible and secure management of application settings and secrets [source: fastapi_configuration.md].",
+   "retrieved_sources": [
+    "fastapi_configuration.md",
+    "fastapi_configuration.md",
+    "fastapi_configuration.md",
+    "fastapi_configuration.md",
+    "fastapi_intro.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q016",
+   "question": "What is the minimum response size for GZip compression middleware in FastAPI, and how do you enable it?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5119.463950046338,
+   "tokens_used": {
+    "input_tokens": 1091,
+    "output_tokens": 110,
+    "estimated_cost_usd": 0.00022965
+   },
+   "answer": "The minimum response size for GZip compression middleware in FastAPI is set to 500 bytes by default. You can enable GZip compression by adding the middleware to your FastAPI application like this:\n\n```python\nfrom fastapi.middleware.gzip import GZipMiddleware\n\napp.add_middleware(GZipMiddleware, minimum_size=500)\n```\n\nResponses smaller than this threshold will be sent uncompressed [source: fastapi_middleware.md].",
+   "retrieved_sources": [
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q017",
+   "question": "How do yield dependencies work in FastAPI and what is the maximum number supported per request?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.75,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6188.667746027932,
+   "tokens_used": {
+    "input_tokens": 1053,
+    "output_tokens": 129,
+    "estimated_cost_usd": 0.00023535
+   },
+   "answer": "In FastAPI, yield dependencies allow you to run setup code before the route handler executes and cleanup code after the response is sent. This is particularly useful for managing resources like database sessions. You can define a yield dependency using the `yield` statement in a function, which will execute the code before `yield` when the dependency is called and the code after `yield` when the response is sent [source: fastapi_dependencies.md].\n\nFastAPI supports up to 32 yield dependencies per request by default [source: fastapi_dependencies.md].",
+   "retrieved_sources": [
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md",
+    "fastapi_dependencies.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q018",
+   "question": "What are the three documentation endpoints FastAPI exposes by default and what OpenAPI version does it use?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5483.59681898728,
+   "tokens_used": {
+    "input_tokens": 1070,
+    "output_tokens": 103,
+    "estimated_cost_usd": 0.00022229999999999998
+   },
+   "answer": "FastAPI exposes three documentation-related endpoints by default:\n\n1. `/docs` - Swagger UI -- interactive API explorer\n2. `/redoc` - ReDoc -- alternative documentation viewer\n3. `/openapi.json` - Raw OpenAPI schema in JSON format\n\nFastAPI uses OpenAPI version 3.1.0 for its schema generation [source: fastapi_openapi.md].",
+   "retrieved_sources": [
+    "fastapi_openapi.md",
+    "fastapi_openapi.md",
+    "fastapi_intro.md",
+    "fastapi_openapi.md",
+    "fastapi_openapi.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q019",
+   "question": "How does FastAPI handle WebSocket connections, and what must be called before sending data?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.75,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6555.336176999845,
+   "tokens_used": {
+    "input_tokens": 1067,
+    "output_tokens": 109,
+    "estimated_cost_usd": 0.00022544999999999998
+   },
+   "answer": "FastAPI handles WebSocket connections using Starlette's WebSocket implementation, which allows for full-duplex, bidirectional communication. To set up a WebSocket endpoint, you use the `@app.websocket()` decorator. \n\nBefore sending or receiving any data, you must call `await ws.accept()`. This method sends the HTTP 101 Switching Protocols response to the client, establishing the WebSocket connection [source: fastapi_websockets.md].",
+   "retrieved_sources": [
+    "fastapi_websockets.md",
+    "fastapi_websockets.md",
+    "fastapi_websockets.md",
+    "fastapi_intro.md",
+    "fastapi_websockets.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q020",
+   "question": "For a server with 4 CPU cores, how many Gunicorn workers should be configured using the recommended formula?",
+   "category": "calculation",
+   "difficulty": "medium",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": false,
+   "tool_calls_made": 1,
+   "latency_ms": 4920.625865925103,
+   "tokens_used": {
+    "input_tokens": 1099,
+    "output_tokens": 66,
+    "estimated_cost_usd": 0.00020444999999999998
+   },
+   "answer": "The recommended number of Gunicorn workers is calculated using the formula `(2 * CPU_CORES) + 1`. For a server with 4 CPU cores, this results in 9 workers [source: fastapi_deployment.md].",
+   "retrieved_sources": [
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md",
+    "fastapi_deployment.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q021",
+   "question": "If the CORS max_age is 600 seconds, how many minutes does the browser cache preflight results?",
+   "category": "calculation",
+   "difficulty": "easy",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": false,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 1427.9497049283236,
+   "tokens_used": {
+    "input_tokens": 507,
+    "output_tokens": 40,
+    "estimated_cost_usd": 0.00010004999999999999
+   },
+   "answer": "If the CORS max_age is 600 seconds, the browser caches preflight results for 10 minutes.",
+   "retrieved_sources": [],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q022",
+   "question": "How do route ordering and dependency injection interact when building a secure FastAPI application with scoped endpoints?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 0.4,
+   "retrieval_recall": 0.3333333333333333,
+   "keyword_hit_rate": 0.25,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 3279.10220308695,
+   "tokens_used": {
+    "input_tokens": 1051,
+    "output_tokens": 65,
+    "estimated_cost_usd": 0.00019664999999999998
+   },
+   "answer": "The FastAPI documentation does not provide specific information on how route ordering and dependency injection interact when building a secure application with scoped endpoints. Therefore, I cannot answer your question based on the FastAPI Docs documentation.",
+   "retrieved_sources": [
+    "fastapi_dependencies.md",
+    "fastapi_websockets.md",
+    "fastapi_dependencies.md",
+    "fastapi_configuration.md",
+    "fastapi_intro.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q023",
+   "question": "How would you set up a FastAPI application with custom error handling, CORS middleware, and structured testing including dependency overrides?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 0.3333333333333333,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 3,
+   "latency_ms": 18221.252289949916,
+   "tokens_used": {
+    "input_tokens": 2536,
+    "output_tokens": 820,
+    "estimated_cost_usd": 0.0008724000000000001
+   },
+   "answer": "To set up a FastAPI application with custom error handling, CORS middleware, and structured testing including dependency overrides, you can follow these guidelines:\n\n### Custom Error Handling\nFastAPI allows you to handle errors using the `HTTPException` class and custom exception handlers. Here\u2019s how you can implement it:\n\n1. **Using `HTTPException`:**\n   You can raise an `HTTPException` in your route handlers to return error responses.\n   ```python\n   from fastapi import FastAPI, HTTPException\n\n   app = FastAPI()\n\n   @app.get(\"/items/{item_id}\")\n   async def read_item(item_id: str):\n       if item_id not in items:\n           raise HTTPException(status_code=404, detail=\"Item not found\")\n       return items[item_id]\n   ```\n\n2. **Custom Exception Handlers:**\n   You can register custom handlers for specific exceptions.\n   ```python\n   from fastapi import FastAPI, Request\n   from fastapi.responses import JSONResponse\n\n   class ItemNotFoundException(Exception):\n       def __init__(self, item_id: str):\n           self.item_id = item_id\n\n   @app.exception_handler(ItemNotFoundException)\n   async def item_not_found_exception_handler(request: Request, exc: ItemNotFoundException):\n       return JSONResponse(\n           status_code=404,\n           content={\"detail\": f\"Item {exc.item_id} not found\"},\n       )\n   ``` \n   [source: fastapi_error_handling.md]\n\n### CORS Middleware\nTo enable Cross-Origin Resource Sharing (CORS), you can use the `CORSMiddleware` provided by FastAPI. Here\u2019s how to set it up:\n\n```python\nfrom fastapi import FastAPI\nfrom fastapi.middleware.cors import CORSMiddleware\n\napp = FastAPI()\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=[\"https://example.com\", \"https://app.example.com\"],\n    allow_credentials=True,\n    allow_methods=[\"GET\", \"POST\", \"PUT\", \"DELETE\"],\n    allow_headers=[\"Authorization\", \"Content-Type\"],\n    expose_headers=[\"X-Custom-Header\"],\n    max_age=600,\n)\n```\nThis configuration allows specified origins and methods while handling credentials and headers appropriately. [source: fastapi_middleware.md]\n\n### Structured Testing with Dependency Overrides\nFor testing, you can override dependencies to inject mock services or test databases. Here\u2019s an example:\n\n1. **Define your dependency:**\n   ```python\n   from fastapi import FastAPI, Depends\n\n   app = FastAPI()\n\n   async def get_db():\n       db = ProductionDatabase()\n       try:\n           yield db\n       finally:\n           db.close()\n\n   @app.get(\"/items/\")\n   async def read_items(db=Depends(get_db)):\n       return db.query_all_items()\n   ```\n\n2. **Override the dependency in your tests:**\n   ```python\n   from fastapi.testclient import TestClient\n\n   def get_test_db():\n       db = TestDatabase()\n       try:\n           yield db\n       finally:\n           db.close()\n\n   app.dependency_overrides[get_db] = get_test_db\n\n   client = TestClient(app)\n\n   def test_read_items():\n       response = client.get(\"/items/\")\n       assert response.status_code == 200\n   ```\n\n3. **Clean up after tests:**\n   Always clear the overrides after your tests to prevent leaks.\n   ```python\n   app.dependency_overrides.clear()\n   ```\n   [source: fastapi_testing.md] \n\nBy following these steps, you can effectively set up a FastAPI application with custom error handling, CORS middleware, and structured testing with dependency overrides.",
+   "retrieved_sources": [
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_error_handling.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_middleware.md",
+    "fastapi_testing.md",
+    "fastapi_testing.md",
+    "fastapi_configuration.md",
+    "fastapi_testing.md",
+    "fastapi_dependencies.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q024",
+   "question": "Explain how to deploy a FastAPI app with Docker using Gunicorn workers, health checks, and environment-based configuration via Pydantic Settings.",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 13576.019432977773,
+   "tokens_used": {
+    "input_tokens": 1111,
+    "output_tokens": 640,
+    "estimated_cost_usd": 0.00055065
+   },
+   "answer": "To deploy a FastAPI app with Docker using Gunicorn workers, health checks, and environment-based configuration via Pydantic Settings, follow these steps:\n\n1. **Dockerfile Setup**:\n   Create a `Dockerfile` for your FastAPI application. You can use Gunicorn as the ASGI server. Here\u2019s a basic example:\n\n   ```dockerfile\n   FROM python:3.9\n\n   WORKDIR /app\n\n   COPY requirements.txt .\n   RUN pip install -r requirements.txt\n\n   COPY . .\n\n   # Command to run the app with Gunicorn\n   CMD [\"gunicorn\", \"-w\", \"4\", \"-k\", \"uvicorn.workers.UvicornWorker\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]\n   ```\n\n   In this example, `-w 4` specifies the number of worker processes.\n\n2. **Health Check Endpoint**:\n   Include a health check endpoint in your FastAPI application:\n\n   ```python\n   from fastapi import FastAPI\n\n   app = FastAPI()\n\n   @app.get(\"/health\", status_code=200)\n   async def health_check():\n       return {\"status\": \"healthy\"}\n   ```\n\n   This endpoint will be used for health checks by Docker or any orchestration tool [source: fastapi_deployment.md].\n\n3. **Docker Health Check Configuration**:\n   Add a health check configuration in your `Dockerfile`:\n\n   ```dockerfile\n   HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \\\n       CMD curl -f http://localhost:8000/health || exit 1\n   ```\n\n   This configuration checks the health of your application every 30 seconds [source: fastapi_deployment.md].\n\n4. **Environment-Based Configuration with Pydantic Settings**:\n   Use Pydantic's `BaseSettings` to manage your application configuration through environment variables. First, install the necessary package:\n\n   ```bash\n   pip install pydantic-settings\n   ```\n\n   Then, define your settings as follows:\n\n   ```python\n   from pydantic import BaseSettings\n\n   class Settings(BaseSettings):\n       database_password: str\n       api_key: str\n       jwt_secret: str\n\n       class Config:\n           env_file = \".env\"\n           secrets_dir = \"/run/secrets\"\n   ```\n\n   This allows you to read configuration from environment variables or a `.env` file [source: fastapi_configuration.md].\n\n5. **Building and Running the Docker Container**:\n   Finally, build and run your Docker container:\n\n   ```bash\n   docker build -t myfastapiapp .\n   docker run -d -p 8000:8000 myfastapiapp\n   ```\n\nThis setup will allow you to deploy your FastAPI application with Docker, using Gunicorn workers, health checks, and environment-based configuration via Pydantic Settings.",
+   "retrieved_sources": [
+    "fastapi_deployment.md",
+    "fastapi_configuration.md",
+    "fastapi_configuration.md",
+    "fastapi_request_body.md",
+    "fastapi_deployment.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q025",
+   "question": "How would you build a paginated API with cursor-based navigation, response model validation, and background task processing for analytics logging?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 0.6666666666666666,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 11002.401518984698,
+   "tokens_used": {
+    "input_tokens": 1161,
+    "output_tokens": 557,
+    "estimated_cost_usd": 0.00050835
+   },
+   "answer": "To build a paginated API with cursor-based navigation, response model validation, and background task processing for analytics logging in FastAPI, you can follow these guidelines:\n\n1. **Cursor-Based Pagination**: This method uses an opaque token (cursor) that points to the last item in the previous page, which helps avoid performance degradation associated with large offsets. Here's a basic implementation:\n\n   ```python\n   from fastapi import FastAPI, Query\n   from typing import List\n\n   app = FastAPI()\n\n   @app.get(\"/items/\", response_model=PaginatedResponse[Item])\n   async def list_items(cursor: str = None, limit: int = Query(default=20, ge=1, le=100)):\n       # Logic to retrieve items based on cursor\n       # Return paginated response\n   ```\n\n   Cursor-based pagination is recommended for datasets exceeding 100,000 records or for real-time feeds where items may be inserted or deleted between page requests [source: fastapi_pagination.md].\n\n2. **Response Model Validation**: You can use Pydantic models to define the structure of your response. For example:\n\n   ```python\n   from pydantic import BaseModel\n   from typing import List\n\n   class Item(BaseModel):\n       id: int\n       name: str\n\n   class PaginatedResponse(BaseModel):\n       items: List[Item]\n       total: int\n       page: int\n       per_page: int\n       total_pages: int\n   ```\n\n   This ensures that the API responses conform to the expected structure [source: fastapi_pagination.md].\n\n3. **Background Task Processing**: FastAPI allows you to schedule tasks to run after the response has been sent. This is useful for logging analytics or other operations that do not need to complete before the user receives a response. Here\u2019s how you can implement it:\n\n   ```python\n   from fastapi import FastAPI, BackgroundTasks\n\n   app = FastAPI()\n\n   def write_log(message: str):\n       with open(\"log.txt\", \"a\") as f:\n           f.write(f\"{message}\\n\")\n\n   @app.get(\"/items/\")\n   async def list_items(background_tasks: BackgroundTasks):\n       background_tasks.add_task(write_log, \"Analytics log entry\")\n       # Logic to retrieve and return items\n   ```\n\n   This allows you to log analytics or perform other tasks without delaying the response to the client [source: fastapi_background_tasks.md].\n\nBy combining these elements, you can create a robust paginated API that efficiently handles large datasets, validates responses, and processes background tasks for logging or analytics.",
+   "retrieved_sources": [
+    "fastapi_pagination.md",
+    "fastapi_pagination.md",
+    "fastapi_background_tasks.md",
+    "fastapi_pagination.md",
+    "fastapi_pagination.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q026",
+   "question": "Does FastAPI have built-in support for database migrations like Alembic?",
+   "category": "out_of_scope",
+   "difficulty": "easy",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.3333333333333333,
+   "has_source_citation": false,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 4710.498534026556,
+   "tokens_used": {
+    "input_tokens": 500,
+    "output_tokens": 30,
+    "estimated_cost_usd": 9.3e-05
+   },
+   "answer": "The answer is not in the FastAPI Docs documentation.",
+   "retrieved_sources": [],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "q027",
+   "question": "How does FastAPI handle automatic load balancing across multiple servers?",
+   "category": "out_of_scope",
+   "difficulty": "easy",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.3333333333333333,
+   "has_source_citation": false,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5217.116830055602,
+   "tokens_used": {
+    "input_tokens": 495,
+    "output_tokens": 31,
+    "estimated_cost_usd": 9.285000000000001e-05
+   },
+   "answer": "The answer is not in the FastAPI Docs documentation.",
+   "retrieved_sources": [],
+   "judge_scores": {}
+  }
+ ]
+}
