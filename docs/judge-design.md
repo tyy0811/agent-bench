@@ -374,6 +374,42 @@ reporting cleanly: per-dimension weight metric reusing the
 `_DIM_METRIC` mapping already used for reporting. AC1 where κ
 degenerates; κ where the gold's prevalence supports it.
 
+### 1.7 Agreement uncertainty (v3.1 stats layer)
+
+Every headline agreement number is a point estimate over a 26 to 30 item label
+set, so it carries sampling uncertainty that a bare point hides. The v3.1
+statistics layer (`stats/agreement.py`, a pure percentile bootstrap, 10000
+replicates, seed 20260611) puts a 95 percent interval on each, joining the hand
+labels against the v1.1 jury outputs through
+`stats_adapters/calibration_agreement.py`. The point estimates reproduce
+`docs/_generated/kappa_table.md` exactly, and so does the completeness upper
+bound: both keep the degenerate resamples (every drawn item in one category,
+where κ is undefined) as perfect agreement rather than dropping them, because
+dropping those maximum-agreement draws would narrow the interval
+anti-conservatively. The lower bound differs from the table only by the bootstrap
+seed and replicate count.
+
+| Dimension | Metric | Point | 95% CI | N |
+|---|---|---|---|---|
+| groundedness | AC1 | 1.000 | (1.000, 1.000) | 26 |
+| relevance | AC1 | 1.000 | (1.000, 1.000) | 30 |
+| completeness | κ | 0.416 | (-0.083, 0.866) | 26 |
+
+The completeness κ of 0.416 gets an interval, not an excuse, and that interval
+includes zero: at 26 items the data are consistent with no agreement above
+chance. This is a descriptive interval, not a formal test of κ = 0; the point
+estimate looks moderate, but the interval spans from no-better-than-chance to
+strong, so a single headline number oversells it. κ collapsing on small
+resamples is exactly the instability Gwet's AC1 was built to avoid, so where κ
+degenerates AC1 is the more reliable read; that is why both are reported and the
+κ resample convention is not worth over-engineering. The groundedness and
+relevance intervals collapse to a point only because the v1.1 jury matched every
+joined label on those dimensions: perfect observed agreement leaves the bootstrap
+nothing to resample into disagreement, a small-sample artifact, not certainty.
+The honest reading of all three is the same. With roughly 30 calibration items
+the agreement estimates are directional, and the documented next step is a larger
+labeled set, not a tighter claim on this one.
+
 ---
 
 ## 2. Position statement — when not to use LLM-judge
