@@ -391,9 +391,10 @@ table at the 0.02 level only because the two are independent bootstrap instances
 | relevance | AC1 | 1.000 | (1.000, 1.000) | 30 |
 | completeness | κ | 0.416 | (-0.083, 0.835) | 26 |
 
-The completeness κ of 0.416 gets an interval, not an excuse. That interval runs
-from below zero to 0.835, so at 26 items the completeness agreement is
-consistent with anything from no-better-than-chance to strong, and the single
+The completeness κ of 0.416 gets an interval, not an excuse, and that interval
+includes zero. At 26 items the κ of 0.416 cannot be statistically distinguished
+from chance agreement (κ = 0): the point estimate looks moderate, but the data
+are consistent with anything from no-better-than-chance to strong, so a single
 headline number oversells it. The groundedness and relevance intervals collapse
 to a point only because the v1.1 jury matched every joined label on those
 dimensions: perfect observed agreement leaves the bootstrap nothing to resample
