@@ -18,6 +18,7 @@ from stats.equivalence import tost_paired
 from stats.intervals import clopper_pearson, rule_of_three, zero_failure_upper
 from stats.paired import paired_bootstrap
 from stats.power import mde, mde_normal_approx
+from stats.reliability import pass_k
 from stats.variance import decompose
 
 HEADLINE_METRICS = ("p_at_5", "r_at_5")
@@ -338,6 +339,28 @@ def _readme_values_section(tables: dict[str, pd.DataFrame], seed: int) -> list[s
     return lines
 
 
+def _pass_k_section(df: pd.DataFrame, corpus: str) -> list[str]:
+    # Rendered only when refusal_correct rows exist (the fixtures carry no such
+    # rows, so the golden reports are unaffected). pass^k is per config: a
+    # question passes only if every epoch refused correctly.
+    if df[df["metric"] == "refusal_correct"].empty:
+        return []
+    lines = [f"## Refusal reliability (pass^k): {corpus}", ""]
+    lines.append("| config | k | pass^k | 95 percent interval | n_questions |")
+    lines.append("|---|---|---|---|---|")
+    for config in sorted(df["config_id"].unique()):
+        csub = df[df["config_id"] == config]
+        if csub[csub["metric"] == "refusal_correct"].empty:
+            continue
+        res = pass_k(csub, "refusal_correct")
+        lines.append(
+            f"| {config} | {res.k} | {res.rate:.3f} | "
+            f"[{res.ci_low:.3f}, {res.ci_high:.3f}] | {res.n_questions} |"
+        )
+    lines.append("")
+    return lines
+
+
 def render_report(tables: dict[str, pd.DataFrame], seed: int = DEFAULT_SEED) -> str:
     lines = ["# Statistics report", ""]
     for corpus, df in sorted(tables.items()):
@@ -345,6 +368,7 @@ def render_report(tables: dict[str, pd.DataFrame], seed: int = DEFAULT_SEED) -> 
         lines.extend(_citation_section(df, corpus))
         lines.extend(_equivalence_section(df, corpus, seed))
         lines.extend(_variance_power_section(df, corpus, seed))
+        lines.extend(_pass_k_section(df, corpus))
     lines.extend(_methods_appendix(tables, seed))
     lines.extend(_readme_values_section(tables, seed))
     return "\n".join(lines) + "\n"

@@ -37,6 +37,15 @@
 - Error budget preview: the interval above is the statistical term only; template sensitivity and judge bias are systematic terms, scoped for v3.2.
 - Minimum detectable p_at_5 difference at 80 percent power: 0.110 (normal approximation 0.136).
 
+## Refusal reliability (pass^k): fastapi
+
+| config | k | pass^k | 95 percent interval | n_questions |
+|---|---|---|---|---|
+| custom-anthropic+0bc9cd53 | 5 | 0.400 | [0.118, 0.769] | 5 |
+| custom-openai+470d79fa | 5 | 0.600 | [0.231, 0.882] | 5 |
+| langchain-anthropic+claude-haiku-4-5-20251001 | 5 | 0.200 | [0.036, 0.624] | 5 |
+| langchain-openai+gpt-4o-mini | 5 | 0.600 | [0.231, 0.882] | 5 |
+
 ## Methods appendix
 
 - Estimators: cluster bootstrap over cluster_id (10000 replicates); paired bootstrap on per-question epoch-mean differences; TOST at margin 0.10 absolute, alpha 0.05 per one-sided test, no multiplicity adjustment across P@5 and R@5 (pre-registered, design spec section 2, frozen 2026-06-11 before any WP5 data existed).
