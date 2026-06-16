@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run evaluate-stats docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run evaluate-stats canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -9,9 +9,9 @@ test:
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 lint:
-	ruff check agent_bench/ stats/ stats_adapters/ tests/ scripts/run_epochs.py
-	ruff format --check stats/ stats_adapters/ tests/stats/ scripts/run_epochs.py
-	mypy agent_bench/ stats/ stats_adapters/ scripts/run_epochs.py --ignore-missing-imports
+	ruff check agent_bench/ stats/ stats_adapters/ tests/ scripts/run_epochs.py scripts/run_canary_eval.py
+	ruff format --check stats/ stats_adapters/ tests/stats/ scripts/run_epochs.py scripts/run_canary_eval.py
+	mypy agent_bench/ stats/ stats_adapters/ scripts/run_epochs.py scripts/run_canary_eval.py --ignore-missing-imports
 
 serve:
 	$(PYTHON) -m uvicorn agent_bench.serving.app:create_app --factory --reload --port 8000
@@ -66,6 +66,11 @@ epochs-dry-run:  ## Free pre-spend gate: validate the WP5 configs (corpora, gold
 
 evaluate-stats:  ## Regenerate docs/_generated/stats_report.md from results/long (free, offline)
 	$(PYTHON) -m stats.report --tables results/long --out docs/_generated/stats_report.md
+
+canary-report:  ## Regenerate docs/_generated/canary_detection.md from the committed canary fixtures (free, offline; verdicts are simulated)
+	$(PYTHON) scripts/run_canary_eval.py build-report \
+		--canaries tests/stats/fixtures/canary/canaries.json \
+		--predictions tests/stats/fixtures/canary/predictions.json
 
 docker:
 	docker-compose -f docker/docker-compose.yaml up --build
