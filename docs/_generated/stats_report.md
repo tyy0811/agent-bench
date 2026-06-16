@@ -39,12 +39,12 @@
 
 ## Refusal reliability (pass^k): fastapi
 
-| config | k | pass^k | 95 percent interval | n_questions |
-|---|---|---|---|---|
-| custom-anthropic+0bc9cd53 | 5 | 0.400 | [0.118, 0.769] | 5 |
-| custom-openai+470d79fa | 5 | 0.600 | [0.231, 0.882] | 5 |
-| langchain-anthropic+claude-haiku-4-5-20251001 | 5 | 0.200 | [0.036, 0.624] | 5 |
-| langchain-openai+gpt-4o-mini | 5 | 0.600 | [0.231, 0.882] | 5 |
+| config | k | single-run | pass^k | 95 percent interval | n_questions |
+|---|---|---|---|---|---|
+| custom-anthropic+0bc9cd53 | 5 | 0.560 | 0.400 | [0.053, 0.853] | 5 |
+| custom-openai+470d79fa | 5 | 0.640 | 0.600 | [0.147, 0.947] | 5 |
+| langchain-anthropic+claude-haiku-4-5-20251001 | 5 | 0.200 | 0.200 | [0.005, 0.716] | 5 |
+| langchain-openai+gpt-4o-mini | 5 | 0.760 | 0.600 | [0.147, 0.947] | 5 |
 
 ## Methods appendix
 

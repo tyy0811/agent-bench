@@ -342,19 +342,29 @@ def _readme_values_section(tables: dict[str, pd.DataFrame], seed: int) -> list[s
 def _pass_k_section(df: pd.DataFrame, corpus: str) -> list[str]:
     # Rendered only when refusal_correct rows exist (the fixtures carry no such
     # rows, so the golden reports are unaffected). pass^k is per config: a
-    # question passes only if every epoch refused correctly.
+    # question passes only if every epoch refused correctly. Single-run accuracy
+    # is shown alongside so the reader sees where epoch variance bites (pass^k <
+    # single-run) and where it does not (they are equal, e.g. a config with no
+    # epoch variance), rather than reading a uniform reliability claim into it.
     if df[df["metric"] == "refusal_correct"].empty:
         return []
     lines = [f"## Refusal reliability (pass^k): {corpus}", ""]
-    lines.append("| config | k | pass^k | 95 percent interval | n_questions |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| config | k | single-run | pass^k | 95 percent interval | n_questions |")
+    lines.append("|---|---|---|---|---|---|")
     for config in sorted(df["config_id"].unique()):
         csub = df[df["config_id"] == config]
         if csub[csub["metric"] == "refusal_correct"].empty:
             continue
-        res = pass_k(csub, "refusal_correct")
+        try:
+            res = pass_k(csub, "refusal_correct")
+        except ValueError:
+            # Tolerate-and-note unbalanced refusal epochs rather than crash the
+            # whole report render (matches the citation section's graceful
+            # degradation, design spec section 7).
+            lines.append(f"| {config} | unbalanced epochs, skipped |  |  |  |  |")
+            continue
         lines.append(
-            f"| {config} | {res.k} | {res.rate:.3f} | "
+            f"| {config} | {res.k} | {res.single_run_rate:.3f} | {res.rate:.3f} | "
             f"[{res.ci_low:.3f}, {res.ci_high:.3f}] | {res.n_questions} |"
         )
     lines.append("")

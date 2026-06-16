@@ -247,7 +247,7 @@ def test_pass_k_section_renders_per_config_when_refusal_correct_present():
     )
     text = "\n".join(report._pass_k_section(df, "mini"))
     assert "Refusal reliability (pass^k): mini" in text
-    assert "| c | 2 | 0.667 |" in text  # 2 of 3 questions pass in all 2 epochs
+    assert "| c | 2 | 0.833 | 0.667 |" in text  # single-run 5/6, pass^2 2/3
 
 
 def test_pass_k_section_absent_without_refusal_correct():
@@ -261,3 +261,19 @@ def test_pass_k_section_absent_without_refusal_correct():
         }
     )
     assert report._pass_k_section(df, "mini") == []
+
+
+def test_pass_k_section_tolerates_unbalanced_epochs():
+    # One config with a ragged refusal epoch must be skipped-and-noted, not crash
+    # the whole render (graceful degradation, matching the citation section).
+    df = pd.DataFrame(
+        {
+            "config_id": ["c", "c", "c"],
+            "question_id": ["q1", "q1", "q2"],
+            "epoch": [1, 2, 1],
+            "metric": ["refusal_correct"] * 3,
+            "score": [1.0, 1.0, 1.0],
+        }
+    )
+    text = "\n".join(report._pass_k_section(df, "mini"))
+    assert "unbalanced epochs" in text
