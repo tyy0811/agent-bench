@@ -374,6 +374,34 @@ reporting cleanly: per-dimension weight metric reusing the
 `_DIM_METRIC` mapping already used for reporting. AC1 where κ
 degenerates; κ where the gold's prevalence supports it.
 
+### 1.7 Agreement uncertainty (v3.1 stats layer)
+
+Every headline agreement number is a point estimate over a 26 to 30 item label
+set, so it carries sampling uncertainty that a bare point hides. The v3.1
+statistics layer (`stats/agreement.py`, a pure percentile bootstrap, 10000
+replicates, seed 20260611) puts a 95 percent interval on each, joining the hand
+labels against the v1.1 jury outputs through
+`stats_adapters/calibration_agreement.py`. The point estimates reproduce
+`docs/_generated/kappa_table.md` exactly; the interval bounds differ from that
+table at the 0.02 level only because the two are independent bootstrap instances.
+
+| Dimension | Metric | Point | 95% CI | N |
+|---|---|---|---|---|
+| groundedness | AC1 | 1.000 | (1.000, 1.000) | 26 |
+| relevance | AC1 | 1.000 | (1.000, 1.000) | 30 |
+| completeness | κ | 0.416 | (-0.083, 0.835) | 26 |
+
+The completeness κ of 0.416 gets an interval, not an excuse. That interval runs
+from below zero to 0.835, so at 26 items the completeness agreement is
+consistent with anything from no-better-than-chance to strong, and the single
+headline number oversells it. The groundedness and relevance intervals collapse
+to a point only because the v1.1 jury matched every joined label on those
+dimensions: perfect observed agreement leaves the bootstrap nothing to resample
+into disagreement, which is a small-sample artifact, not certainty. The honest
+reading of all three is the same. With roughly 30 calibration items the
+agreement estimates are directional, and the documented next step is a larger
+labeled set, not a tighter claim on this one.
+
 ---
 
 ## 2. Position statement — when not to use LLM-judge
