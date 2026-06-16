@@ -1,13 +1,16 @@
 """Report generator tests: degradation branches, byte-stability, fixture drift."""
 
+import re
 import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from stats import report
+from stats.paired import paired_bootstrap
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -124,3 +127,96 @@ def test_load_tables_rejects_duplicate_config_across_runs(tmp_path):
     two.to_csv(corpus / "run_b.csv", index=False)
     with pytest.raises(ValueError, match="multiple run_ids"):
         report.load_tables(tmp_path)
+
+
+def _block_values(text: str) -> dict[str, str]:
+    """Parse the README-values section into {KEY: value}."""
+    block = text.split("## README values", 1)[1]
+    return dict(re.findall(r"^- ([a-z0-9_]+) = (.+)$", block, flags=re.MULTILINE))
+
+
+def _headline_cells(text: str) -> dict[tuple[str, str], tuple[str, str]]:
+    """Parse headline table rows into {(config, metric): (mean, ci)}."""
+    rows = re.findall(r"^\| (\S+) \| (p_at_5|r_at_5) \| ([\d.]+) \| (\[[^\]]+\]) \(", text, re.M)
+    return {(c, m): (mean, ci) for c, m, mean, ci in rows}
+
+
+def test_readme_values_block_mirrors_headline_table():
+    # Consistency invariant: every headline mean/CI in the tables has a
+    # byte-identical README-values anchor. README markers pin to the block, so
+    # this guarantees they cannot silently disagree with the headline section.
+    text = _render("long_base.csv")
+    values = _block_values(text)
+    cells = _headline_cells(text)
+    assert cells, "no headline rows parsed"
+    for (config, metric), (mean, ci) in cells.items():
+        stem = f"mini_{report._key(config)}_{metric}"
+        assert values[f"{stem}_mean"] == mean
+        assert values[f"{stem}_ci"] == ci
+
+
+def test_readme_values_block_mirrors_tost_mde_icc_and_citation():
+    # The non-table anchors must also mirror their sections verbatim.
+    text = _render("long_base.csv")
+    values = _block_values(text)
+    support = re.search(r"vs langchain-mock\+\S+, p_at_5:.*plus or minus ([\d.]+)\.", text)
+    assert values["mini_custom_mock_vs_langchain_mock_p_at_5_support"] == support.group(1)
+    mde = re.search(r"Minimum detectable p_at_5 difference at 80 percent power: ([\d.]+)", text)
+    assert values["mini_mde_p_at_5_80"] == mde.group(1)
+    icc = re.search(r"ICC ([\d.]+) ", text)
+    assert values["mini_icc_p_at_5"] == icc.group(1)
+    cit = re.search(r"custom-mock\+\S+: 0 failures in (\d+) included", text)
+    assert values["mini_custom_mock_citation_n"] == cit.group(1)
+
+
+def test_significant_pairs_flags_large_consistent_difference_not_noise():
+    # failed_equivalence bumps custom by +0.2 on both metrics; the 95% paired CI
+    # must exclude 0 for both -> both flagged. For base, the helper's verdict
+    # must equal a direct paired_bootstrap recompute (pins the pairing and
+    # clustering glue rather than a hand-guessed answer to a bootstrap).
+    failed = pd.read_csv(FIXTURES / "long_failed_equivalence.csv", dtype={"refused": "boolean"})
+    sig = report._significant_pairs(failed, seed=20260611)
+    assert "custom_mock vs langchain_mock p_at_5" in sig
+    assert "custom_mock vs langchain_mock r_at_5" in sig
+
+    base = pd.read_csv(FIXTURES / "long_base.csv", dtype={"refused": "boolean"})
+    expected = set()
+    for metric in report.HEADLINE_METRICS:
+        a = report._question_means(base[base["config_id"] == "custom-mock+00000000"], metric)
+        b = report._question_means(base[base["config_id"] == "langchain-mock+00000000"], metric)
+        a, b = a.set_index("question_id"), b.set_index("question_id")
+        shared = a.index.intersection(b.index)
+        diffs = (a.loc[shared, "score"] - b.loc[shared, "score"]).to_numpy()
+        clusters = a.loc[shared, "cluster_id"].to_numpy()
+        use = report.primary_is_clustered(len(np.unique(clusters)))
+        res = paired_bootstrap(
+            diffs, clusters=clusters if use else None, confidence=0.95, seed=20260611
+        )
+        if res.ci_low > 0.0 or res.ci_high < 0.0:
+            expected.add(f"custom_mock vs langchain_mock {metric}")
+    assert set(report._significant_pairs(base, seed=20260611)) == expected
+
+
+def _load_checker():
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[2] / "scripts" / "check_readme_stats.py"
+    spec = importlib.util.spec_from_file_location("check_readme_stats", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_readme_checker_passes_when_marker_matches_report():
+    checker = _load_checker()
+    readme = "P@5 is <!-- stats:fastapi_custom_openai_p_at_5_mean -->0.718<!-- /stats -->."
+    report = "## README values\n- fastapi_custom_openai_p_at_5_mean = 0.718\n"
+    assert checker.check(readme, report) == []
+
+
+def test_readme_checker_fails_on_drift_and_on_absent_markers():
+    checker = _load_checker()
+    no_markers = checker.check("plain prose, no markers", "- k = 0.718")
+    assert len(no_markers) == 1 and "no stats markers" in no_markers[0]
+    drift = checker.check("<!-- stats:k -->0.999<!-- /stats -->", "- k = 0.718")
+    assert len(drift) == 1 and "does not state it" in drift[0]

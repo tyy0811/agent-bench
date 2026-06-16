@@ -10,21 +10,31 @@ Agentic knowledge retrieval system with evaluation benchmark. Custom orchestrati
 
 ## Benchmark Results
 
-Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files. Both pipelines use identical retrieval (FAISS + BM25 + RRF + cross-encoder reranker).
+Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files, 5 epochs per configuration. Both pipelines use identical retrieval (FAISS + BM25 + RRF + cross-encoder reranker). P@5, R@5, and citation accuracy are campaign results; intervals are cluster-bootstrapped 95 percent CIs and every figure below is pinned to [the generated statistics report](docs/_generated/stats_report.md) by `scripts/check_readme_stats.py`.
 
 ### Framework Comparison: Custom vs. LangChain
 
 | Metric | Custom OpenAI | Custom Anthropic | LC OpenAI | LC Anthropic |
 |--------|--------------|-----------------|-----------|-------------|
-| P@5 | 0.70 | 0.74 | 0.64 | **0.75** |
-| R@5 | 0.83 | **0.84** | **0.86** | **0.84** |
-| KHR | 0.89 | **0.92** | 0.85 | 0.91 |
+| P@5 | <!-- stats:fastapi_custom_openai_p_at_5_mean -->0.718<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_p_at_5_mean -->0.791<!-- /stats --> | <!-- stats:fastapi_langchain_openai_p_at_5_mean -->0.627<!-- /stats --> | <!-- stats:fastapi_langchain_anthropic_p_at_5_mean -->0.760<!-- /stats --> |
+| P@5 95% CI | <!-- stats:fastapi_custom_openai_p_at_5_ci -->[0.610, 0.827]<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_p_at_5_ci -->[0.664, 0.917]<!-- /stats --> | <!-- stats:fastapi_langchain_openai_p_at_5_ci -->[0.484, 0.770]<!-- /stats --> | <!-- stats:fastapi_langchain_anthropic_p_at_5_ci -->[0.645, 0.875]<!-- /stats --> |
+| R@5 | <!-- stats:fastapi_custom_openai_r_at_5_mean -->0.833<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_r_at_5_mean -->0.841<!-- /stats --> | <!-- stats:fastapi_langchain_openai_r_at_5_mean -->0.836<!-- /stats --> | <!-- stats:fastapi_langchain_anthropic_r_at_5_mean -->0.841<!-- /stats --> |
+| R@5 95% CI | <!-- stats:fastapi_custom_openai_r_at_5_ci -->[0.715, 0.951]<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_r_at_5_ci -->[0.710, 0.971]<!-- /stats --> | <!-- stats:fastapi_langchain_openai_r_at_5_ci -->[0.702, 0.971]<!-- /stats --> | <!-- stats:fastapi_langchain_anthropic_r_at_5_ci -->[0.710, 0.971]<!-- /stats --> |
+| KHR &dagger; | 0.89 | 0.92 | 0.85 | 0.91 |
 | Citation Acc | 1.00 | 1.00 | 1.00 | 1.00 |
-| Cost/query | **$0.0004** | $0.0007 | $0.0003 | $0.0046 |
+| Cost/query &dagger; | $0.0004 | $0.0007 | $0.0003 | $0.0046 |
 
-> **Key insight:** Retrieval quality is dominated by the shared retrieval stack (FAISS + BM25 + RRF + cross-encoder), not the orchestration layer. P@5 and R@5 vary by less than 0.12 across all four configurations. The main cost of framework abstraction is visible in LangChain's Anthropic path: 6.6x higher per-query cost with no retrieval improvement.
+&dagger; Single-run figures, not part of the 5-epoch campaign (KHR and cost were measured once; no interval).
 
-Citation accuracy is 1.00 everywhere, confirming the retrieval-grounded approach prevents hallucination regardless of framework or provider choice.
+No cell is bolded: of the eight framework-pair comparisons (four custom-vs-LangChain pairs across P@5 and R@5), exactly <!-- stats:fastapi_significant_pairs_95_count -->1<!-- /stats --> is statistically significant at 95 percent under the paired bootstrap.
+
+> **Key insight: retrieval quality is set by the shared retrieval stack (FAISS + BM25 + RRF + cross-encoder), not the orchestration framework.** Holding the provider fixed, the custom and LangChain pipelines are statistically indistinguishable: for Anthropic the paired P@5 difference is equivalent within plus or minus <!-- stats:fastapi_custom_anthropic_vs_langchain_anthropic_p_at_5_support -->0.076<!-- /stats --> (TOST) and recall is identical (mean difference <!-- stats:fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_diff -->+0.000<!-- /stats -->); for OpenAI recall is equivalent within plus or minus <!-- stats:fastapi_custom_openai_vs_langchain_openai_r_at_5_support -->0.043<!-- /stats --> and the P@5 difference is not significant. The single significant comparison is Custom Anthropic's P@5 over LangChain OpenAI (mean difference <!-- stats:fastapi_custom_anthropic_vs_langchain_openai_p_at_5_diff -->+0.164<!-- /stats -->); that pair differs in model as well as framework, so it reflects provider choice, not the abstraction layer. The cost of framework abstraction shows up in price, not quality: LangChain's Anthropic path runs about 6.6x the per-query cost of the custom Anthropic pipeline (single-run cost).
+
+Citation accuracy is 1.00 across all four configurations, but zero observed failures is not a zero rate: with the campaign's smallest included-question count (Custom OpenAI, n=<!-- stats:fastapi_custom_openai_citation_n -->19<!-- /stats -->), the exact Clopper-Pearson 95 percent upper bound on the per-question citation-failure rate is <!-- stats:fastapi_custom_openai_citation_upper -->0.146<!-- /stats --> (rule of three, 3/n = <!-- stats:fastapi_custom_openai_citation_rule_of_three -->0.158<!-- /stats -->). The campaign rules out a high hallucination rate, not a small one.
+
+### What this benchmark can detect
+
+At this sample size (5 epochs per configuration), the minimum detectable P@5 difference at 80 percent power is <!-- stats:fastapi_mde_p_at_5_80 -->0.110<!-- /stats --> (cluster bootstrap; normal approximation <!-- stats:fastapi_mde_p_at_5_80_normal -->0.136<!-- /stats -->). Three of the four framework pairs have P@5 gaps below that floor and cannot be distinguished from noise; only the +0.164 cross-provider gap clears it. Differences smaller than the MDE are out of this benchmark's resolution, which is the honest result, not a hedge.
 
 Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
@@ -32,16 +42,20 @@ Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
 | Metric | OpenAI gpt-4o-mini | Anthropic claude-haiku | Self-hosted Mistral-7B |
 |--------|-------------------|----------------------|----------------------|
-| Retrieval P@5 | 0.70 | **0.74** | 0.05 |
-| Retrieval R@5 | 0.83 | **0.84** | 0.05 |
-| Keyword Hit Rate | 0.89 | **0.92** | 0.61 |
-| Citation Acc | **1.00** | **1.00** | 0.14 |
-| Latency p50 | 4,690 ms | 5,120 ms | 6,709 ms |
-| Cost per query | **$0.0004** | $0.0007 | $0.0031 |
+| Retrieval P@5 | <!-- stats:fastapi_custom_openai_p_at_5_mean -->0.718<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_p_at_5_mean -->0.791<!-- /stats --> | 0.05 &Dagger; |
+| Retrieval P@5 95% CI | <!-- stats:fastapi_custom_openai_p_at_5_ci -->[0.610, 0.827]<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_p_at_5_ci -->[0.664, 0.917]<!-- /stats --> | n/a |
+| Retrieval R@5 | <!-- stats:fastapi_custom_openai_r_at_5_mean -->0.833<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_r_at_5_mean -->0.841<!-- /stats --> | 0.05 &Dagger; |
+| Retrieval R@5 95% CI | <!-- stats:fastapi_custom_openai_r_at_5_ci -->[0.715, 0.951]<!-- /stats --> | <!-- stats:fastapi_custom_anthropic_r_at_5_ci -->[0.710, 0.971]<!-- /stats --> | n/a |
+| Keyword Hit Rate &dagger; | 0.89 | 0.92 | 0.61 |
+| Citation Acc | 1.00 | 1.00 | 0.14 &Dagger; |
+| Latency p50 &dagger; | 4,690 ms | 5,120 ms | 6,709 ms |
+| Cost per query &dagger; | $0.0004 | $0.0007 | $0.0031 |
 
-API providers are directly comparable (same config). The self-hosted row uses `max_iterations=1` and `top_k=3` (vs 3/5 for API) to fit Mistral-7B's 8K context window. Mistral-7B's context constraint forces single-iteration retrieval with fewer chunks, demonstrating that agentic tool-calling workflows have a practical model-size floor — a genuine architectural finding, not a system failure. See [provider comparison](docs/provider_comparison.md) for full analysis.
+&dagger; Single-run figures, not part of the 5-epoch campaign. &Dagger; Self-hosted Mistral-7B was measured in a separate single-run benchmark with `max_iterations=1` and `top_k=3` (vs 3/5 for API) to fit its 8K context window; it is not part of the campaign and has no interval.
 
-[Full benchmark report](docs/benchmark_report.md) | [Provider comparison](docs/provider_comparison.md) | [Judge calibration](docs/judge-design.md) | [Design decisions](DECISIONS.md)
+The API providers are directly comparable (same config). Mistral-7B's context constraint forces single-iteration retrieval with fewer chunks, showing that agentic tool-calling workflows have a practical model-size floor: a genuine architectural finding, not a system failure. See [provider comparison](docs/provider_comparison.md) for full analysis.
+
+[Full benchmark report](docs/benchmark_report.md) | [Statistics report](docs/_generated/stats_report.md) | [Provider comparison](docs/provider_comparison.md) | [Judge calibration](docs/judge-design.md) | [Design decisions](DECISIONS.md)
 
 ## Live Demo
 
@@ -317,6 +331,8 @@ Agreement is reported with Gwet's AC1 on prevalence-skewed dimensions and Cohen'
 
 **Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015 — the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
 
+The v3.1 statistics layer turns this run-to-run variance into a measured quantity rather than an anecdote. On the FastAPI P@5 campaign, the variance decomposition gives an intraclass correlation of <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->: almost all of the metric's variance is stable between-question difficulty, with epoch-to-epoch noise near zero. That is the FastAPI-side counterpart to the K8s refusal-gate finding above: a metric reported from a single run hides a distribution, and the fix is to measure across epochs and cluster by question, which is exactly what produces the 95 percent intervals in the Benchmark Results tables.
+
 ## Testing
 
 ```bash
@@ -358,3 +374,5 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | **Audit logging** | None | None | JSONL, HMAC-hashed IPs |
 | **LLM-as-judge** | None | Single-call faithfulness/correctness | Per-dimension judges + κ-calibrated jury |
 | Tests | 97 | 205 | 528 |
+
+P@5 figures in this evolution table are single-run historical milestones (the V1 to V2 cross-encoder gain); the current campaign means with 95 percent intervals are in the Benchmark Results tables above.

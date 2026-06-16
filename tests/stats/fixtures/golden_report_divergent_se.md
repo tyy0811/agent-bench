@@ -34,3 +34,32 @@ correlation-sensitivity caution: mini langchain-mock+00000000 p_at_5: clustered 
 - Seed: 20260611. No wall-clock values appear in this report.
 - Input table mini: 144 rows, content hash 82afb1a83d3d.
 
+## README values
+
+- mini_custom_mock_p_at_5_mean = 0.750
+- mini_custom_mock_p_at_5_ci = [0.681, 0.819]
+- mini_custom_mock_r_at_5_mean = 0.850
+- mini_custom_mock_r_at_5_ci = [0.819, 0.880]
+- mini_langchain_mock_p_at_5_mean = 0.727
+- mini_langchain_mock_p_at_5_ci = [0.661, 0.793]
+- mini_langchain_mock_r_at_5_mean = 0.827
+- mini_langchain_mock_r_at_5_ci = [0.801, 0.853]
+- mini_custom_mock_citation_n = 12
+- mini_custom_mock_citation_upper = 0.221
+- mini_custom_mock_citation_rule_of_three = 0.250
+- mini_langchain_mock_citation_n = 12
+- mini_langchain_mock_citation_upper = 0.221
+- mini_langchain_mock_citation_rule_of_three = 0.250
+- mini_custom_mock_vs_langchain_mock_p_at_5_tost = equivalent
+- mini_custom_mock_vs_langchain_mock_p_at_5_support = 0.031
+- mini_custom_mock_vs_langchain_mock_p_at_5_diff = +0.023
+- mini_custom_mock_vs_langchain_mock_r_at_5_tost = equivalent
+- mini_custom_mock_vs_langchain_mock_r_at_5_support = 0.031
+- mini_custom_mock_vs_langchain_mock_r_at_5_diff = +0.023
+- mini_significant_pairs_95 = custom_mock vs langchain_mock p_at_5; custom_mock vs langchain_mock r_at_5
+- mini_significant_pairs_95_count = 2
+- mini_icc_p_at_5 = 0.98
+- mini_between_question_var_p_at_5 = 0.01393
+- mini_mde_p_at_5_80 = 0.019
+- mini_mde_p_at_5_80_normal = 0.016
+
