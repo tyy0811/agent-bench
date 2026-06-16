@@ -42,3 +42,18 @@ def test_degenerate_single_category_kappa_is_nan_ac1_defined():
     ones = np.ones(30)
     assert np.isnan(agreement.cohen_kappa(ones, ones))
     assert agreement.gwet_ac1(ones, ones) == pytest.approx(1.0)
+
+
+def test_bootstrap_keeps_degenerate_resamples_as_perfect_agreement():
+    # Every resample of an all-agree single-category input is degenerate (kappa
+    # nan). Those are the maximum-agreement draws; the bootstrap keeps them as
+    # 1.0 rather than dropping them, so the CI is (1.0, 1.0), not a crash on an
+    # empty value list. Dropping would truncate the upper tail anti-conservatively.
+    ones = np.ones(20)
+    assert agreement.bootstrap_agreement_ci(agreement.cohen_kappa, ones, ones) == (1.0, 1.0)
+
+
+def test_bootstrap_empty_input_returns_nan():
+    empty = np.array([])
+    lo, hi = agreement.bootstrap_agreement_ci(agreement.cohen_kappa, empty, empty)
+    assert np.isnan(lo) and np.isnan(hi)
