@@ -15,19 +15,36 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MARKER = re.compile(r"<!-- stats:([a-z0-9_]+) -->([^<]+)<!-- /stats -->")
+# Non-greedy value group so a value may itself contain "<" (e.g. "<0.05"); it
+# still stops at the first closing tag.
+MARKER = re.compile(r"<!-- stats:([a-z0-9_]+) -->(.+?)<!-- /stats -->")
+# The report's README-values block: "- KEY = value", KEY in [a-z0-9_]. No other
+# report line matches (table rows start with "|"; appendix keys carry ":"/caps).
+REPORT_LINE = re.compile(r"^- ([a-z0-9_]+) = (.+)$", re.MULTILINE)
 
 
 def check(readme: str, report: str) -> list[str]:
-    """Return one failure string per drifted or missing marker (empty == pass)."""
+    """Return one failure string per drifted, missing, or unbacked marker (empty == pass).
+
+    Each README marker is matched against the report's ``KEY = value`` lines by
+    exact value equality. A substring test would pass a truncated value (README
+    ``0.71`` against report ``0.718``), which is the drift the checker exists to catch.
+    """
     failures = []
+    report_values = dict(REPORT_LINE.findall(report))
     pairs = MARKER.findall(readme)
     if not pairs:
         failures.append("README contains no stats markers; WP6 edits not applied")
+    if not report_values:
+        failures.append("report states no 'KEY = value' lines; run `make evaluate-stats`")
     for key, value in pairs:
-        needle = f"{key} = {value.strip()}"
-        if needle not in report:
-            failures.append(f"README claims {key} = {value.strip()} but report does not state it")
+        value = value.strip()
+        if key not in report_values:
+            failures.append(f"README marks {key} but the report states no such key")
+        elif report_values[key] != value:
+            failures.append(
+                f"README claims {key} = {value} but report says {key} = {report_values[key]}"
+            )
     return failures
 
 

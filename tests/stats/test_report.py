@@ -219,4 +219,17 @@ def test_readme_checker_fails_on_drift_and_on_absent_markers():
     no_markers = checker.check("plain prose, no markers", "- k = 0.718")
     assert len(no_markers) == 1 and "no stats markers" in no_markers[0]
     drift = checker.check("<!-- stats:k -->0.999<!-- /stats -->", "- k = 0.718")
-    assert len(drift) == 1 and "does not state it" in drift[0]
+    assert len(drift) == 1 and "report says k = 0.718" in drift[0]
+
+
+def test_readme_checker_catches_prefix_drift():
+    # A substring match would pass 0.71 against report 0.718; exact match must fail.
+    checker = _load_checker()
+    drift = checker.check("<!-- stats:k -->0.71<!-- /stats -->", "- k = 0.718")
+    assert len(drift) == 1 and "report says k = 0.718" in drift[0]
+
+
+def test_readme_checker_handles_value_containing_lt():
+    # Non-greedy marker group must capture a value that itself contains "<".
+    checker = _load_checker()
+    assert checker.check("<!-- stats:k --><0.05<!-- /stats -->", "- k = <0.05") == []
