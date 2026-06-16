@@ -4,7 +4,7 @@ The continuous-scale LLM-judge functions (answer_faithfulness,
 answer_correctness, _judge_call) were removed in the judge-layer v1
 supersession. The replacement lives at agent_bench/evaluation/judges/
 as discrete-anchored, per-dimension judges with κ-validated calibration.
-See docs/plans/2026-05-04-judge-layer-v1-design.md for the rationale.
+See DECISIONS.md for the rationale.
 """
 
 from __future__ import annotations

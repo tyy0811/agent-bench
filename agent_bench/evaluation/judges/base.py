@@ -2,8 +2,7 @@
 
 The Judge layer supersedes the continuous-scale answer_faithfulness /
 answer_correctness functions in agent_bench/evaluation/metrics.py. See
-docs/plans/2026-05-04-judge-layer-v1-design.md for the supersession
-rationale and the six-axis comparison table.
+DECISIONS.md for the supersession rationale.
 """
 
 from __future__ import annotations

@@ -38,6 +38,8 @@ logs/
 # a targeted gitignore exception next to it.
 *.pdf
 docs/DESIGN.md
+# Internal planning and design docs (not published)
+docs/plans/
 # Generated statistics report (make evaluate-stats). Regenerable on demand
 # from results/long/; the committed artifacts are the test goldens under
 # tests/stats/fixtures/, not this live output.

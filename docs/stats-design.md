@@ -1,6 +1,6 @@
 # agent-bench v3.1 statistics layer: engineering design notes
 
-Companion to `docs/plans/2026-06-11-stats-layer-v3.1-design.md` (the decision record) and `docs/plans/2026-06-11-stats-layer-v3.1-implementation.md` (the work-package plan). This document records what WP0 discovered by reading the code, the mapping from harness output to the long-format table, a restatement of the pre-registration so the freeze travels with the engineering doc, and the operational notes later WPs need.
+This document records what WP0 discovered by reading the code, the mapping from harness output to the long-format table, a restatement of the pre-registration so the freeze travels with the engineering doc, and the operational notes later WPs need.
 
 ## Discovered result formats
 

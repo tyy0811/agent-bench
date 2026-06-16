@@ -588,8 +588,7 @@ FastAPI flat list) includes:
   and pinned `chunker` parameters so the dataset is reproducible
   against a specific K8s docs snapshot
 
-See `docs/plans/2026-04-12-multi-corpus-refactor-design.md` for the
-full schema and rationale.
+The schema fields above are pinned per corpus so each dataset is reproducible.
 
 ## EU AI Act corpus deferred to v1.2
 
@@ -2123,8 +2122,6 @@ The continuous-score single-call judges in `agent_bench/evaluation/metrics.py`
 (`answer_faithfulness`, `answer_correctness`, `_judge_call`) are deleted
 and replaced by the per-dimension Judge layer at
 `agent_bench/evaluation/judges/`. Hard cut, no deprecation cycle.
-
-**Design doc:** `docs/plans/2026-05-04-judge-layer-v1-design.md`.
 
 **Why this is a supersession, not a refactor.** The new layer differs from
 the old on six axes: discrete-anchored scale (vs continuous 0–1),
