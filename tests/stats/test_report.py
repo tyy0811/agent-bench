@@ -233,3 +233,47 @@ def test_readme_checker_handles_value_containing_lt():
     # Non-greedy marker group must capture a value that itself contains "<".
     checker = _load_checker()
     assert checker.check("<!-- stats:k --><0.05<!-- /stats -->", "- k = <0.05") == []
+
+
+def test_pass_k_section_renders_per_config_when_refusal_correct_present():
+    df = pd.DataFrame(
+        {
+            "config_id": ["c"] * 6,
+            "question_id": ["q1", "q1", "q2", "q2", "q3", "q3"],
+            "epoch": [1, 2, 1, 2, 1, 2],
+            "metric": ["refusal_correct"] * 6,
+            "score": [1.0, 1.0, 1.0, 0.0, 1.0, 1.0],
+        }
+    )
+    text = "\n".join(report._pass_k_section(df, "mini"))
+    assert "Refusal reliability (pass^k): mini" in text
+    assert "| c | 2 | 0.833 | 0.667 |" in text  # single-run 5/6, pass^2 2/3
+
+
+def test_pass_k_section_absent_without_refusal_correct():
+    df = pd.DataFrame(
+        {
+            "config_id": ["c"],
+            "question_id": ["q1"],
+            "epoch": [1],
+            "metric": ["p_at_5"],
+            "score": [0.7],
+        }
+    )
+    assert report._pass_k_section(df, "mini") == []
+
+
+def test_pass_k_section_tolerates_unbalanced_epochs():
+    # One config with a ragged refusal epoch must be skipped-and-noted, not crash
+    # the whole render (graceful degradation, matching the citation section).
+    df = pd.DataFrame(
+        {
+            "config_id": ["c", "c", "c"],
+            "question_id": ["q1", "q1", "q2"],
+            "epoch": [1, 2, 1],
+            "metric": ["refusal_correct"] * 3,
+            "score": [1.0, 1.0, 1.0],
+        }
+    )
+    text = "\n".join(report._pass_k_section(df, "mini"))
+    assert "unbalanced epochs" in text
