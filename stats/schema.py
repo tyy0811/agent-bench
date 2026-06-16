@@ -1,7 +1,6 @@
 """Results-table schema for the v3.1 statistics layer.
 
-Restated from the eval-statistics-engine plan section 5.1, verbatim source
-recorded in docs/plans/2026-06-11-stats-layer-v3.1-design.md section 3.2.
+Restated from the eval-statistics-engine plan section 5.1.
 Self-contained: this module never imports agent-bench (guardrail 1).
 
 Conventions (design spec section 3.4):

@@ -2,7 +2,7 @@
 
 Boundary layer: the only package allowed to import agent_bench (guardrail 1).
 Emission rules, cluster assignment, and legacy provenance per
-docs/plans/2026-06-11-stats-layer-v3.1-design.md sections 2.1, 3.4, and 4.
+docs/stats-design.md.
 """
 
 import argparse

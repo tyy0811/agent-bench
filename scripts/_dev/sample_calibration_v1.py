@@ -1,8 +1,8 @@
 """One-shot stratified sampler for calibration_v1.json. Run once; output
 is committed to agent_bench/evaluation/datasets/calibration_v1.json.
 
-The stratification target is in docs/plans/2026-05-04-judge-layer-v1-design.md
-under Calibration Methodology > Stratified sampling.
+The stratification target follows the judge-layer calibration methodology
+(stratified sampling).
 """
 
 from __future__ import annotations
