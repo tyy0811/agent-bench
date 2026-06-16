@@ -16,6 +16,26 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Single source of truth for the provider -> model map. Defined in run_epochs
+# (where it is recorded into config_id provenance) and imported here so the
+# model that actually bills equals the model recorded in the envelope.
+from run_epochs import MODEL_DEFAULTS  # noqa: E402
+
+
+def _raise_if_errors(errors: list, total: int) -> None:
+    """Hard-fail if any question errored (paid-path audit finding #5).
+
+    The runner records a swallowed API failure as answer="ERROR: ..." with
+    zeroed metrics; keeping that envelope would enter the long table as a real
+    score=0 and silently bias the framework comparison. The custom arm already
+    hard-fails on a question exception, so failing here aligns both arms.
+    """
+    if errors:
+        raise SystemExit(
+            f"refusing to emit results: {len(errors)} of {total} questions errored. "
+            "A swallowed error would score as a real 0 and poison the comparison."
+        )
+
 
 async def main_async(args: argparse.Namespace) -> None:
     # Heavy imports deferred so --help works without loading torch/OpenMP/etc.
@@ -64,8 +84,7 @@ async def main_async(args: argparse.Namespace) -> None:
     )
 
     # Resolve model name and pricing for token cost tracking
-    model_defaults = {"openai": "gpt-4o-mini", "anthropic": "claude-haiku-4-5-20251001"}
-    model_name = model_defaults[args.provider]
+    model_name = MODEL_DEFAULTS[args.provider]
     pricing = config.provider.models.get(model_name)
     input_cost = pricing.input_cost_per_mtok if pricing else 0.0
     output_cost = pricing.output_cost_per_mtok if pricing else 0.0
@@ -122,8 +141,15 @@ async def main_async(args: argparse.Namespace) -> None:
     print(f"  Avg KHR:     {avg_khr:.2f}")
     print(f"  Avg latency: {avg_lat:,.0f} ms")
 
+    _raise_if_errors(errors, len(results))
+
 
 def main() -> None:
+    from dotenv import load_dotenv
+
+    # Load the gitignored .env so OPENAI_API_KEY / ANTHROPIC_API_KEY are present
+    # (nothing else loads it; the provider reads os.environ directly).
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Run LangChain baseline evaluation")
     parser.add_argument(
         "--provider",

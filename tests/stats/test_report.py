@@ -109,3 +109,18 @@ def test_load_tables_keeps_legacy_in_its_own_corpus_bucket(tmp_path):
     tables = report.load_tables(tmp_path)
 
     assert set(tables) == {"fastapi", "legacy"}
+
+
+def test_load_tables_rejects_duplicate_config_across_runs(tmp_path):
+    # A config under two run_ids in one corpus (orphan re-run dir) would
+    # double-count its epochs; load_tables must refuse, not silently merge.
+    base = pd.read_csv(FIXTURES / "long_base.csv", dtype={"refused": "boolean"})
+    one = base[base["config_id"] == "custom-mock+00000000"].copy()
+    corpus = tmp_path / "fastapi"
+    corpus.mkdir()
+    one.to_csv(corpus / "run_a.csv", index=False)
+    two = one.copy()
+    two["run_id"] = "01HZXJ5M8N9PQRSTVWXYZ09999"  # a different run of the same config
+    two.to_csv(corpus / "run_b.csv", index=False)
+    with pytest.raises(ValueError, match="multiple run_ids"):
+        report.load_tables(tmp_path)
