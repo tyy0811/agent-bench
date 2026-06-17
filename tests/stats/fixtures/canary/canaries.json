@@ -2,15 +2,18 @@
   {
     "id": "canary_ungrounded_01",
     "injection_type": "ungrounded",
-    "description": "Answer asserts a concrete default that appears nowhere in the cited snippet.",
+    "description": "Answer asserts a concrete default that appears nowhere in the source; left uncited so the only planted defect is groundedness.",
     "category": "retrieval",
     "question": "What is the default page size for the FastAPI list-items endpoint?",
-    "answer": "The default page size is 50 items per page. [source: api_reference.md]",
+    "answer": "The default page size is 50 items per page.",
     "sources": ["api_reference.md"],
+    "source_chunks": [
+      "The list-items endpoint returns paginated results. Callers set the page size with the `limit` query parameter."
+    ],
     "source_snippets": [
       "The list-items endpoint returns paginated results. Callers set the page size with the `limit` query parameter."
     ],
-    "reference_answer": "The snippet does not state a numeric default; callers set page size via the `limit` parameter.",
+    "reference_answer": "The source does not state a numeric default; callers set page size via the `limit` parameter.",
     "expected_failing": {
       "groundedness": true,
       "completeness": false,
@@ -21,11 +24,14 @@
   {
     "id": "canary_ungrounded_02",
     "injection_type": "ungrounded",
-    "description": "Answer invents a default replica count contradicted by the snippet.",
+    "description": "Answer invents a default replica count contradicted by the source; left uncited so the only planted defect is groundedness.",
     "category": "retrieval",
     "question": "What is the default number of replicas for a Kubernetes Deployment?",
-    "answer": "A Deployment defaults to 3 replicas when `replicas` is omitted. [source: workloads.md]",
+    "answer": "A Deployment defaults to 3 replicas when `replicas` is omitted.",
     "sources": ["workloads.md"],
+    "source_chunks": [
+      "If you do not specify `.spec.replicas`, it defaults to 1."
+    ],
     "source_snippets": [
       "If you do not specify `.spec.replicas`, it defaults to 1."
     ],
@@ -40,15 +46,18 @@
   {
     "id": "canary_absent_citation_01",
     "injection_type": "absent_citation",
-    "description": "Factually grounded claim presented with no citation marker at all.",
+    "description": "A true, grounded claim attributed to a source whose chunk does not support it (an effectively absent citation). The citation judge scores faithfulness, not presence, so the defect is a present-but-unsupported citation.",
     "category": "retrieval",
     "question": "Which HTTP status does the API return when a requested item does not exist?",
-    "answer": "The API returns a 404 Not Found response when the item id is unknown.",
-    "sources": ["errors.md"],
+    "answer": "The API returns a 404 Not Found response when the item id is unknown. [source: pagination.md]",
+    "sources": ["pagination.md"],
+    "source_chunks": [
+      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
+    ],
     "source_snippets": [
       "Requests for an unknown item id return HTTP 404 Not Found with an error body."
     ],
-    "reference_answer": "It returns HTTP 404 Not Found, per errors.md.",
+    "reference_answer": "It returns HTTP 404 Not Found, per the errors documentation.",
     "expected_failing": {
       "groundedness": false,
       "completeness": false,
@@ -59,15 +68,18 @@
   {
     "id": "canary_absent_citation_02",
     "injection_type": "absent_citation",
-    "description": "Claim attributed to a source that does not support it.",
+    "description": "A true claim attributed to a source about a different topic, so the cited chunk does not support it.",
     "category": "retrieval",
     "question": "What authentication scheme does the items API use?",
     "answer": "The items API uses bearer-token authentication. [source: pagination.md]",
     "sources": ["pagination.md"],
-    "source_snippets": [
-      "Authenticate by sending an `Authorization: Bearer <token>` header. Pagination is covered separately."
+    "source_chunks": [
+      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
     ],
-    "reference_answer": "It uses bearer-token authentication via the Authorization header, per auth.md.",
+    "source_snippets": [
+      "Authenticate by sending an `Authorization: Bearer <token>` header."
+    ],
+    "reference_answer": "It uses bearer-token authentication via the Authorization header.",
     "expected_failing": {
       "groundedness": false,
       "completeness": false,
@@ -78,13 +90,16 @@
   {
     "id": "canary_incomplete_01",
     "injection_type": "incomplete",
-    "description": "Two-part question answered for only one part.",
+    "description": "Two-part question answered for only one part; the citation it gives is faithful, so the only planted defect is completeness.",
     "category": "retrieval",
     "question": "What are the two query parameters for paging the list-items endpoint, and what does each do?",
     "answer": "Use the `limit` parameter to set the page size. [source: api_reference.md]",
     "sources": ["api_reference.md"],
+    "source_chunks": [
+      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
+    ],
     "source_snippets": [
-      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index."
+      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
     ],
     "reference_answer": "`limit` sets the page size and `offset` sets the starting index into the result set.",
     "expected_failing": {
@@ -97,11 +112,14 @@
   {
     "id": "canary_incomplete_02",
     "injection_type": "incomplete",
-    "description": "Answer omits the required second step of the documented procedure.",
+    "description": "Answer omits the required second step of the documented procedure; the citation it gives is faithful, so the only planted defect is completeness.",
     "category": "retrieval",
     "question": "What are the steps to expose a Deployment as a network service?",
     "answer": "Create a Deployment for the workload. [source: services.md]",
     "sources": ["services.md"],
+    "source_chunks": [
+      "First create a Deployment, then create a Service that selects the Deployment's pods to expose it on the network."
+    ],
     "source_snippets": [
       "First create a Deployment, then create a Service that selects the Deployment's pods to expose it on the network."
     ],

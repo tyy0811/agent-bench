@@ -66,11 +66,29 @@ def build_detection_frame(canaries: list[dict], predictions: list[dict]) -> pd.D
 
     ``predictions`` is the judge output, one record per canary x dimension with
     ``item_id``, ``dimension``, ``score`` (an int level or the ``Unknown``
-    abstain sentinel). A missing (canary, dimension) verdict, or a canary
-    missing a dimension's ground-truth label, is a loud error: a silent gap
-    would understate either the detected count or the clean background.
+    abstain sentinel). The prediction key set must match the canary set exactly:
+    a duplicate ``(item_id, dimension)`` verdict, a verdict for a pair not in the
+    canary set, a missing verdict, or a canary missing a dimension's ground-truth
+    label is a loud error. A silent gap or last-wins overwrite would shift the
+    detected count or the clean background without any signal.
     """
-    by_key = {(p["item_id"], p["dimension"]): p for p in predictions}
+    expected_keys = {(c["id"], dim) for c in canaries for dim in TOP_ANCHOR_BY_DIMENSION}
+    by_key: dict[tuple[str, str], dict] = {}
+    for p in predictions:
+        key = (p["item_id"], p["dimension"])
+        if key in by_key:
+            raise ValueError(
+                f"duplicate prediction for canary {p['item_id']!r} dimension "
+                f"{p['dimension']!r}; the predictions carry more than one verdict "
+                f"for this cell (a concatenated or partially regenerated file)"
+            )
+        by_key[key] = p
+    unexpected = sorted(by_key.keys() - expected_keys)
+    if unexpected:
+        raise ValueError(
+            f"predictions reference unknown (canary, dimension) pairs not in the "
+            f"canary set: {unexpected}"
+        )
     rows: list[dict] = []
     for c in canaries:
         cid = c["id"]

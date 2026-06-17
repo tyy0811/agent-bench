@@ -13,5 +13,5 @@ Each canary injects a known defect on one or more dimensions; the remaining dime
 
 Detection gap: no canary plants a defect on the relevance dimension, so its detection efficiency is not estimable (n/a); the false-positive rate is still measured on all 6 canaries as a clean-background control.
 
-Canaries: 6. Input content hash: 173a94d4fa3e.
+Canaries: 6. Input content hash: 9dc71c0aff72.
 

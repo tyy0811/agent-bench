@@ -7,7 +7,11 @@ import json
 import sys
 from pathlib import Path
 
-from agent_bench.evaluation.judges.base import MockJudge, ScoreResult
+import pytest
+
+from agent_bench.core.types import CompletionResponse, TokenUsage
+from agent_bench.evaluation.judges.base import MockJudge, Rubric, ScoreResult
+from agent_bench.evaluation.judges.citation_faithfulness import CitationFaithfulnessJudge
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
 
@@ -38,6 +42,7 @@ _CANARIES = [
         "question": "q1?",
         "answer": "a1",
         "sources": ["a.md"],
+        "source_chunks": ["chunk a"],
         "source_snippets": ["snippet"],
         "reference_answer": "ref",
         "expected_failing": {
@@ -54,6 +59,7 @@ _CANARIES = [
         "question": "q2?",
         "answer": "a2",
         "sources": ["b.md"],
+        "source_chunks": ["chunk b"],
         "source_snippets": ["snippet2"],
         "reference_answer": "ref2",
         "expected_failing": {
@@ -136,3 +142,97 @@ def test_committed_report_matches_regeneration():
     )
     committed = (REPO / "docs/_generated/canary_detection.md").read_text()
     assert committed == expected, "stale canary_detection.md; run `make canary-report`"
+
+
+# --- Finding 1: the canary citation path must be real-judge-ready ---
+# The harness was only exercised with MockJudge; these drive the REAL
+# CitationFaithfulnessJudge through a stub JSON provider (no API) to prove the
+# cited chunk reaches the judge, and to pin the no-citation blind spot that
+# dictates how absent_citation canaries must be authored.
+
+CITATION_RUBRIC = REPO / "agent_bench/evaluation/rubrics/citation_faithfulness.md"
+
+
+class _StubProvider:
+    """Returns a fixed JSON verdict so a real judge can be driven without API
+    calls. Records every prompt it is sent."""
+
+    def __init__(self, score: object) -> None:
+        self._score = score
+        self.prompts: list[str] = []
+
+    async def complete(self, messages, tools=None, temperature=0.0, max_tokens=1024):
+        self.prompts.append(messages[0].content)
+        return CompletionResponse(
+            content=json.dumps({"reasoning": "stub", "evidence_quotes": [], "score": self._score}),
+            tool_calls=[],
+            usage=TokenUsage(input_tokens=1, output_tokens=1, estimated_cost_usd=0.0),
+            provider="stub",
+            model="stub",
+            latency_ms=0.0,
+        )
+
+
+def _canary(canary_id: str) -> dict:
+    canaries = json.loads((FIXTURES / "canaries.json").read_text())
+    return next(c for c in canaries if c["id"] == canary_id)
+
+
+def _citation_judge(provider: _StubProvider) -> CitationFaithfulnessJudge:
+    return CitationFaithfulnessJudge(
+        judge_provider=provider,  # type: ignore[arg-type]
+        rubric=Rubric.from_markdown_file(CITATION_RUBRIC),
+        model_id="stub",
+    )
+
+
+def test_shipped_canaries_carry_source_chunks_aligned_to_sources():
+    # The citation judge maps citations via zip(sources, source_chunks); empty or
+    # misaligned chunks make it score against no evidence. Every shipped canary
+    # must carry one non-empty chunk per source.
+    for c in json.loads((FIXTURES / "canaries.json").read_text()):
+        _item, output = run_canary_eval._build_item_and_output(c)
+        assert len(output.source_chunks) == len(output.sources), c["id"]
+        assert all(chunk.strip() for chunk in output.source_chunks), c["id"]
+
+
+def test_build_item_and_output_rejects_misaligned_source_chunks():
+    bad = {**_canary("canary_absent_citation_02"), "source_chunks": []}
+    with pytest.raises(ValueError, match="source_chunks"):
+        run_canary_eval._build_item_and_output(bad)
+
+
+async def test_real_citation_judge_sees_the_cited_chunk():
+    # Drive the REAL judge over an absent_citation canary; the cited chunk text
+    # must reach the judge's prompt (proving source_chunks flows through), and the
+    # stub's unfaithful verdict must propagate to the aggregate.
+    rec = _canary("canary_absent_citation_02")
+    item, output = run_canary_eval._build_item_and_output(rec)
+    stub = _StubProvider(0)
+    result = await _citation_judge(stub).score(item, output)
+    assert stub.prompts, "judge never evaluated a citation pair"
+    assert any(rec["source_chunks"][0] in p for p in stub.prompts), (
+        "cited chunk text never reached the judge prompt"
+    )
+    assert result.score == 0  # unfaithful verdict propagates (all-or-nothing)
+
+
+async def test_real_citation_judge_passes_an_uncited_answer():
+    # Characterizes the production judge's blind spot: a no-citation answer is
+    # scored 1 (vacuously faithful) with no provider call. This is why an
+    # absent_citation canary must cite a source that does NOT support the claim,
+    # not omit the citation entirely.
+    _item, output = run_canary_eval._build_item_and_output(
+        {
+            "id": "uncited",
+            "answer": "A plain answer with no citation marker.",
+            "sources": ["a.md"],
+            "source_chunks": ["some chunk"],
+            "source_snippets": ["snippet"],
+            "reference_answer": "ref",
+            "category": "retrieval",
+        }
+    )
+    stub = _StubProvider(0)
+    result = await _citation_judge(stub).score(_item, output)
+    assert result.score == 1 and stub.prompts == []

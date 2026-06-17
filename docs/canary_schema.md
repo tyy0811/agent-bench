@@ -21,8 +21,9 @@ Each canary is one object in a JSON list. Fields:
 | `category` | string | golden-question category passed to the judges |
 | `question` | string | the question the answer responds to |
 | `answer` | string | the injected (defective) answer the judges score |
-| `sources` | list[string] | citation targets present in the answer |
-| `source_snippets` | list[string] | gold snippets the groundedness judge reads |
+| `sources` | list[string] | the retrieved sources; aligned one-to-one with `source_chunks` |
+| `source_chunks` | list[string] | one retrieved chunk per source (aligned to `sources`); the citation judge checks each cited claim against its source's chunk |
+| `source_snippets` | list[string] | gold snippets the groundedness judge reads (what should support the claim) |
 | `reference_answer` | string | gold answer the completeness judge reads |
 | `expected_failing` | object | per-dimension ground truth (see below) |
 
@@ -48,8 +49,29 @@ background stays large.
 | injection type | targets dimension | defect |
 |---|---|---|
 | `ungrounded` | groundedness | answer asserts facts absent from or contradicting the cited snippet |
-| `absent_citation` | citation_faithfulness | claim is uncited, or attributed to a source that does not support it |
+| `absent_citation` | citation_faithfulness | claim is attributed to a source whose chunk does not support it (an effectively absent citation) |
 | `incomplete` | completeness | answer omits a required part of the reference answer |
+
+### The citation judge scores faithfulness, not presence
+
+`CitationFaithfulnessJudge` evaluates whether each `[source: X]` claim is
+supported by X's retrieved chunk. It does NOT check whether a claim is cited at
+all: an answer with no `[source: ...]` marker is scored 1 (vacuously faithful)
+with no model call. So an `absent_citation` canary cannot omit the citation
+entirely, or the judge would pass it and the planted defect would be
+undetectable. It must instead cite a source whose `source_chunks` entry does not
+support the claim. The shipped `absent_citation` canaries do this, and a
+characterization test pins the no-citation behavior so the constraint is not
+lost.
+
+This is also why `source_chunks` must be populated and aligned with `sources`:
+the judge maps a cited source to its evidence by `zip(sources, source_chunks)`,
+so a missing or misaligned chunk would score the citation against empty content.
+The harness rejects misaligned `source_chunks` at build time. Note that the
+ungrounded and incomplete canaries are deliberately left clean on citation
+faithfulness: the ungrounded ones carry no `[source: ...]` marker (so the
+citation judge passes them), and the incomplete ones cite a source whose chunk
+does support the partial claim they do make.
 
 ### The relevance gap
 
