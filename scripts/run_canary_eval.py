@@ -62,10 +62,24 @@ def _build_item_and_output(c: dict) -> tuple[Any, Any]:
     """Build the (GoldenQuestion, AgentResponse) pair a judge scores from one
     canary record. agent_bench imports are deferred so the offline build-report
     path imports neither agent_bench nor the embedding stack.
+
+    ``source_chunks`` must align one-to-one with ``sources``: the citation judge
+    maps a "[source: X]" claim to its evidence via ``zip(sources, source_chunks)``,
+    so a missing or misaligned chunk silently scores the citation against no
+    evidence. Misalignment is a loud authoring error.
     """
     from agent_bench.agents.orchestrator import AgentResponse, SourceReference
     from agent_bench.core.types import TokenUsage
     from agent_bench.evaluation.harness import GoldenQuestion
+
+    sources = c.get("sources", [])
+    source_chunks = c.get("source_chunks", [])
+    if len(source_chunks) != len(sources):
+        raise ValueError(
+            f"canary {c['id']!r}: source_chunks must align one-to-one with sources "
+            f"(one retrieved chunk per source, for the citation judge); got "
+            f"{len(source_chunks)} chunks for {len(sources)} sources"
+        )
 
     item = GoldenQuestion(
         id=c["id"],
@@ -80,9 +94,9 @@ def _build_item_and_output(c: dict) -> tuple[Any, Any]:
     )
     output = AgentResponse(
         answer=c.get("answer", ""),
-        sources=[SourceReference(source=s) for s in c.get("sources", [])],
+        sources=[SourceReference(source=s) for s in sources],
         ranked_sources=c.get("ranked_sources", []),
-        source_chunks=c.get("source_chunks", []),
+        source_chunks=source_chunks,
         iterations=1,
         usage=TokenUsage(input_tokens=0, output_tokens=0, estimated_cost_usd=0),
         latency_ms=0,

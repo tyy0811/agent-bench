@@ -147,6 +147,23 @@ def test_out_of_range_integer_score_rejected():
         canary.build_detection_frame(_CANARIES, bad)
 
 
+def test_duplicate_prediction_rejected():
+    # A concatenated or partially regenerated predictions file (the same
+    # (canary, dimension) twice) must not silently last-win and shift the
+    # metrics; it is a loud error.
+    dup = [*_PREDICTIONS, _pred("c1", "groundedness", 1)]  # already present as 0
+    with pytest.raises(ValueError, match="duplicate"):
+        canary.build_detection_frame(_CANARIES, dup)
+
+
+def test_unexpected_prediction_key_rejected():
+    # A verdict for a (canary, dimension) not in the canary set is rejected,
+    # not silently ignored (which would hide a fixture/predictions mismatch).
+    extra = [*_PREDICTIONS, _pred("ghost_canary", "groundedness", 0)]
+    with pytest.raises(ValueError, match="unknown|unexpected"):
+        canary.build_detection_frame(_CANARIES, extra)
+
+
 def test_report_renders_all_dimensions_and_flags_the_relevance_gap():
     md = canary.build_report(_CANARIES, _PREDICTIONS, provenance="synthetic test fixtures")
     for dim in canary.TOP_ANCHOR_BY_DIMENSION:
