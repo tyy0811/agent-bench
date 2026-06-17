@@ -32,12 +32,30 @@ TOP_ANCHOR_BY_DIMENSION: dict[str, int] = {
     "citation_faithfulness": 1,
 }
 
-# The judge layer's abstain sentinel (ScoreResult.score == "Unknown").
+# The judge layer's abstain sentinel (ScoreResult.score == "Unknown"). This is
+# the one accepted abstain representation: a per-(canary, dimension) score must
+# be either an integer rubric level in [0, top_anchor] or exactly this string.
 _ABSTAIN_SENTINEL = "Unknown"
 
 
 def _is_abstain(score: object) -> bool:
-    return score is None or score == _ABSTAIN_SENTINEL
+    return score == _ABSTAIN_SENTINEL
+
+
+def _validate_score(score: object, *, canary_id: str, dimension: str, top_anchor: int) -> None:
+    """Reject a malformed score loudly, naming the offender. Canary sets are
+    hand-authored, so a typo (a wrong-case sentinel, a float, an out-of-range
+    level) must produce guidance here rather than a cryptic int() crash or a
+    silently mis-bucketed verdict downstream.
+    """
+    if score == _ABSTAIN_SENTINEL:
+        return
+    if not isinstance(score, int) or isinstance(score, bool) or not (0 <= score <= top_anchor):
+        raise ValueError(
+            f"canary {canary_id!r} dimension {dimension!r}: score must be an "
+            f"integer level 0-{top_anchor} or the abstain sentinel "
+            f"{_ABSTAIN_SENTINEL!r}, got {score!r}"
+        )
 
 
 def build_detection_frame(canaries: list[dict], predictions: list[dict]) -> pd.DataFrame:
@@ -63,6 +81,7 @@ def build_detection_frame(canaries: list[dict], predictions: list[dict]) -> pd.D
             if (cid, dim) not in by_key:
                 raise ValueError(f"no judge verdict for canary {cid!r} on dimension {dim!r}")
             score = by_key[(cid, dim)]["score"]
+            _validate_score(score, canary_id=cid, dimension=dim, top_anchor=anchor)
             abstained = _is_abstain(score)
             rows.append(
                 {

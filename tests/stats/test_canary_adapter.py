@@ -119,6 +119,34 @@ def test_missing_prediction_is_a_loud_error():
         canary.build_detection_frame(_CANARIES, incomplete)
 
 
+def _with_score(item_id: str, dimension: str, score: object) -> list[dict]:
+    """_PREDICTIONS with one (canary, dimension) verdict overridden."""
+    return [
+        _pred(p["item_id"], p["dimension"], score)
+        if (p["item_id"], p["dimension"]) == (item_id, dimension)
+        else p
+        for p in _PREDICTIONS
+    ]
+
+
+def test_malformed_score_rejected_with_a_clear_message():
+    # A hand-authored typo (wrong-case sentinel) must fail loud with guidance,
+    # naming the canary, dimension, and offending value -- not crash deep in an
+    # int() cast. Canary sets are authored by hand, so this path is reachable.
+    bad = _with_score("c2", "relevance", "unknown")
+    with pytest.raises(ValueError, match="score must be") as exc:
+        canary.build_detection_frame(_CANARIES, bad)
+    msg = str(exc.value)
+    assert "relevance" in msg and "'unknown'" in msg  # names dimension + offending value
+
+
+def test_out_of_range_integer_score_rejected():
+    # 5 is not a valid level for the binary groundedness dimension (ceiling 1).
+    bad = _with_score("c1", "groundedness", 5)
+    with pytest.raises(ValueError, match="score must be"):
+        canary.build_detection_frame(_CANARIES, bad)
+
+
 def test_report_renders_all_dimensions_and_flags_the_relevance_gap():
     md = canary.build_report(_CANARIES, _PREDICTIONS, provenance="synthetic test fixtures")
     for dim in canary.TOP_ANCHOR_BY_DIMENSION:
