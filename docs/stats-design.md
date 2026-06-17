@@ -46,7 +46,7 @@ Cluster assignment: FastAPI rows take the first-listed `expected_sources` entry,
 
 The following restates design spec section 2 verbatim so the freeze travels with this document.
 
-Frozen 2026-06-11. No WP5 epoch data existed when these rules were fixed; the WP5 campaign has not run. WP0's `docs/stats-design.md` restates this section alongside the discovered-format documentation, so the freeze travels with the engineering doc.
+Frozen 2026-06-11. No WP5 epoch data existed when these rules were fixed, and the WP5 campaign had not run at that point (it has since completed; the v3.1.x section below reports its variance structure). WP0's `docs/stats-design.md` restates this section alongside the discovered-format documentation, so the freeze travels with the engineering doc.
 
 ### 2.1 Cluster definitions
 
