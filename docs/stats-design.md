@@ -46,7 +46,7 @@ Cluster assignment: FastAPI rows take the first-listed `expected_sources` entry,
 
 The following restates design spec section 2 verbatim so the freeze travels with this document.
 
-Frozen 2026-06-11. No WP5 epoch data existed when these rules were fixed; the WP5 campaign has not run. WP0's `docs/stats-design.md` restates this section alongside the discovered-format documentation, so the freeze travels with the engineering doc.
+Frozen 2026-06-11. No WP5 epoch data existed when these rules were fixed, and the WP5 campaign had not run at that point (it has since completed; the v3.1.x section below reports its variance structure). WP0's `docs/stats-design.md` restates this section alongside the discovered-format documentation, so the freeze travels with the engineering doc.
 
 ### 2.1 Cluster definitions
 
@@ -174,5 +174,15 @@ Closed in WP2 (defense in depth on guardrail 2): `run_config_epochs` refuses any
 - **Unbalanced-epochs crash** in `decompose`. Refuted by: the epoch runner produces balanced epochs and the adapter validates balance upstream (variance.py docstring); the `min epochs >= 2` guard plus that balance suffices.
 - **Negative `excluded`** in citation bookkeeping. Refuted by: the adapter emits citation_acc only for in-scope answered questions, which always emit p_at_5, so citation questions are a subset of in-scope.
 - **mde/tost on <2 shared or zero-variance diffs.** Refuted by: both configs run the same golden, so shared questions span the full set; real per-question noise prevents zero variance. Low residual, unguarded by design (fail-loud).
+
+## v3.1.x: adaptive epoch allocation, evaluated and skipped
+
+The v3.1.x backlog scoped an optional Neyman (Fisher-information-weighted) epoch-allocation mode for `scripts/run_epochs.py`: spread a fixed epoch budget across questions in proportion to per-question standard deviation instead of uniformly, to tighten the intervals on the questions that dominate the variance.
+
+Evaluated against the WP5 measurement and skipped. Adaptive epoch allocation only pays off when within-question (epoch-to-epoch) variance is large enough to be worth chasing, and the variance decomposition shows it is negligible here: p_at_5 ICC is 0.99 (between-question 0.06051, within-question 0.00036), and within-question variance is exactly zero on the custom configs, which ran `--mode deterministic` (byte-identical epochs). An ICC near 1 is the quantitative statement that the epochs are nearly redundant, so reallocating a fixed epoch budget cannot tighten any interval. The premise the patch needed, meaningful per-question epoch variance, is falsified by the measurement.
+
+The lever that would tighten the aggregate intervals is the opposite one, more questions, because between-question variance dominates (ICC 0.99). A second blocker confirms the skip independently: `scripts/evaluate.py` has no question-subset flag and the harness is frozen (guardrail 5), so per-question execution is not even available; but the variance structure is the decisive reason, not the plumbing.
+
+Recorded as evaluated-and-skipped rather than silently dropped, because knowing a technique does not apply and showing the evidence is itself the result.
 - **rglob stem-collision silent corpus drop.** Now mitigated by parent-directory keying: same-stem CSVs in different corpus directories go to different buckets, and CSVs within one corpus directory (distinct run_ids) concatenate rather than overwrite.
 - **Content hash is of the reparsed frame, not raw bytes; variance preview pools configs.** Both plan-specified and defensible (a parsed-content fingerprint; an explicitly-labeled preview). Note if provenance must match on-disk bytes, or if per-config variance is wanted.
