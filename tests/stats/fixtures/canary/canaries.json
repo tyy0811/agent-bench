@@ -2,18 +2,18 @@
   {
     "id": "canary_ungrounded_01",
     "injection_type": "ungrounded",
-    "description": "Answer asserts a concrete default that appears nowhere in the source; left uncited so the only planted defect is groundedness.",
+    "description": "Adds an unsupported claim about dependency-injection timing while otherwise answering the path-parameter question.",
     "category": "retrieval",
-    "question": "What is the default page size for the FastAPI list-items endpoint?",
-    "answer": "The default page size is 50 items per page.",
-    "sources": ["api_reference.md"],
+    "question": "How do you define a path parameter in FastAPI?",
+    "answer": "Path parameters are declared with curly braces in the route path and a corresponding parameter in the function signature. FastAPI also resolves them after dependency injection has already completed.",
+    "sources": ["fastapi_path_params.md"],
     "source_chunks": [
-      "The list-items endpoint returns paginated results. Callers set the page size with the `limit` query parameter."
+      "Path parameters allow you to capture variable segments of a URL path and pass them directly to your route handler function. They are declared using curly braces `{}` in the route path string and must have a corresponding parameter in the function signature."
     ],
     "source_snippets": [
-      "The list-items endpoint returns paginated results. Callers set the page size with the `limit` query parameter."
+      "Path parameters allow you to capture variable segments of a URL path and pass them directly to your route handler function. They are declared using curly braces `{}` in the route path string and must have a corresponding parameter in the function signature."
     ],
-    "reference_answer": "The source does not state a numeric default; callers set page size via the `limit` parameter.",
+    "reference_answer": "Path parameters in FastAPI are defined using curly braces {} in the route path string, with a corresponding parameter in the function signature.",
     "expected_failing": {
       "groundedness": true,
       "completeness": false,
@@ -24,18 +24,129 @@
   {
     "id": "canary_ungrounded_02",
     "injection_type": "ungrounded",
-    "description": "Answer invents a default replica count contradicted by the source; left uncited so the only planted defect is groundedness.",
+    "description": "Answers the pagination defaults but invents a header that bypasses the maximum page size.",
     "category": "retrieval",
-    "question": "What is the default number of replicas for a Kubernetes Deployment?",
-    "answer": "A Deployment defaults to 3 replicas when `replicas` is omitted.",
-    "sources": ["workloads.md"],
+    "question": "What is the default page size for pagination in FastAPI and what is the maximum allowed?",
+    "answer": "The default page size is 20 items and the maximum allowed page size is 100. Clients can override the maximum by sending `X-Page-Size-Override`.",
+    "sources": ["fastapi_pagination.md"],
     "source_chunks": [
-      "If you do not specify `.spec.replicas`, it defaults to 1."
+      "This implementation uses a default page size of 20 items, a minimum of 1 item per page, and a maximum of 100 items per page. For a dataset of 10,000 items with the default page size of 20, there are 500 total pages. Requesting page 3 would use `skip=40&limit=20` to retrieve items 41 through 60."
     ],
     "source_snippets": [
-      "If you do not specify `.spec.replicas`, it defaults to 1."
+      "This implementation uses a default page size of 20 items, a minimum of 1 item per page, and a maximum of 100 items per page. For a dataset of 10,000 items with the default page size of 20, there are 500 total pages. Requesting page 3 would use `skip=40&limit=20` to retrieve items 41 through 60."
     ],
-    "reference_answer": "A Deployment defaults to 1 replica when `.spec.replicas` is omitted.",
+    "reference_answer": "The default page size for pagination in FastAPI is 20 items per page, and the maximum allowed page size is 100.",
+    "expected_failing": {
+      "groundedness": true,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_ungrounded_03",
+    "injection_type": "ungrounded",
+    "description": "Covers dependency caching and disabling it, then adds an unsupported rationale about database connections.",
+    "category": "retrieval",
+    "question": "How does dependency caching work in FastAPI, and how can you disable it?",
+    "answer": "FastAPI caches the result when the same dependency is used multiple times in one request, so it calls that dependency only once. Disable that behavior with `Depends(get_db, use_cache=False)`. This is primarily intended to optimize expensive database connections.",
+    "sources": ["fastapi_dependencies.md"],
+    "source_chunks": [
+      "By default, if the same dependency is used multiple times within a single request (e.g., both a route and a sub-dependency use `Depends(get_db)`), FastAPI caches the result and calls the dependency only once. To disable caching and force a fresh call each time, use `Depends(get_db, use_cache=False)`."
+    ],
+    "source_snippets": [
+      "By default, if the same dependency is used multiple times within a single request (e.g., both a route and a sub-dependency use `Depends(get_db)`), FastAPI caches the result and calls the dependency only once. To disable caching and force a fresh call each time, use `Depends(get_db, use_cache=False)`."
+    ],
+    "reference_answer": "FastAPI caches dependency results so each dependency is called only once per request. Caching can be disabled by setting use_cache=False in the Depends() call.",
+    "expected_failing": {
+      "groundedness": true,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_ungrounded_04",
+    "injection_type": "ungrounded",
+    "description": "Answers the Swagger UI endpoint but invents a debug-mode exposure condition.",
+    "category": "retrieval",
+    "question": "What is the default Swagger UI endpoint in FastAPI?",
+    "answer": "The default Swagger UI endpoint is `/docs`, which provides the interactive API explorer. It is only exposed when debug mode is enabled.",
+    "sources": ["fastapi_openapi.md"],
+    "source_chunks": [
+      "Every FastAPI application exposes three documentation-related endpoints by default:\n\n| Endpoint         | Description                                      |\n|------------------|--------------------------------------------------|\n| `/docs`          | Swagger UI -- interactive API explorer           |"
+    ],
+    "source_snippets": [
+      "Every FastAPI application exposes three documentation-related endpoints by default:\n\n| Endpoint         | Description                                      |\n|------------------|--------------------------------------------------|\n| `/docs`          | Swagger UI -- interactive API explorer           |"
+    ],
+    "reference_answer": "The default Swagger UI endpoint in FastAPI is /docs, which provides an interactive API documentation interface.",
+    "expected_failing": {
+      "groundedness": true,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_ungrounded_05",
+    "injection_type": "ungrounded",
+    "description": "Answers ConfigMap storage guidance but contradicts the source by claiming default encryption.",
+    "category": "retrieval",
+    "question": "What is a ConfigMap in Kubernetes and what kind of data should you store in it?",
+    "answer": "A ConfigMap stores non-confidential key-value configuration data. Confidential values such as passwords or tokens should be stored in a Secret instead. ConfigMaps are encrypted by default when written to the API server.",
+    "sources": ["k8s_configmap.md"],
+    "source_chunks": [
+      "A ConfigMap is an API object used to store non-confidential data in key-value pairs. [Pods](https://kubernetes.io/docs/concepts/workloads/pods/ \"A Pod represents a set of running containers in your cluster.\") can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a [volume](https://kubernetes.io/docs/concepts/storage/volumes/ \"A directory containing data, accessible to the containers in a pod.\")."
+    ],
+    "source_snippets": [
+      "A ConfigMap is an API object used to store non-confidential data in key-value pairs. [Pods](https://kubernetes.io/docs/concepts/workloads/pods/ \"A Pod represents a set of running containers in your cluster.\") can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a [volume](https://kubernetes.io/docs/concepts/storage/volumes/ \"A directory containing data, accessible to the containers in a pod.\").",
+      "ConfigMap does not provide secrecy or encryption. If the data you want to store are confidential, use a [Secret](https://kubernetes.io/docs/concepts/configuration/secret/ \"Stores sensitive information, such as passwords, OAuth tokens, and ssh keys.\") rather than a ConfigMap, or use additional (third party) tools to keep your data private."
+    ],
+    "reference_answer": "A ConfigMap is an API object used to store non-confidential data in key-value pairs. It is intended for application configuration that does not need to be kept secret. Confidential data such as passwords or tokens should live in a Secret, not a ConfigMap.",
+    "expected_failing": {
+      "groundedness": true,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_ungrounded_06",
+    "injection_type": "ungrounded",
+    "description": "Answers Job completion behavior but invents a default retention period for completed Pods.",
+    "category": "retrieval",
+    "question": "What does a Kubernetes Job do, and how does it decide that its task is complete?",
+    "answer": "A Job creates one or more Pods, retries them until the specified number successfully terminate, tracks successful completions, and is complete when that target is reached. Deleting the Job cleans up the Pods it created. Completed Job Pods are retained for 24 hours by default.",
+    "sources": ["k8s_job.md"],
+    "source_chunks": [
+      "Jobs represent one-off tasks that run to completion and then stop.\n\nA Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the task (ie, Job) is complete. Deleting a Job will clean up the Pods it created. Suspending a Job will delete its active Pods until the Job is resumed again."
+    ],
+    "source_snippets": [
+      "Jobs represent one-off tasks that run to completion and then stop.\n\nA Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the task (ie, Job) is complete. Deleting a Job will clean up the Pods it created. Suspending a Job will delete its active Pods until the Job is resumed again."
+    ],
+    "reference_answer": "A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As Pods successfully complete, the Job tracks the successful completions; once the specified number is reached, the Job is considered complete. Deleting a Job cleans up the Pods it created.",
+    "expected_failing": {
+      "groundedness": true,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_ungrounded_07",
+    "injection_type": "ungrounded",
+    "description": "Answers DaemonSet behavior and use cases but adds an unsupported claim about control-plane scheduling.",
+    "category": "retrieval",
+    "question": "What is a DaemonSet in Kubernetes, and what kind of workload is it designed for?",
+    "answer": "A DaemonSet ensures that all or some nodes run a copy of a Pod, adding Pods as nodes join and garbage-collecting them as nodes leave. It is used for node-local facilities such as storage daemons, log collection, or node monitoring. It always runs on control-plane nodes even when no tolerations are configured.",
+    "sources": ["k8s_daemonset.md"],
+    "source_chunks": [
+      "A DaemonSet defines Pods that provide node-local facilities. These might be fundamental to the operation of your cluster, such as a networking helper tool, or be part of an add-on.\n\nA *DaemonSet* ensures that all (or some) Nodes run a copy of a Pod. As nodes are added to the cluster, Pods are added to them. As nodes are removed from the cluster, those Pods are garbage collected. Deleting a DaemonSet will clean up the Pods it created.\n\nSome typical uses of a DaemonSet are:\n\n- running a cluster storage daemon on every node\n- running a logs collection daemon on every node\n- running a node monitoring daemon on every node"
+    ],
+    "source_snippets": [
+      "A DaemonSet defines Pods that provide node-local facilities. These might be fundamental to the operation of your cluster, such as a networking helper tool, or be part of an add-on.\n\nA *DaemonSet* ensures that all (or some) Nodes run a copy of a Pod. As nodes are added to the cluster, Pods are added to them. As nodes are removed from the cluster, those Pods are garbage collected. Deleting a DaemonSet will clean up the Pods it created.\n\nSome typical uses of a DaemonSet are:\n\n- running a cluster storage daemon on every node\n- running a logs collection daemon on every node\n- running a node monitoring daemon on every node"
+    ],
+    "reference_answer": "A DaemonSet ensures that all (or some) Nodes in the cluster run a copy of a given Pod. As nodes are added to the cluster, Pods are added to them; as nodes are removed, those Pods are garbage collected. Typical uses are node-local facilities like cluster storage daemons, log collection, and node monitoring: anything that should run once per node.",
     "expected_failing": {
       "groundedness": true,
       "completeness": false,
@@ -46,18 +157,19 @@
   {
     "id": "canary_absent_citation_01",
     "injection_type": "absent_citation",
-    "description": "A true, grounded claim attributed to a source whose chunk does not support it (an effectively absent citation). The citation judge scores faithfulness, not presence, so the defect is a present-but-unsupported citation.",
+    "description": "Correct CORS answer is cited to a real but off-topic middleware chunk.",
     "category": "retrieval",
-    "question": "Which HTTP status does the API return when a requested item does not exist?",
-    "answer": "The API returns a 404 Not Found response when the item id is unknown. [source: pagination.md]",
-    "sources": ["pagination.md"],
+    "question": "How does FastAPI handle CORS and what is the default max_age for preflight caching?",
+    "answer": "FastAPI handles CORS by adding `CORSMiddleware` to the application, and the default `max_age` for preflight caching is 600 seconds. [source: fastapi_middleware.md]",
+    "sources": ["fastapi_middleware.md"],
     "source_chunks": [
-      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
+      "Middleware is a function that processes every request before it reaches a route handler and every response before it is returned to the client. FastAPI supports both ASGI middleware (from Starlette) and its own decorator-based middleware."
     ],
     "source_snippets": [
-      "Requests for an unknown item id return HTTP 404 Not Found with an error body."
+      "Cross-Origin Resource Sharing (CORS) is configured using `CORSMiddleware` from Starlette:",
+      "| `max_age`            | `600`   | Seconds the browser caches preflight results       |"
     ],
-    "reference_answer": "It returns HTTP 404 Not Found, per the errors documentation.",
+    "reference_answer": "FastAPI handles CORS by adding CORSMiddleware to the application, which manages preflight requests. The default max_age for preflight caching is 600 seconds.",
     "expected_failing": {
       "groundedness": false,
       "completeness": false,
@@ -68,18 +180,136 @@
   {
     "id": "canary_absent_citation_02",
     "injection_type": "absent_citation",
-    "description": "A true claim attributed to a source about a different topic, so the cited chunk does not support it.",
+    "description": "Correct JWT algorithm and expiry answer is cited to a real but off-topic API-key chunk.",
     "category": "retrieval",
-    "question": "What authentication scheme does the items API use?",
-    "answer": "The items API uses bearer-token authentication. [source: pagination.md]",
-    "sources": ["pagination.md"],
+    "question": "What algorithm and expiry time does the FastAPI security example use for JWT tokens?",
+    "answer": "The FastAPI security example uses the HS256 algorithm for JWT tokens with an access-token expiry of 30 minutes. [source: fastapi_security.md]",
+    "sources": ["fastapi_security.md"],
     "source_chunks": [
-      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
+      "API keys can be passed via headers, query parameters, or cookies:"
     ],
     "source_snippets": [
-      "Authenticate by sending an `Authorization: Bearer <token>` header."
+      "ALGORITHM = \"HS256\"\nACCESS_TOKEN_EXPIRE_MINUTES = 30"
     ],
-    "reference_answer": "It uses bearer-token authentication via the Authorization header.",
+    "reference_answer": "The FastAPI security example uses the HS256 algorithm for JWT tokens with an expiry time of 30 minutes.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": true
+    }
+  },
+  {
+    "id": "canary_absent_citation_03",
+    "injection_type": "absent_citation",
+    "description": "Correct HTTPException answer is cited to a real but off-topic custom-handler chunk.",
+    "category": "retrieval",
+    "question": "How do you raise an HTTP error in a FastAPI route handler?",
+    "answer": "Raise an `HTTPException` from the route handler and set its `status_code` plus a `detail` message describing the error. [source: fastapi_error_handling.md]",
+    "sources": ["fastapi_error_handling.md"],
+    "source_chunks": [
+      "Register custom handlers for any exception type using `@app.exception_handler()`:"
+    ],
+    "source_snippets": [
+      "The `HTTPException` class is the primary way to return error responses from route handlers:",
+      "When raised, `HTTPException` immediately terminates request processing and returns the specified status code and detail message. The `detail` parameter can be a string, list, or dictionary -- FastAPI serializes it to JSON automatically. The optional `headers` parameter adds custom HTTP headers to the error response."
+    ],
+    "reference_answer": "You raise an HTTP error in FastAPI by raising an HTTPException with a status_code and a detail message describing the error.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": true
+    }
+  },
+  {
+    "id": "canary_absent_citation_04",
+    "injection_type": "absent_citation",
+    "description": "Correct request-body answer is cited to a real but off-topic field-validation chunk.",
+    "category": "retrieval",
+    "question": "How do you define a request body in FastAPI?",
+    "answer": "Define a request body with a Pydantic model such as a `BaseModel`; FastAPI parses and validates the incoming JSON against that model. [source: fastapi_request_body.md]",
+    "sources": ["fastapi_request_body.md"],
+    "source_chunks": [
+      "The `Field()` function from Pydantic lets you add constraints and metadata to individual model fields:"
+    ],
+    "source_snippets": [
+      "FastAPI uses Pydantic models to declare, validate, and serialize request bodies with full type safety.",
+      "When a client sends a POST request with a JSON body like `{\"name\": \"Widget\", \"price\": 35.99, \"tax\": 3.60}`, FastAPI automatically parses the JSON, validates it against the `Item` model, and passes the validated object to the handler. If `description` is omitted, it defaults to `None`. If `tax` is omitted, it defaults to `0.0`. If `name` or `price` is missing, a 422 Unprocessable Entity response is returned."
+    ],
+    "reference_answer": "Request bodies in FastAPI are defined by creating a Pydantic BaseModel class, which FastAPI automatically parses from the incoming JSON request body.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": true
+    }
+  },
+  {
+    "id": "canary_absent_citation_05",
+    "injection_type": "absent_citation",
+    "description": "Correct Pod Security Admission enforce/warn answer is cited to a real but off-topic metrics chunk.",
+    "category": "retrieval",
+    "question": "As of Kubernetes v1.31, how does Pod Security Admission behave differently when a namespace is labeled with enforce mode versus warn mode?",
+    "answer": "Pod Security Admission is stable since Kubernetes v1.25 and applies restrictions at the namespace level based on labels. With enforce mode, policy violations cause the Pod to be rejected at admission; with warn mode, violations trigger a user-facing warning but are otherwise allowed. A namespace can combine modes at different levels. [source: k8s_pod_security_admission.md]",
+    "sources": ["k8s_pod_security_admission.md"],
+    "source_chunks": [
+      "Here are the Prometheus metrics exposed by kube-apiserver:"
+    ],
+    "source_snippets": [
+      "FEATURE STATE: `Kubernetes v1.25 [stable]`",
+      "Kubernetes offers a built-in *Pod Security* [admission controller](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/ \"A piece of code that intercepts requests to the Kubernetes API server prior to persistence of the object.\") to enforce the Pod Security Standards. Pod security restrictions are applied at the [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces \"An abstraction used by Kubernetes to support isolation of groups of resources within a single cluster.\") level when pods are created.",
+      "| **enforce** | Policy violations will cause the pod to be rejected. |\n| **audit** | Policy violations will trigger the addition of an audit annotation to the event recorded in the [audit log](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/), but are otherwise allowed. |\n| **warn** | Policy violations will trigger a user-facing warning, but are otherwise allowed. |"
+      ,
+      "A namespace can configure any or all modes, or even set a different level for different modes."
+    ],
+    "reference_answer": "Pod Security Admission (stable since Kubernetes v1.25) applies restrictions at the namespace level based on labels. With enforce mode, policy violations cause the Pod to be rejected at admission. With warn mode, policy violations trigger a user-facing warning but the Pod is still allowed. A namespace can combine modes (for example enforce plus warn) at different levels.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": true
+    }
+  },
+  {
+    "id": "canary_absent_citation_06",
+    "injection_type": "absent_citation",
+    "description": "Correct emptyDir medium answer is cited to a real but generic volume-overview chunk.",
+    "category": "retrieval",
+    "question": "How does an emptyDir volume behave differently when emptyDir.medium is left as the default versus when it is set to Memory?",
+    "answer": "By default, `emptyDir` uses whatever medium backs the node, such as disk, SSD, or network storage. With `emptyDir.medium` set to `Memory`, Kubernetes mounts a tmpfs RAM-backed filesystem, and written files count against the container's memory limit. [source: k8s_volumes.md]",
+    "sources": ["k8s_volumes.md"],
+    "source_chunks": [
+      "Kubernetes *volumes* provide a way for containers in a [Pod](https://kubernetes.io/docs/concepts/workloads/pods/ \"A Pod represents a set of running containers in your cluster.\") to access and share data via the filesystem. There are different kinds of volume that you can use for different purposes, such as:"
+    ],
+    "source_snippets": [
+      "The `emptyDir.medium` field controls where `emptyDir` volumes are stored. By default `emptyDir` volumes are stored on whatever medium that backs the node such as disk, SSD, or network storage, depending on your environment. If you set the `emptyDir.medium` field to `\"Memory\"`, Kubernetes mounts a tmpfs (RAM-backed filesystem) for you instead. While tmpfs is very fast, be aware that, unlike disks, files you write count against the memory limit of the container that wrote them."
+    ],
+    "reference_answer": "By default, an emptyDir volume is stored on whatever medium backs the node: disk, SSD, or network storage, depending on the environment. If you set emptyDir.medium to 'Memory', Kubernetes mounts a tmpfs (RAM-backed filesystem) instead. tmpfs is very fast, but files written there count against the container's memory limit.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": false,
+      "relevance": false,
+      "citation_faithfulness": true
+    }
+  },
+  {
+    "id": "canary_absent_citation_07",
+    "injection_type": "absent_citation",
+    "description": "Correct NodePort versus LoadBalancer answer is cited to a real but off-topic multi-port Service chunk.",
+    "category": "retrieval",
+    "question": "What is the difference between a Service of type NodePort and a Service of type LoadBalancer in Kubernetes?",
+    "answer": "A NodePort exposes the Service on each Node's IP at a static node port, while a LoadBalancer exposes the Service externally using an external load balancer. Kubernetes does not provide that load balancer directly, and LoadBalancer Services are typically implemented on top of NodePort. [source: k8s_service.md]",
+    "sources": ["k8s_service.md"],
+    "source_chunks": [
+      "For some Services, you need to expose more than one port. Kubernetes lets you configure multiple port definitions on a Service object. When using multiple ports for a Service, you must give all of your ports names so that these are unambiguous. For example:"
+    ],
+    "source_snippets": [
+      "Exposes the Service on each Node's IP at a static port (the `NodePort`). To make the node port available, Kubernetes sets up a cluster IP address, the same as if you had requested a Service of `type: ClusterIP`.",
+      "Exposes the Service externally using an external load balancer. Kubernetes does not directly offer a load balancing component; you must provide one, or you can integrate your Kubernetes cluster with a cloud provider.",
+      "To implement a Service of `type: LoadBalancer`, Kubernetes typically starts off by making the changes that are equivalent to you requesting a Service of `type: NodePort`. The cloud-controller-manager component then configures the external load balancer to forward traffic to that assigned node port."
+    ],
+    "reference_answer": "A Service of type NodePort exposes the Service on each Node's IP at a static port, making it reachable by connecting to any node IP on that port. A Service of type LoadBalancer exposes the Service externally using an external load balancer; Kubernetes does not directly provide the load balancer, so you must integrate with a cloud provider or supply one yourself. LoadBalancer is typically implemented on top of NodePort in cloud environments.",
     "expected_failing": {
       "groundedness": false,
       "completeness": false,
@@ -90,18 +320,18 @@
   {
     "id": "canary_incomplete_01",
     "injection_type": "incomplete",
-    "description": "Two-part question answered for only one part; the citation it gives is faithful, so the only planted defect is completeness.",
+    "description": "Answers yield-dependency cleanup but omits the maximum supported per request.",
     "category": "retrieval",
-    "question": "What are the two query parameters for paging the list-items endpoint, and what does each do?",
-    "answer": "Use the `limit` parameter to set the page size. [source: api_reference.md]",
-    "sources": ["api_reference.md"],
+    "question": "How do yield dependencies work in FastAPI and what is the maximum number supported per request?",
+    "answer": "Yield dependencies run setup code before yielding a value and cleanup code afterward in a `finally` block once the response has been sent. [source: fastapi_dependencies.md]",
+    "sources": ["fastapi_dependencies.md"],
     "source_chunks": [
-      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
+      "The code before `yield` runs before the handler, the yielded value is injected as the dependency, and the code after `yield` runs after the response is sent. The `finally` block ensures cleanup happens even if an exception occurs. FastAPI supports up to 32 yield dependencies per request by default."
     ],
     "source_snippets": [
-      "Paging uses two parameters: `limit` sets the page size and `offset` sets the starting index into the result set."
+      "The code before `yield` runs before the handler, the yielded value is injected as the dependency, and the code after `yield` runs after the response is sent. The `finally` block ensures cleanup happens even if an exception occurs. FastAPI supports up to 32 yield dependencies per request by default."
     ],
-    "reference_answer": "`limit` sets the page size and `offset` sets the starting index into the result set.",
+    "reference_answer": "Yield dependencies in FastAPI execute code before yielding a value and run cleanup code in a finally block after the response is sent. The maximum number of yield dependencies per request is 32.",
     "expected_failing": {
       "groundedness": false,
       "completeness": true,
@@ -112,18 +342,109 @@
   {
     "id": "canary_incomplete_02",
     "injection_type": "incomplete",
-    "description": "Answer omits the required second step of the documented procedure; the citation it gives is faithful, so the only planted defect is completeness.",
+    "description": "Answers how to enable GZip middleware but omits the minimum response-size default.",
     "category": "retrieval",
-    "question": "What are the steps to expose a Deployment as a network service?",
-    "answer": "Create a Deployment for the workload. [source: services.md]",
-    "sources": ["services.md"],
+    "question": "What is the minimum response size for GZip compression middleware in FastAPI, and how do you enable it?",
+    "answer": "Enable GZip compression by adding `GZipMiddleware` to the application. [source: fastapi_middleware.md]",
+    "sources": ["fastapi_middleware.md"],
     "source_chunks": [
-      "First create a Deployment, then create a Service that selects the Deployment's pods to expose it on the network."
+      "Compress responses automatically when the client supports it:\n\n```python\nfrom fastapi.middleware.gzip import GZipMiddleware\n\napp.add_middleware(GZipMiddleware, minimum_size=500)\n```\n\nThe `minimum_size` parameter (default: `500` bytes) sets the minimum response body size before compression is applied. Responses smaller than this threshold are sent uncompressed. GZip compression typically reduces JSON response sizes by 60-80%."
     ],
     "source_snippets": [
-      "First create a Deployment, then create a Service that selects the Deployment's pods to expose it on the network."
+      "Compress responses automatically when the client supports it:\n\n```python\nfrom fastapi.middleware.gzip import GZipMiddleware\n\napp.add_middleware(GZipMiddleware, minimum_size=500)\n```\n\nThe `minimum_size` parameter (default: `500` bytes) sets the minimum response body size before compression is applied. Responses smaller than this threshold are sent uncompressed. GZip compression typically reduces JSON response sizes by 60-80%."
     ],
-    "reference_answer": "Create the Deployment, then create a Service whose selector matches the Deployment's pods.",
+    "reference_answer": "GZip compression is enabled by adding GZipMiddleware to the application with a minimum_size parameter. The default minimum response size is 500 bytes.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": true,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_incomplete_03",
+    "injection_type": "incomplete",
+    "description": "Answers that FastAPI uses WebSocket handlers but omits the required accept call.",
+    "category": "retrieval",
+    "question": "How does FastAPI handle WebSocket connections, and what must be called before sending data?",
+    "answer": "FastAPI registers WebSocket endpoints with `@app.websocket()`, and handlers receive a `WebSocket` object. [source: fastapi_websockets.md]",
+    "sources": ["fastapi_websockets.md"],
+    "source_chunks": [
+      "The `@app.websocket()` decorator registers a WebSocket route. The handler receives a `WebSocket` object, which must be explicitly accepted by calling `await ws.accept()` before any data can be sent or received. The `accept()` method sends the HTTP 101 Switching Protocols response to the client."
+    ],
+    "source_snippets": [
+      "The `@app.websocket()` decorator registers a WebSocket route. The handler receives a `WebSocket` object, which must be explicitly accepted by calling `await ws.accept()` before any data can be sent or received. The `accept()` method sends the HTTP 101 Switching Protocols response to the client."
+    ],
+    "reference_answer": "FastAPI handles WebSocket connections using the WebSocket class. You must call await websocket.accept() before sending or receiving any data.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": true,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_incomplete_04",
+    "injection_type": "incomplete",
+    "description": "Answers namespace isolation and uniqueness but omits which resources are namespaced.",
+    "category": "retrieval",
+    "question": "What is a Kubernetes Namespace, and which kinds of resources does namespace scoping apply to?",
+    "answer": "Namespaces isolate groups of resources within a cluster, and resource names need to be unique within a namespace but not across namespaces. [source: k8s_namespaces.md]",
+    "sources": ["k8s_namespaces.md"],
+    "source_chunks": [
+      "In Kubernetes, *namespaces* provide a mechanism for isolating groups of resources within a single cluster. Names of resources need to be unique within a namespace, but not across namespaces. Namespace-based scoping is applicable only for namespaced [objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/#kubernetes-objects \"An entity in the Kubernetes system, representing part of the state of your cluster.\") *(e.g. Deployments, Services, etc.)* and not for cluster-wide objects *(e.g. StorageClass, Nodes, PersistentVolumes, etc.)*."
+    ],
+    "source_snippets": [
+      "In Kubernetes, *namespaces* provide a mechanism for isolating groups of resources within a single cluster. Names of resources need to be unique within a namespace, but not across namespaces. Namespace-based scoping is applicable only for namespaced [objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/#kubernetes-objects \"An entity in the Kubernetes system, representing part of the state of your cluster.\") *(e.g. Deployments, Services, etc.)* and not for cluster-wide objects *(e.g. StorageClass, Nodes, PersistentVolumes, etc.)*."
+    ],
+    "reference_answer": "Namespaces provide a mechanism for isolating groups of resources within a single cluster. Resource names must be unique within a Namespace but not across Namespaces. Namespace-based scoping applies only to namespaced objects such as Deployments and Services; cluster-wide objects like Nodes, PersistentVolumes, or StorageClass are not namespaced.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": true,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_incomplete_05",
+    "injection_type": "incomplete",
+    "description": "Answers only Role and ClusterRole, omitting RoleBinding and ClusterRoleBinding.",
+    "category": "retrieval",
+    "question": "What are the four object kinds that the Kubernetes RBAC API declares, and what does each one do?",
+    "answer": "The RBAC API declares `Role` and `ClusterRole`; both contain rules that represent permissions. [source: k8s_rbac.md]",
+    "sources": ["k8s_rbac.md"],
+    "source_chunks": [
+      "The RBAC API declares four kinds of Kubernetes object: *Role*, *ClusterRole*, *RoleBinding* and *ClusterRoleBinding*. You can describe or amend the RBAC [objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/#kubernetes-objects \"An entity in the Kubernetes system, representing part of the state of your cluster.\") using tools such as `kubectl`, just like any other Kubernetes object.\n\n> [!caution] Caution:\n> These objects, by design, impose access restrictions. If you are making changes to a cluster as you learn, see [privilege escalation prevention and bootstrapping](#privilege-escalation-prevention-and-bootstrapping) to understand how those restrictions can prevent you making some changes.\n\n### Role and ClusterRole\n\nAn RBAC *Role* or *ClusterRole* contains rules that represent a set of permissions. Permissions are purely additive (there are no \"deny\" rules)."
+    ],
+    "source_snippets": [
+      "The RBAC API declares four kinds of Kubernetes object: *Role*, *ClusterRole*, *RoleBinding* and *ClusterRoleBinding*. You can describe or amend the RBAC [objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/#kubernetes-objects \"An entity in the Kubernetes system, representing part of the state of your cluster.\") using tools such as `kubectl`, just like any other Kubernetes object.",
+      "An RBAC *Role* or *ClusterRole* contains rules that represent a set of permissions. Permissions are purely additive (there are no \"deny\" rules).",
+      "A role binding grants the permissions defined in a role to a user or set of users. It holds a list of *subjects* (users, groups, or service accounts), and a reference to the role being granted. A RoleBinding grants permissions within a specific namespace whereas a ClusterRoleBinding grants that access cluster-wide."
+    ],
+    "reference_answer": "The RBAC API declares four object kinds: Role, ClusterRole, RoleBinding, and ClusterRoleBinding. Role and ClusterRole contain rules that represent a set of permissions; RoleBinding and ClusterRoleBinding grant those roles to users, groups, or service accounts. Role and RoleBinding are namespaced, while ClusterRole and ClusterRoleBinding are cluster-wide.",
+    "expected_failing": {
+      "groundedness": false,
+      "completeness": true,
+      "relevance": false,
+      "citation_faithfulness": false
+    }
+  },
+  {
+    "id": "canary_incomplete_06",
+    "injection_type": "incomplete",
+    "description": "Answers liveness-probe failure behavior but omits readiness-probe behavior.",
+    "category": "retrieval",
+    "question": "How does the kubelet respond differently to a failing liveness probe versus a failing readiness probe on a container?",
+    "answer": "When a liveness probe fails, the kubelet restarts the container to recover from a stuck or unhealthy state. [source: k8s_probes.md]",
+    "sources": ["k8s_probes.md"],
+    "source_chunks": [
+      "The [kubelet](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/) uses liveness probes to know when to restart a container. For example, liveness probes could catch a deadlock, where an application is running, but unable to make progress. Restarting a container in such a state can help to make the application more available despite bugs.\n\nA common pattern for liveness probes is to use the same low-cost HTTP endpoint as for readiness probes, but with a higher failureThreshold. This ensures that the pod is observed as not-ready for some period of time before it is hard killed.\n\nThe kubelet uses readiness probes to know when a container is ready to start accepting traffic. One use of this signal is to control which Pods are used as backends for Services. A Pod is considered ready when its `Ready` [condition](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions) is true. When a Pod is not ready, it is removed from Service load balancers. A Pod's `Ready` condition is false when its Node's `Ready` condition is not true, when one of the Pod's `readinessGates` is false, or when at least one of its containers is not ready."
+    ],
+    "source_snippets": [
+      "The [kubelet](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/) uses liveness probes to know when to restart a container. For example, liveness probes could catch a deadlock, where an application is running, but unable to make progress. Restarting a container in such a state can help to make the application more available despite bugs.",
+      "The kubelet uses readiness probes to know when a container is ready to start accepting traffic. One use of this signal is to control which Pods are used as backends for Services. A Pod is considered ready when its `Ready` [condition](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions) is true. When a Pod is not ready, it is removed from Service load balancers. A Pod's `Ready` condition is false when its Node's `Ready` condition is not true, when one of the Pod's `readinessGates` is false, or when at least one of its containers is not ready."
+    ],
+    "reference_answer": "When a liveness probe fails, the kubelet restarts the container to try to recover from a wedged state like a deadlock. When a readiness probe fails, the container is not restarted; instead, the Pod is marked not-ready and removed from Service load balancers, so traffic stops being routed to it until the probe succeeds again.",
     "expected_failing": {
       "groundedness": false,
       "completeness": true,

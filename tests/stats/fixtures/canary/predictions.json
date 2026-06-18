@@ -1,31 +1,402 @@
 [
-  {"item_id": "canary_ungrounded_01", "dimension": "groundedness", "score": 0},
-  {"item_id": "canary_ungrounded_01", "dimension": "completeness", "score": 2},
-  {"item_id": "canary_ungrounded_01", "dimension": "relevance", "score": 2},
-  {"item_id": "canary_ungrounded_01", "dimension": "citation_faithfulness", "score": 1},
-
-  {"item_id": "canary_ungrounded_02", "dimension": "groundedness", "score": 1},
-  {"item_id": "canary_ungrounded_02", "dimension": "completeness", "score": 2},
-  {"item_id": "canary_ungrounded_02", "dimension": "relevance", "score": 2},
-  {"item_id": "canary_ungrounded_02", "dimension": "citation_faithfulness", "score": 1},
-
-  {"item_id": "canary_absent_citation_01", "dimension": "groundedness", "score": 0},
-  {"item_id": "canary_absent_citation_01", "dimension": "completeness", "score": 2},
-  {"item_id": "canary_absent_citation_01", "dimension": "relevance", "score": 1},
-  {"item_id": "canary_absent_citation_01", "dimension": "citation_faithfulness", "score": 0},
-
-  {"item_id": "canary_absent_citation_02", "dimension": "groundedness", "score": 1},
-  {"item_id": "canary_absent_citation_02", "dimension": "completeness", "score": 2},
-  {"item_id": "canary_absent_citation_02", "dimension": "relevance", "score": 2},
-  {"item_id": "canary_absent_citation_02", "dimension": "citation_faithfulness", "score": "Unknown"},
-
-  {"item_id": "canary_incomplete_01", "dimension": "groundedness", "score": 1},
-  {"item_id": "canary_incomplete_01", "dimension": "completeness", "score": 0},
-  {"item_id": "canary_incomplete_01", "dimension": "relevance", "score": 2},
-  {"item_id": "canary_incomplete_01", "dimension": "citation_faithfulness", "score": 1},
-
-  {"item_id": "canary_incomplete_02", "dimension": "groundedness", "score": 1},
-  {"item_id": "canary_incomplete_02", "dimension": "completeness", "score": 1},
-  {"item_id": "canary_incomplete_02", "dimension": "relevance", "score": 2},
-  {"item_id": "canary_incomplete_02", "dimension": "citation_faithfulness", "score": 1}
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "groundedness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "completeness",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "citation_faithfulness",
+    "score": 0
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "completeness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "completeness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "completeness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "completeness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "completeness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "groundedness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "completeness",
+    "score": 1
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "relevance",
+    "score": 2
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "citation_faithfulness",
+    "score": 1
+  }
 ]
