@@ -410,6 +410,95 @@ The honest reading of all three is the same. With roughly 30 calibration items
 the agreement estimates are directional, and the documented next step is a larger
 labeled set, not a tighter claim on this one.
 
+### 1.8 Canary detection efficiency (v3.2 WP8)
+
+The canary harness measures the judges as a detector: known-bad answers are
+injected against the golden questions (grounded-looking but wrong, a claim
+attributed to a source whose retrieved chunk does not support it, or a subtly
+incomplete answer), each carrying a per-dimension ground-truth label, and we
+record how often a judge flags the planted defect (detection efficiency) and how
+often it flags a clean dimension (false-positive rate). The set is 20 canaries
+(7 ungrounded, 7 absent_citation, 6 incomplete) authored against the FastAPI and
+Kubernetes corpora and scored once by claude-haiku-4-5. The table is a real
+measurement of that judge configuration, not a general claim about judge
+reliability; the one durable, structural result is called out as such below.
+
+| Dimension | Detection efficiency | 95% CI | False-positive rate | 95% CI |
+|---|---|---|---|---|
+| groundedness | 7/7 = 1.000 | [0.590, 1.000] | 1/13 = 0.077 | [0.002, 0.360] |
+| completeness | 6/6 = 1.000 | [0.541, 1.000] | 0/14 = 0.000 | [0.000, 0.232] |
+| citation_faithfulness | 7/7 = 1.000 | [0.590, 1.000] | 0/13 = 0.000 | [0.000, 0.247] |
+| relevance | n/a (control) | n/a | 6/20 = 0.300 | [0.119, 0.543] |
+
+Detection is 1.000 on all three planted dimensions, but the per-dimension counts
+are 6 to 7, so the honest read is no missed detections at this scale, not a
+perfect detector: the exact two-sided Clopper-Pearson lower bounds sit near 0.54
+to 0.59. High detection is also partly a property of the canaries, which were
+authored to carry detectable defects, so the informative content of this section
+is the false-positive structure below, not the detection column. Relevance plants
+no defect because no clean single-defect relevance canary exists: a relevance
+failure entails a completeness failure (an off-topic answer also fails the
+question's reference coverage), so any relevance probe would be confounded with
+completeness rather than cleanly isolable. Relevance therefore serves as the
+false-positive-only control, and the table reports its detection efficiency as not
+estimable for that reason, the absence of a clean single-defect probe, not an
+inability to measure the judge in principle.
+
+The lead finding is the relevance false-positive structure, and it was
+pre-registered. The relevance judge flagged exactly and only the six incomplete
+canaries (6 of 6), and none of the fourteen ungrounded or absent_citation
+canaries (0 of 14). The mechanism is explicit in all six judge reasonings, each
+citing partial or omitted coverage (for instance "addresses only half of the
+compound question"), and it is structural rather than incidental: the relevance
+rubric's Score 1 is defined as "partially relevant, the answer touches the
+question's topic but misses part," so partial coverage is a relevance deduction
+by construction and the relevance and completeness rubrics overlap. That is the
+measured echo of the entailment that made relevance the false-positive-only
+control in the first place: an answer that omits part of the question fails
+completeness by design and reads as only partially relevant by rubric. The
+relevance over-flagging is therefore entirely the completeness entanglement, not
+generic background noise, and because it is encoded in the scoring rubric it will
+reproduce. This is the durable result.
+
+The single groundedness false positive is the more instructive one, because the
+obvious story was wrong. The flagged answer, canary_absent_citation_01, is
+labeled clean on groundedness, and the tempting read was that its misattributed
+citation bled into the groundedness verdict. The raw judge reasoning refutes
+that: the judge never referenced the citation or the cited source. It flagged a
+different thing. The answer states that max_age 600 is the "default," while the
+provided snippet shows 600 as a table value without establishing it as the
+default, so under strict-snippet grounding "600 is the default" is an unentailed
+claim. That inverts the finding into a genuine ambiguity: at a count of one we
+cannot distinguish an over-strict judge from a canary that is mislabeled, an
+answer carrying a marginal unsupported sub-claim on a dimension marked clean.
+Both readings are live; the interval [0.002, 0.360] is the quantitative statement
+that one event in thirteen says almost nothing about the underlying rate; and the
+right disposition is to remove the ambiguity at its source rather than adjudicate
+it now, so a v2 of this canary drops "default" or gives the snippet the
+default-establishing context. It is logged as a possible ground-truth authoring
+defect, not a judge bug.
+
+One operational note. The completeness judge failed schema parsing on its first
+attempt for 5 of the 20 canaries and recovered on retry every time, so the final
+scores are all valid and this run has no abstains. The retry budget absorbed it
+here, but a 25 percent first-attempt failure rate is a flakiness worth watching:
+at a larger N or a tighter retry budget it would surface as real data loss rather
+than a recovered warning.
+
+Two kinds of result live in this section and should not be conflated. The
+relevance and completeness rubric overlap is a structural, pre-registered finding
+that is encoded in the scoring rubric and will reproduce. The specific detection
+and false-positive rates are this-configuration measurements (twenty canaries,
+one model, one corpus) carrying wide intervals, and a larger labeled set is the
+documented next step, the same honesty rule that governs the agreement intervals
+in 1.7. The harness is `stats/detection.py` with the boundary adapter
+`stats_adapters/canary.py`; the canary set (which doubles as the committed CI
+fixture, scored there with simulated verdicts so the offline report regenerates
+byte-for-byte without a paid run), the real predictions, and the rendered report
+are versioned at `tests/stats/fixtures/canary/canaries.json`,
+`results/canary/predictions_real_v1.json`, and
+`docs/_generated/canary_detection_real.md`.
+
 ---
 
 ## 2. Position statement — when not to use LLM-judge
