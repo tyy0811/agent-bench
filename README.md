@@ -6,7 +6,7 @@
 
 Agentic knowledge retrieval system with evaluation benchmark. Custom orchestration pipeline + LangChain baseline, evaluated on matched golden datasets across 3 providers (OpenAI, Anthropic, self-hosted vLLM on Modal) and two corpora (FastAPI + Kubernetes). Zero hallucinated citations on all API provider configurations. The separate self-hosted Mistral-7B benchmark is included to show the practical model-size floor where agentic retrieval starts to break down.
 
-`528 tests` · `3 providers` · `2 corpora` · `LangChain comparison` · `LLM-as-judge` · `K8s + Terraform` · `CI`
+`683 tests` · `3 providers` · `2 corpora` · `LangChain comparison` · `LLM-as-judge` · `K8s + Terraform` · `CI`
 
 ## Benchmark Results
 
@@ -254,7 +254,7 @@ security:
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
 - **Security — detection & redaction**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
 - **Security — audit & compliance**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 528 deterministic tests with mock providers
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 683 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
 
@@ -336,7 +336,7 @@ The v3.1 statistics layer turns this run-to-run variance into a measured quantit
 ## Testing
 
 ```bash
-make test    # 528 deterministic tests, no API keys needed
+make test    # 683 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 

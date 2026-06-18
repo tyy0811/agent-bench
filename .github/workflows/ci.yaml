@@ -38,6 +38,13 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
+      # README numbers are pinned to docs/_generated/stats_report.md via the
+      # marker protocol; this fails the build if the README and the report
+      # drift. Stdlib-only, so it runs as a direct script rather than a
+      # Makefile target (the Makefile's $(PYTHON) is a local homebrew path).
+      - name: Check README stats consistency
+        run: python scripts/check_readme_stats.py
+
   docker:
     runs-on: ubuntu-latest
     steps:
