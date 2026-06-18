@@ -460,23 +460,32 @@ relevance over-flagging is therefore entirely the completeness entanglement, not
 generic background noise, and because it is encoded in the scoring rubric it will
 reproduce. This is the durable result.
 
-The single groundedness false positive is the more instructive one, because the
-obvious story was wrong. The flagged answer, canary_absent_citation_01, is
-labeled clean on groundedness, and the tempting read was that its misattributed
-citation bled into the groundedness verdict. The raw judge reasoning refutes
-that: the judge never referenced the citation or the cited source. It flagged a
-different thing. The answer states that max_age 600 is the "default," while the
-provided snippet shows 600 as a table value without establishing it as the
-default, so under strict-snippet grounding "600 is the default" is an unentailed
-claim. That inverts the finding into a genuine ambiguity: at a count of one we
-cannot distinguish an over-strict judge from a canary that is mislabeled, an
-answer carrying a marginal unsupported sub-claim on a dimension marked clean.
-Both readings are live; the interval [0.002, 0.360] is the quantitative statement
-that one event in thirteen says almost nothing about the underlying rate; and the
-right disposition is to remove the ambiguity at its source rather than adjudicate
-it now, so a v2 of this canary drops "default" or gives the snippet the
-default-establishing context. It is logged as a possible ground-truth authoring
-defect, not a judge bug.
+The single groundedness false positive is the most instructive cell in the
+table, because chasing it down moved the finding twice. The flagged answer,
+canary_absent_citation_01, is labeled clean on groundedness, and the tempting
+first read was that its misattributed citation bled into the verdict. The raw
+judge reasoning refutes that: the judge never referenced the citation or the
+cited source. It flagged something else, that the answer calls max_age 600 the
+"default" while the snippet it was shown gave 600 as a bare table value, so under
+strict-snippet grounding "600 is the default" was unentailed. At a count of one
+that looked like an irreducible ambiguity between an over-strict judge and a
+mislabeled canary. Reading the source document resolves it, and resolves it to
+neither: fastapi_middleware.md carries a "Default" column whose row lists max_age
+as 600, so the claim is true against the full document, but the canary's
+source_snippets had dropped that column-header row and kept only the value row.
+The defect was in the snippet, the slice of evidence the canary fed the judge,
+not in the label, the answer, or the judge: the judge scored the evidence it was
+shown correctly, and the evidence was incomplete.
+
+This does not retract the measurement. The 1/13 groundedness false-positive rate
+is a real result for the v1 evidence state, and the interval [0.002, 0.360]
+remains the honest statement that one event in thirteen says little about the
+underlying rate; what the investigation changes is the attribution, from an
+unresolved judge-versus-label ambiguity to an incomplete-evidence authoring
+defect traced to a single missing snippet row. The v2 fix restores the "Default"
+column header to the snippet, which grounds the claim, and a future paid run
+would confirm the false positive is gone. It is logged and fixed as a
+ground-truth authoring defect, not a judge bug.
 
 One operational note. The completeness judge failed schema parsing on its first
 attempt for 5 of the 20 canaries and recovered on retry every time, so the final
