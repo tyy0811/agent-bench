@@ -307,7 +307,7 @@ make benchmark            # Generate markdown report from results
 make evaluate-langchain   # Run LangChain baseline comparison
 ```
 
-The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set · 2 time-sensitive). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store — no LLM-judged ground truth, no paraphrase fuzz.
+The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store — no LLM-judged ground truth, no paraphrase fuzz.
 
 ## LLM-as-Judge Evaluation
 
