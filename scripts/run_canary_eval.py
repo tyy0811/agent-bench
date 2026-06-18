@@ -47,14 +47,15 @@ REPO = Path(__file__).resolve().parents[1]
 DIMENSIONS = ("groundedness", "completeness", "relevance", "citation_faithfulness")
 DEFAULT_OUT = REPO / "docs/_generated/canary_detection.md"
 
-# The committed report renders from synthetic fixtures; say so in the artifact so
-# no reader mistakes the simulated verdicts for a measurement. The committed-
-# report test pins the artifact to this exact string, so it is the single source
-# of truth for the demonstration provenance.
+# The committed report renders from golden-derived canary fixtures with simulated
+# verdicts; say so in the artifact so no reader mistakes the simulation for a
+# real judge measurement. The committed-report test pins the artifact to this
+# exact string, so it is the single source of truth for the demonstration
+# provenance.
 DEFAULT_PROVENANCE = (
-    "synthetic demonstration fixtures (tests/stats/fixtures/canary); the judge "
-    "verdicts are simulated, not a measurement of any real judge. Replace with a "
-    "real canary set and real run-judges output for a measurement"
+    "golden-derived canary fixtures (tests/stats/fixtures/canary) with real "
+    "corpus source passages; the judge verdicts are simulated, not a measurement "
+    "of any real judge. Replace with real run-judges output for a measurement"
 )
 
 

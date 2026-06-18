@@ -129,9 +129,9 @@ the report.
 
 - `make canary-report` is free and offline: it renders
   `docs/_generated/canary_detection.md` from a committed canary set and a
-  committed predictions file. The shipped fixtures are a synthetic demonstration
-  of the harness; the committed report's verdicts are simulated, not a
-  measurement of any real judge.
+  committed predictions file. The shipped fixtures are golden-derived canaries
+  with real corpus source passages; the committed report's verdicts are
+  simulated, not a measurement of any real judge.
 - The paid path runs the real judges over a real canary set:
   `python scripts/run_canary_eval.py run-judges --canaries <set>.json --out <preds>.json`
   then `build-report`. This spends API budget (one judge call per canary and

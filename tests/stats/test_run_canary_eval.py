@@ -19,6 +19,7 @@ import run_canary_eval  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).parent / "fixtures" / "canary"
+CORPUS_DIRS = (REPO / "data" / "tech_docs", REPO / "data" / "k8s_docs")
 
 
 def _score(value: object) -> ScoreResult:
@@ -194,6 +195,26 @@ def test_shipped_canaries_carry_source_chunks_aligned_to_sources():
         _item, output = run_canary_eval._build_item_and_output(c)
         assert len(output.source_chunks) == len(output.sources), c["id"]
         assert all(chunk.strip() for chunk in output.source_chunks), c["id"]
+
+
+def test_shipped_canaries_use_real_corpus_sources_and_passages():
+    """Canaries used with real judges must cite source files and evidence text
+    that exist in the ingested corpora, not synthetic fixture names.
+    """
+
+    def source_text(source: str) -> str:
+        matches = [path / source for path in CORPUS_DIRS if (path / source).exists()]
+        assert matches, f"canary source {source!r} is not in any corpus directory"
+        return matches[0].read_text()
+
+    for c in json.loads((FIXTURES / "canaries.json").read_text()):
+        source_docs = {source: source_text(source) for source in c["sources"]}
+        for source, chunk in zip(c["sources"], c["source_chunks"], strict=True):
+            assert chunk in source_docs[source], f"{c['id']} chunk is not copied from {source}"
+        for snippet in c["source_snippets"]:
+            assert any(snippet in doc for doc in source_docs.values()), (
+                f"{c['id']} snippet is not copied from its cited corpus sources"
+            )
 
 
 def test_build_item_and_output_rejects_misaligned_source_chunks():

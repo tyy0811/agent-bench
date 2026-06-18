@@ -1,0 +1,1266 @@
+[
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "groundedness",
+    "reasoning": "The answer contains two claims: (1) Path parameters are declared with curly braces in the route path and a corresponding parameter in the function signature, and (2) FastAPI resolves them after dependency injection has already completed. Claim 1 is directly entailed by the snippet. However, claim 2 about the timing of path parameter resolution relative to dependency injection is not mentioned in or entailed by the gold snippet. The snippet only describes the declaration mechanism, not the order of resolution relative to dependency injection. This is a factual claim about FastAPI behavior that goes beyond what the snippet supports, similar to Example B where an embellishment not present in the snippet causes a score of 0.",
+    "evidence_quotes": [
+      "Path parameters allow you to capture variable segments of a URL path and pass them directly to your route handler function. They are declared using curly braces `{}` in the route path string and must have a corresponding parameter in the function signature."
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "786ff4fce26d13880a2fbe8ce9247e6b1dcbda958bd8865a970b732adb4790a8",
+    "cost_usd": 0.002492,
+    "latency_ms": 2904.6728370012715
+  },
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two key points: (1) path parameters are defined using curly braces {} in the route path string, and (2) there is a corresponding parameter in the function signature. The agent's answer covers both of these points. The first sentence directly addresses both requirements: 'Path parameters are declared with curly braces in the route path and a corresponding parameter in the function signature.' The second sentence adds additional information about dependency injection timing, which is extra detail not penalized under the rubric. All key points from the reference are present.",
+    "evidence_quotes": [
+      "Reference: 'Path parameters in FastAPI are defined using curly braces {} in the route path string, with a corresponding parameter in the function signature.'",
+      "Answer: 'Path parameters are declared with curly braces in the route path and a corresponding parameter in the function signature.'"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "786ff4fce26d13880a2fbe8ce9247e6b1dcbda958bd8865a970b732adb4790a8",
+    "cost_usd": 0.0014392,
+    "latency_ms": 2409.754937980324
+  },
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about defining path parameters in FastAPI. It correctly identifies the two key mechanisms: (1) using curly braces in the route path, and (2) declaring a corresponding parameter in the function signature. These are the essential steps for defining path parameters in FastAPI. The additional detail about dependency injection completion is relevant context but not central to the basic definition. The answer is on-target and complete for the question asked.",
+    "evidence_quotes": [
+      "Path parameters are declared with curly braces in the route path",
+      "corresponding parameter in the function signature"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "786ff4fce26d13880a2fbe8ce9247e6b1dcbda958bd8865a970b732adb4790a8",
+    "cost_usd": 0.0011752,
+    "latency_ms": 1764.599977992475
+  },
+  {
+    "item_id": "canary_ungrounded_01",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "786ff4fce26d13880a2fbe8ce9247e6b1dcbda958bd8865a970b732adb4790a8",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes three claims: (1) default page size is 20 items, (2) maximum allowed page size is 100, and (3) clients can override the maximum by sending `X-Page-Size-Override`. Claims 1 and 2 are directly entailed by the snippet. However, claim 3 about the `X-Page-Size-Override` header is not mentioned anywhere in the gold snippet. This is a factually plausible claim but it is not entailed by the reference material provided. Under the strict-entailment rubric, a single ungrounded claim fails the binary test.",
+    "evidence_quotes": [
+      "This implementation uses a default page size of 20 items... and a maximum of 100 items per page."
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "b18e102fef589cc0c65644f0a7e41b7ba1e4abdf8310ee56c1d871b4d5e418a2",
+    "cost_usd": 0.002376,
+    "latency_ms": 3491.1499010631815
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "completeness",
+    "reasoning": "The reference contains two key points: (1) default page size is 20 items per page, and (2) maximum allowed page size is 100. The agent's answer covers both of these points accurately. The agent states 'The default page size is 20 items' (covering point 1) and 'the maximum allowed page size is 100' (covering point 2). The additional information about the X-Page-Size-Override header is extra detail not in the reference, but per the instructions, the judge does not penalize for adding correct extra detail. All reference points are present.",
+    "evidence_quotes": [
+      "Reference: 'The default page size for pagination in FastAPI is 20 items per page'",
+      "Answer: 'The default page size is 20 items'",
+      "Reference: 'the maximum allowed page size is 100'",
+      "Answer: 'the maximum allowed page size is 100'"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "b18e102fef589cc0c65644f0a7e41b7ba1e4abdf8310ee56c1d871b4d5e418a2",
+    "cost_usd": 0.0015272,
+    "latency_ms": 2671.503796009347
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the question: it states the default page size (20 items) and the maximum allowed page size (100). However, without access to FastAPI's actual documentation or source code, it is impossible to verify whether these values are accurate. The answer is topically on-target and engages with the specific question asked, but the factual accuracy cannot be confirmed from the question and answer alone. Since the rubric explicitly states this is 'reference-free' and judges 'topic-match, not the truth-value,' the answer scores well on relevance. The answer is well-structured and provides both requested pieces of information.",
+    "evidence_quotes": [
+      "The default page size is 20 items",
+      "the maximum allowed page size is 100"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "b18e102fef589cc0c65644f0a7e41b7ba1e4abdf8310ee56c1d871b4d5e418a2",
+    "cost_usd": 0.0013495999999999998,
+    "latency_ms": 2703.7454850506037
+  },
+  {
+    "item_id": "canary_ungrounded_02",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "b18e102fef589cc0c65644f0a7e41b7ba1e4abdf8310ee56c1d871b4d5e418a2",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "groundedness",
+    "reasoning": "The answer contains three main claims: (1) FastAPI caches results when the same dependency is used multiple times in one request and calls it only once, (2) disable this with `Depends(get_db, use_cache=False)`, and (3) this is primarily intended to optimize expensive database connections. Claims 1 and 2 are directly entailed by the snippet. However, claim 3\u2014that caching is 'primarily intended to optimize expensive database connections'\u2014is not entailed by the snippet. The snippet describes the caching mechanism and how to disable it, but does not state the purpose or intended use case for caching. This is analogous to Example B in the rubric, where adding a use-case justification ('particularly useful for expensive operations like database connections') that the snippet does not make constitutes an ungrounded embellishment. The strict-conjunction rule applies: a single ungrounded claim fails the binary rubric.",
+    "evidence_quotes": [
+      "By default, if the same dependency is used multiple times within a single request (e.g., both a route and a sub-dependency use `Depends(get_db)`), FastAPI caches the result and calls the dependency only once.",
+      "To disable caching and force a fresh call each time, use `Depends(get_db, use_cache=False)`."
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "e5600647923bad860927ed692a26c487b69f12c96a8f2b5628ec88cecaaec764",
+    "cost_usd": 0.0028968,
+    "latency_ms": 2951.5450729522854
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. (1) It explains that FastAPI caches dependency results so each dependency is called only once per request\u2014this is paraphrased as 'caches the result when the same dependency is used multiple times in one request, so it calls that dependency only once.' (2) It explains how to disable caching by setting use_cache=False in the Depends() call\u2014paraphrased as 'Disable that behavior with `Depends(get_db, use_cache=False)`.' The additional context about database connections is extra detail not penalized by the rubric.",
+    "evidence_quotes": [
+      "FastAPI caches the result when the same dependency is used multiple times in one request, so it calls that dependency only once.",
+      "Disable that behavior with `Depends(get_db, use_cache=False)`."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "e5600647923bad860927ed692a26c487b69f12c96a8f2b5628ec88cecaaec764",
+    "cost_usd": 0.0014784000000000002,
+    "latency_ms": 2046.665706904605
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the user's question: (1) how dependency caching works in FastAPI\u2014explaining that dependencies are cached per request and called only once when reused, and (2) how to disable it\u2014providing the specific syntax `Depends(get_db, use_cache=False)`. The answer also provides relevant context about the optimization purpose. This is a complete, on-target response that covers the core ask.",
+    "evidence_quotes": [
+      "FastAPI caches the result when the same dependency is used multiple times in one request, so it calls that dependency only once",
+      "Disable that behavior with `Depends(get_db, use_cache=False)`"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "e5600647923bad860927ed692a26c487b69f12c96a8f2b5628ec88cecaaec764",
+    "cost_usd": 0.0012968,
+    "latency_ms": 2218.8925839727744
+  },
+  {
+    "item_id": "canary_ungrounded_03",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "e5600647923bad860927ed692a26c487b69f12c96a8f2b5628ec88cecaaec764",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes two claims: (1) the default Swagger UI endpoint is `/docs`, and (2) it provides an interactive API explorer. Both are directly entailed by the snippet. However, the answer adds a third claim: 'It is only exposed when debug mode is enabled.' This claim is NOT entailed by the snippet, which states that the endpoint is exposed 'by default' with no mention of debug mode as a condition. Under the strict-conjunction rule, a single ungrounded claim fails the binary rubric.",
+    "evidence_quotes": [
+      "Every FastAPI application exposes three documentation-related endpoints by default",
+      "| `/docs` | Swagger UI -- interactive API explorer |"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "d8a290134b492ec265a75b734be72119c01fe3433d1db1b360f89f4006c3c726",
+    "cost_usd": 0.002272,
+    "latency_ms": 2904.9557959660888
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "completeness",
+    "reasoning": "The reference makes two key points: (1) the default Swagger UI endpoint is /docs, and (2) it provides an interactive API documentation interface. The answer covers both points: it states the endpoint is `/docs` and describes it as 'the interactive API explorer.' The phrase 'interactive API explorer' is a reasonable paraphrase of 'interactive API documentation interface.' However, the answer adds an additional claim that 'It is only exposed when debug mode is enabled,' which is not in the reference and is actually incorrect (the /docs endpoint is exposed by default in FastAPI regardless of debug mode). Since the scoring rubric explicitly states the judge does not penalize the agent for adding correct extra detail, and this extra detail is incorrect, this is a separate concern from coverage. On coverage alone, both key reference points are present in the answer.",
+    "evidence_quotes": [
+      "The default Swagger UI endpoint is `/docs`",
+      "interactive API explorer",
+      "interactive API documentation interface"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "d8a290134b492ec265a75b734be72119c01fe3433d1db1b360f89f4006c3c726",
+    "cost_usd": 0.0029824,
+    "latency_ms": 10150.484033976682
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the question by identifying the default Swagger UI endpoint as `/docs`. However, it includes an inaccuracy: the Swagger UI endpoint in FastAPI is exposed by default and is not conditional on debug mode being enabled. Despite this factual error, the answer does address the core ask of the question (identifying the endpoint). The rubric explicitly states 'Score the topic-match, not the truth-value,' so the inaccuracy should not affect the relevance score. The answer is on-topic and directly answers what was asked.",
+    "evidence_quotes": [
+      "The default Swagger UI endpoint is `/docs`",
+      "which provides the interactive API explorer"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "d8a290134b492ec265a75b734be72119c01fe3433d1db1b360f89f4006c3c726",
+    "cost_usd": 0.0012456,
+    "latency_ms": 2199.8700769618154
+  },
+  {
+    "item_id": "canary_ungrounded_04",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "d8a290134b492ec265a75b734be72119c01fe3433d1db1b360f89f4006c3c726",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "groundedness",
+    "reasoning": "The answer contains three claims: (1) ConfigMap stores non-confidential key-value data, (2) confidential values like passwords/tokens should use Secret instead, and (3) ConfigMaps are encrypted by default when written to the API server. Claims 1 and 2 are directly entailed by snippets [1] and [2]. However, claim 3\u2014that ConfigMaps are encrypted by default\u2014is not entailed by any snippet. Snippet [2] explicitly states 'ConfigMap does not provide secrecy or encryption,' which directly contradicts the claim that they are encrypted by default. Under the strict-conjunction rule, a single ungrounded (and contradicted) claim fails the binary rubric.",
+    "evidence_quotes": [
+      "ConfigMap does not provide secrecy or encryption. If the data you want to store are confidential, use a Secret rather than a ConfigMap"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "1d46e9cc61f4231ad196c0e1aa64ce99891fd6b0b07acafc3b594311b9ecd390",
+    "cost_usd": 0.0025808000000000003,
+    "latency_ms": 2732.249403023161
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains three key points: (1) ConfigMap is an API object for storing non-confidential data in key-value pairs, (2) it is intended for application configuration that does not need to be secret, and (3) confidential data like passwords or tokens should use Secret instead. The agent's answer covers all three points: it states ConfigMap stores non-confidential key-value configuration data (points 1-2 combined), and explicitly states that confidential values like passwords or tokens should be stored in Secret instead (point 3). The agent adds an extra claim about encryption by default, which is not penalized per the instructions. All reference points are present.",
+    "evidence_quotes": [
+      "ConfigMap stores non-confidential key-value configuration data",
+      "Confidential values such as passwords or tokens should be stored in a Secret instead"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "1d46e9cc61f4231ad196c0e1aa64ce99891fd6b0b07acafc3b594311b9ecd390",
+    "cost_usd": 0.0030752,
+    "latency_ms": 8794.3607569905
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the question: (1) what a ConfigMap is\u2014a store for non-confidential key-value configuration data, and (2) what kind of data should be stored in it\u2014non-confidential data, with the clarification that confidential data like passwords/tokens belong in Secrets instead. However, there is a factual error: ConfigMaps are NOT encrypted by default. This is a significant inaccuracy about ConfigMap behavior, though it does not affect the relevance of the answer to the question asked. The answer is on-topic and addresses the core ask, making it directly relevant despite the factual flaw.",
+    "evidence_quotes": [
+      "A ConfigMap stores non-confidential key-value configuration data",
+      "Confidential values such as passwords or tokens should be stored in a Secret instead",
+      "ConfigMaps are encrypted by default when written to the API server [INACCURATE]"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "1d46e9cc61f4231ad196c0e1aa64ce99891fd6b0b07acafc3b594311b9ecd390",
+    "cost_usd": 0.0015095999999999998,
+    "latency_ms": 2672.3732938989997
+  },
+  {
+    "item_id": "canary_ungrounded_05",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "1d46e9cc61f4231ad196c0e1aa64ce99891fd6b0b07acafc3b594311b9ecd390",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "groundedness",
+    "reasoning": "The answer contains one claim not entailed by the gold snippet. The first three sentences are all directly supported: Job creation, retry behavior, completion tracking, and deletion cleanup are all explicitly stated in the snippet. However, the final claim\u2014'Completed Job Pods are retained for 24 hours by default'\u2014is not present in or entailed by the snippet. This is a factual statement about Kubernetes behavior, but it falls outside the strict reference scope of the gold snippets provided. Under the binary rubric, a single ungrounded claim fails the test.",
+    "evidence_quotes": [
+      "A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate.",
+      "When a specified number of successful completions is reached, the task (ie, Job) is complete.",
+      "Deleting a Job will clean up the Pods it created."
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "1fe76aea300c10061181179fb21010af24e0cc65e250f03d8a6dbb81b5f64781",
+    "cost_usd": 0.0025248000000000002,
+    "latency_ms": 2910.787814995274
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) Job creates one or more Pods - present ('A Job creates one or more Pods'); (2) retries execution until specified number successfully terminate - present ('retries them until the specified number successfully terminate'); (3) tracks successful completions - present ('tracks successful completions'); (4) Job is complete when target reached - present ('is complete when that target is reached'); (5) deleting Job cleans up Pods - present ('Deleting the Job cleans up the Pods it created'). The answer also includes an additional fact about Pod retention (24 hours default), which is correct extra detail but not penalized per the instructions. All reference points are covered with appropriate paraphrasing.",
+    "evidence_quotes": [
+      "A Job creates one or more Pods",
+      "retries them until the specified number successfully terminate",
+      "tracks successful completions",
+      "is complete when that target is reached",
+      "Deleting the Job cleans up the Pods it created"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "1fe76aea300c10061181179fb21010af24e0cc65e250f03d8a6dbb81b5f64781",
+    "cost_usd": 0.0032216000000000007,
+    "latency_ms": 4871.331474976614
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the question. It explains what a Kubernetes Job does (creates Pods, retries them, tracks completions) and how it decides its task is complete (when the target number of successful completions is reached). The answer is on-topic, specific to Jobs, and covers the core asks without tangential information.",
+    "evidence_quotes": [
+      "A Job creates one or more Pods, retries them until the specified number successfully terminate, tracks successful completions, and is complete when that target is reached."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "1fe76aea300c10061181179fb21010af24e0cc65e250f03d8a6dbb81b5f64781",
+    "cost_usd": 0.0011552,
+    "latency_ms": 2048.922788933851
+  },
+  {
+    "item_id": "canary_ungrounded_06",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "1fe76aea300c10061181179fb21010af24e0cc65e250f03d8a6dbb81b5f64781",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "groundedness",
+    "reasoning": "The answer contains one ungrounded claim. The first two sentences are fully entailed by the snippet: the definition of DaemonSet behavior (ensuring all/some nodes run a Pod copy, adding/removing with nodes), and the typical uses (storage daemons, log collection, node monitoring). However, the final claim\u2014'It always runs on control-plane nodes even when no tolerations are configured'\u2014is not entailed by the snippet. The snippet does not mention control-plane nodes, tolerations, or any special behavior regarding control-plane scheduling. This is a factual claim about Kubernetes that may be correct in general, but it is not supported by the gold snippet provided. Under the strict-entailment rubric, a single ungrounded claim fails the binary score.",
+    "evidence_quotes": [
+      "A DaemonSet ensures that all (or some) Nodes run a copy of a Pod. As nodes are added to the cluster, Pods are added to them. As nodes are removed from the cluster, those Pods are garbage collected.",
+      "Some typical uses of a DaemonSet are: running a cluster storage daemon on every node, running a logs collection daemon on every node, running a node monitoring daemon on every node"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "9a61373dde62b4725e2daac30bfd6e59e56b0b835c6a360a31bb2d57c1258f04",
+    "cost_usd": 0.0028536000000000004,
+    "latency_ms": 3458.698463975452
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) DaemonSets ensure all/some nodes run a Pod copy, (2) Pods are added as nodes join, (3) Pods are garbage-collected as nodes leave, and (4) typical uses include storage daemons, log collection, and node monitoring. The answer includes an additional claim about control-plane nodes that is not in the reference, but per the rubric, the judge does not penalize for adding correct extra detail. All reference points are present.",
+    "evidence_quotes": [
+      "Reference: 'ensures that all (or some) Nodes in the cluster run a copy of a given Pod' | Answer: 'ensures that all or some nodes run a copy of a Pod'",
+      "Reference: 'as nodes are added to the cluster, Pods are added to them' | Answer: 'adding Pods as nodes join'",
+      "Reference: 'as nodes are removed, those Pods are garbage collected' | Answer: 'garbage-collecting them as nodes leave'",
+      "Reference: 'cluster storage daemons, log collection, and node monitoring' | Answer: 'storage daemons, log collection, or node monitoring'"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "9a61373dde62b4725e2daac30bfd6e59e56b0b835c6a360a31bb2d57c1258f04",
+    "cost_usd": 0.0018432000000000001,
+    "latency_ms": 3091.6614729212597
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the question: (1) what a DaemonSet is\u2014it ensures all or some nodes run a copy of a Pod, with automatic addition/removal as nodes join/leave, and (2) what workload it's designed for\u2014node-local facilities like storage daemons, log collection, and node monitoring. The answer is on-target and comprehensive. However, the final sentence about control-plane nodes and tolerations contains a potential inaccuracy (DaemonSets do not automatically run on control-plane nodes without tolerations by default), which slightly undermines the answer's reliability, though it does not affect the core relevance to the question asked.",
+    "evidence_quotes": [
+      "A DaemonSet ensures that all or some nodes run a copy of a Pod",
+      "adding Pods as nodes join and garbage-collecting them as nodes leave",
+      "used for node-local facilities such as storage daemons, log collection, or node monitoring"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "9a61373dde62b4725e2daac30bfd6e59e56b0b835c6a360a31bb2d57c1258f04",
+    "cost_usd": 0.0015648,
+    "latency_ms": 2457.825174089521
+  },
+  {
+    "item_id": "canary_ungrounded_07",
+    "dimension": "citation_faithfulness",
+    "reasoning": "no_citations_in_answer",
+    "evidence_quotes": [],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "9a61373dde62b4725e2daac30bfd6e59e56b0b835c6a360a31bb2d57c1258f04",
+    "cost_usd": 0.0,
+    "latency_ms": 0.0
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes two claims: (1) FastAPI handles CORS by adding CORSMiddleware to the application, and (2) the default max_age for preflight caching is 600 seconds. Claim 1 is directly entailed by snippet [1], which states CORS is configured using CORSMiddleware from Starlette. Claim 2 presents 600 seconds as the 'default' max_age, but snippet [2] only states that 600 is the value in a table row describing max_age\u2014it does not explicitly state this is the default value. The snippet shows a configuration example with 600 seconds, but does not establish that 600 is the default setting versus a specific configured value. This is a subtle but material distinction: the answer imports a claim (that 600 is the default) that is not entailed by the snippets provided. Under strict-snippet groundedness, this ungrounded claim fails the binary rubric.",
+    "evidence_quotes": [
+      "[1] Cross-Origin Resource Sharing (CORS) is configured using `CORSMiddleware` from Starlette",
+      "[2] | `max_age` | `600` | Seconds the browser caches preflight results |"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "a4f9a536ac61fc7112910759f2b56dbec56d5e5f562485f3c83bbfd2fcf7bd66",
+    "cost_usd": 0.0027936000000000002,
+    "latency_ms": 3174.59912202321
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. It mentions: (1) FastAPI handles CORS by adding CORSMiddleware to the application, and (2) the default max_age for preflight caching is 600 seconds. The reference also mentions that CORSMiddleware 'manages preflight requests,' which is implicit in the answer's mention of 'max_age for preflight caching' \u2014 understanding preflight caching inherently involves managing preflight requests. All substantive points are present.",
+    "evidence_quotes": [
+      "FastAPI handles CORS by adding `CORSMiddleware` to the application",
+      "the default `max_age` for preflight caching is 600 seconds"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "a4f9a536ac61fc7112910759f2b56dbec56d5e5f562485f3c83bbfd2fcf7bd66",
+    "cost_usd": 0.0013408000000000003,
+    "latency_ms": 1896.251481026411
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the user's question: (1) how FastAPI handles CORS (via CORSMiddleware) and (2) the default max_age value (600 seconds). The response is on-topic and provides specific, factual information that matches the core ask. This is a complete, direct answer to the compound question.",
+    "evidence_quotes": [
+      "FastAPI handles CORS by adding `CORSMiddleware` to the application",
+      "the default `max_age` for preflight caching is 600 seconds"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "a4f9a536ac61fc7112910759f2b56dbec56d5e5f562485f3c83bbfd2fcf7bd66",
+    "cost_usd": 0.0011808,
+    "latency_ms": 1708.2590330392122
+  },
+  {
+    "item_id": "canary_absent_citation_01",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk discusses what middleware is in general and mentions that FastAPI supports ASGI middleware and decorator"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "a4f9a536ac61fc7112910759f2b56dbec56d5e5f562485f3c83bbfd2fcf7bd66",
+    "cost_usd": 0.0012055999999999998,
+    "latency_ms": 2436.3793350057676
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "groundedness",
+    "reasoning": "Every claim in the answer is entailed by the gold snippets. The answer states: (1) HS256 algorithm is used \u2014 directly entailed by 'ALGORITHM = \"HS256\"'; (2) JWT tokens are involved \u2014 entailed by the context of these constants being JWT security parameters; (3) access-token expiry of 30 minutes \u2014 directly entailed by 'ACCESS_TOKEN_EXPIRE_MINUTES = 30'. The citation to 'fastapi_security.md' is consistent with the snippet source. No claims extend beyond what the snippets support.",
+    "evidence_quotes": [
+      "ALGORITHM = \"HS256\"",
+      "ACCESS_TOKEN_EXPIRE_MINUTES = 30"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "72a58505372de8944c2c88058168ff5e5a55e57d4fda43f07e6475d4837f871b",
+    "cost_usd": 0.0023,
+    "latency_ms": 2251.9371630623937
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains three key points: (1) FastAPI security example, (2) HS256 algorithm for JWT tokens, and (3) 30 minutes expiry time. The agent's answer covers all three points with minor paraphrasing: it specifies 'access-token expiry' instead of just 'expiry', which is a clarification rather than a deviation. All core facts from the reference are present in the answer.",
+    "evidence_quotes": [
+      "Reference: 'HS256 algorithm for JWT tokens' \u2192 Answer: 'HS256 algorithm for JWT tokens' (exact match)",
+      "Reference: '30 minutes' \u2192 Answer: '30 minutes' (exact match)",
+      "Reference: 'FastAPI security example' \u2192 Answer: 'FastAPI security example' (exact match)"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "72a58505372de8944c2c88058168ff5e5a55e57d4fda43f07e6475d4837f871b",
+    "cost_usd": 0.001428,
+    "latency_ms": 2456.064769998193
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses both parts of the question: it specifies the algorithm (HS256) and the expiry time (30 minutes) for JWT tokens in the FastAPI security example. This is a straightforward factual answer that matches the core ask of the question.",
+    "evidence_quotes": [
+      "uses the HS256 algorithm for JWT tokens",
+      "access-token expiry of 30 minutes"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "72a58505372de8944c2c88058168ff5e5a55e57d4fda43f07e6475d4837f871b",
+    "cost_usd": 0.0010424000000000002,
+    "latency_ms": 1640.1988100260496
+  },
+  {
+    "item_id": "canary_absent_citation_02",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk discusses how API keys can be passed (via headers, query parameters, or cookies) but contains no informa"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "72a58505372de8944c2c88058168ff5e5a55e57d4fda43f07e6475d4837f871b",
+    "cost_usd": 0.0009424000000000001,
+    "latency_ms": 1843.760471092537
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes two claims: (1) raise an HTTPException from the route handler, and (2) set its status_code plus a detail message describing the error. Both claims are directly entailed by the gold snippets. Snippet [1] states HTTPException is 'the primary way to return error responses from route handlers.' Snippet [2] explains that the detail parameter is used for the error message and status_code is specified. The answer is a straightforward paraphrase of the snippet content with no embellishment or claims beyond what is entailed. The citation to 'fastapi_error_handling.md' is metadata and does not affect the grounding assessment.",
+    "evidence_quotes": [
+      "The `HTTPException` class is the primary way to return error responses from route handlers",
+      "When raised, `HTTPException` immediately terminates request processing and returns the specified status code and detail message"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "8f14432414e52d84668b29a6cf1df368025f55d1deca954f23ebe83589bd1576",
+    "cost_usd": 0.002488,
+    "latency_ms": 2882.6476130634546
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "completeness",
+    "reasoning": "The reference answer identifies three key points: (1) raise an HTTPException, (2) set a status_code, and (3) set a detail message describing the error. The agent's answer covers all three points: it mentions raising HTTPException, setting status_code, and setting a detail message. The phrasing is slightly different (e.g., 'set its status_code plus a detail message' vs 'with a status_code and a detail message'), but the content is equivalent. All reference points are present.",
+    "evidence_quotes": [
+      "Reference: 'raise an HTTPException with a status_code and a detail message'",
+      "Answer: 'Raise an HTTPException... and set its status_code plus a detail message'"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "8f14432414e52d84668b29a6cf1df368025f55d1deca954f23ebe83589bd1576",
+    "cost_usd": 0.0013504,
+    "latency_ms": 2030.603580060415
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core ask of the question. It specifies the mechanism (raise an HTTPException), identifies the key parameters (status_code and detail), and explains their purpose. This is a complete, on-target answer to how to raise an HTTP error in a FastAPI route handler.",
+    "evidence_quotes": [
+      "Raise an `HTTPException` from the route handler",
+      "set its `status_code` plus a `detail` message"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "8f14432414e52d84668b29a6cf1df368025f55d1deca954f23ebe83589bd1576",
+    "cost_usd": 0.0010744,
+    "latency_ms": 1964.237873093225
+  },
+  {
+    "item_id": "canary_absent_citation_03",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk discusses registering custom exception handlers using the `@app.exception_handler()` decorator. However,"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "8f14432414e52d84668b29a6cf1df368025f55d1deca954f23ebe83589bd1576",
+    "cost_usd": 0.0011095999999999999,
+    "latency_ms": 1922.74071497377
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes two claims: (1) 'Define a request body with a Pydantic model such as a BaseModel' and (2) 'FastAPI parses and validates the incoming JSON against that model.' Both claims are directly entailed by the gold snippets. Snippet [1] states that 'FastAPI uses Pydantic models to declare, validate, and serialize request bodies with full type safety.' Snippet [2] demonstrates the parsing and validation behavior: 'FastAPI automatically parses the JSON, validates it against the Item model, and passes the validated object to the handler.' The answer is a concise, accurate summary of the core mechanism described in the snippets with no embellishment or claims beyond what is entailed.",
+    "evidence_quotes": [
+      "FastAPI uses Pydantic models to declare, validate, and serialize request bodies with full type safety.",
+      "FastAPI automatically parses the JSON, validates it against the Item model, and passes the validated object to the handler."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "b8b3e799304ab767d8080ac016b84c0e3761db14ab650039a06c17e3eb260f0c",
+    "cost_usd": 0.0026256000000000005,
+    "latency_ms": 2490.976221044548
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two key points: (1) request bodies are defined by creating a Pydantic BaseModel class, and (2) FastAPI automatically parses the incoming JSON request body. The agent's answer covers both points: it mentions defining a request body with a Pydantic model/BaseModel, and it states that FastAPI parses and validates the incoming JSON against that model. The word 'validates' is additional detail beyond 'parses,' but this is not penalized per the instructions. All key reference points are present in the answer, though expressed with slight paraphrasing.",
+    "evidence_quotes": [
+      "Reference: 'creating a Pydantic BaseModel class' \u2192 Answer: 'Pydantic model such as a BaseModel'",
+      "Reference: 'FastAPI automatically parses from the incoming JSON request body' \u2192 Answer: 'FastAPI parses and validates the incoming JSON against that model'"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "b8b3e799304ab767d8080ac016b84c0e3761db14ab650039a06c17e3eb260f0c",
+    "cost_usd": 0.0015168000000000002,
+    "latency_ms": 2633.370852097869
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question of how to define a request body in FastAPI. It identifies the key mechanism (using a Pydantic BaseModel), explains the relevant behavior (parsing and validation of JSON), and provides sufficient detail to understand the approach. This matches the question's ask precisely.",
+    "evidence_quotes": [
+      "Define a request body with a Pydantic model such as a `BaseModel`",
+      "FastAPI parses and validates the incoming JSON against that model"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "b8b3e799304ab767d8080ac016b84c0e3761db14ab650039a06c17e3eb260f0c",
+    "cost_usd": 0.0010984,
+    "latency_ms": 1633.8226880179718
+  },
+  {
+    "item_id": "canary_absent_citation_04",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk discusses the `Field()` function for adding constraints and metadata to individual model fields in Pydan"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "b8b3e799304ab767d8080ac016b84c0e3761db14ab650039a06c17e3eb260f0c",
+    "cost_usd": 0.001244,
+    "latency_ms": 2263.341308920644
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "groundedness",
+    "reasoning": "Every claim in the answer is entailed by the gold snippets. (1) 'Pod Security Admission is stable since Kubernetes v1.25' \u2014 directly entailed by snippet [1]. (2) 'applies restrictions at the namespace level' \u2014 entailed by snippet [2] ('Pod security restrictions are applied at the namespace level'). (3) 'based on labels' \u2014 this is a trivial inference; snippet [2] mentions namespace-level application, and snippet [4] references 'labels' in the context of namespace configuration, supporting this claim. (4) 'With enforce mode, policy violations cause the Pod to be rejected at admission' \u2014 directly entailed by snippet [3] ('Policy violations will cause the pod to be rejected'). (5) 'with warn mode, violations trigger a user-facing warning but are otherwise allowed' \u2014 directly entailed by snippet [3] ('Policy violations will trigger a user-facing warning, but are otherwise allowed'). (6) 'A namespace can combine modes at different levels' \u2014 directly entailed by snippet [4] ('A namespace can configure any or all modes, or even set a different level for different modes'). All claims pass strict snippet entailment.",
+    "evidence_quotes": [
+      "FEATURE STATE: `Kubernetes v1.25 [stable]`",
+      "Pod security restrictions are applied at the namespace level when pods are created",
+      "enforce | Policy violations will cause the pod to be rejected",
+      "warn | Policy violations will trigger a user-facing warning, but are otherwise allowed",
+      "A namespace can configure any or all modes, or even set a different level for different modes"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "cafd0d7ac1c512379c36dca8d9e6ad6e79fa46586e3d9b6ddab09db849a59de3",
+    "cost_usd": 0.0033336000000000004,
+    "latency_ms": 3104.8359860433266
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) Pod Security Admission is stable since Kubernetes v1.25, (2) applies restrictions at namespace level based on labels, (3) enforce mode rejects Pods on policy violations, (4) warn mode triggers warnings but allows Pods, and (5) namespaces can combine modes at different levels. The phrasing is slightly different but semantically equivalent throughout. No reference points are missing.",
+    "evidence_quotes": [
+      "Pod Security Admission is stable since Kubernetes v1.25",
+      "applies restrictions at the namespace level based on labels",
+      "With enforce mode, policy violations cause the Pod to be rejected at admission",
+      "with warn mode, violations trigger a user-facing warning but are otherwise allowed",
+      "A namespace can combine modes at different levels"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "cafd0d7ac1c512379c36dca8d9e6ad6e79fa46586e3d9b6ddab09db849a59de3",
+    "cost_usd": 0.001492,
+    "latency_ms": 2621.4321319712326
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question about how Pod Security Admission behaves differently between enforce and warn modes in Kubernetes. It explains the key behavioral difference: enforce mode rejects pods while warn mode allows them with warnings. The answer also mentions that namespaces can combine modes at different levels, which is relevant context. The answer does not explicitly confirm v1.31 behavior, but the information provided is accurate for the question asked and covers the essential distinction requested.",
+    "evidence_quotes": [
+      "With enforce mode, policy violations cause the Pod to be rejected at admission; with warn mode, violations trigger a user-facing warning but are otherwise allowed.",
+      "A namespace can combine modes at different levels."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "cafd0d7ac1c512379c36dca8d9e6ad6e79fa46586e3d9b6ddab09db849a59de3",
+    "cost_usd": 0.0013104000000000002,
+    "latency_ms": 2059.573288075626
+  },
+  {
+    "item_id": "canary_absent_citation_05",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk content is about Prometheus metrics exposed by kube-apiserver. It has no relevance to the claim about na"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "cafd0d7ac1c512379c36dca8d9e6ad6e79fa46586e3d9b6ddab09db849a59de3",
+    "cost_usd": 0.0008192000000000001,
+    "latency_ms": 5262.641204055399
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "groundedness",
+    "reasoning": "Every claim in the answer is directly entailed by the gold snippet. (1) 'By default, emptyDir uses whatever medium backs the node, such as disk, SSD, or network storage' \u2014 directly paraphrased from the snippet's opening sentence. (2) 'With emptyDir.medium set to Memory, Kubernetes mounts a tmpfs RAM-backed filesystem' \u2014 direct paraphrase of the snippet's second sentence. (3) 'written files count against the container's memory limit' \u2014 direct paraphrase of the snippet's final clause. No claims extend beyond the snippet's scope, and no embellishments or unsupported inferences are present. The answer is a faithful, concise summary of the snippet's content.",
+    "evidence_quotes": [
+      "By default `emptyDir` volumes are stored on whatever medium that backs the node such as disk, SSD, or network storage",
+      "If you set the `emptyDir.medium` field to `\"Memory\"`, Kubernetes mounts a tmpfs (RAM-backed filesystem) for you instead",
+      "files you write count against the memory limit of the container that wrote them"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "16b59e19683c483133e4f47a6b15522ce86726bf6335b5abbef7ecd4c01996e2",
+    "cost_usd": 0.0027736,
+    "latency_ms": 2488.5456858901307
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference: (1) default emptyDir storage medium depends on node backing (disk, SSD, network storage), (2) emptyDir.medium set to 'Memory' uses tmpfs, (3) tmpfs is RAM-backed, and (4) files count against container memory limit. The answer uses paraphrases ('uses whatever medium backs the node' vs 'stored on whatever medium backs the node') but captures the same meaning. All four substantive points are present.",
+    "evidence_quotes": [
+      "By default, `emptyDir` uses whatever medium backs the node, such as disk, SSD, or network storage.",
+      "With `emptyDir.medium` set to `Memory`, Kubernetes mounts a tmpfs RAM-backed filesystem",
+      "written files count against the container's memory limit"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "16b59e19683c483133e4f47a6b15522ce86726bf6335b5abbef7ecd4c01996e2",
+    "cost_usd": 0.0015088000000000002,
+    "latency_ms": 2060.2062109392136
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question by explaining the behavioral difference between the two configurations. It specifies: (1) default behavior uses the node's backing medium (disk/SSD/network), and (2) Memory setting uses tmpfs RAM-backed filesystem with memory limit implications. Both sides of the comparison are covered, matching the question's ask.",
+    "evidence_quotes": [
+      "By default, `emptyDir` uses whatever medium backs the node, such as disk, SSD, or network storage.",
+      "With `emptyDir.medium` set to `Memory`, Kubernetes mounts a tmpfs RAM-backed filesystem, and written files count against the container's memory limit."
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "16b59e19683c483133e4f47a6b15522ce86726bf6335b5abbef7ecd4c01996e2",
+    "cost_usd": 0.0013,
+    "latency_ms": 1920.0607299571857
+  },
+  {
+    "item_id": "canary_absent_citation_06",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk is a generic introduction to Kubernetes volumes that lists different kinds of volumes for different purp"
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "16b59e19683c483133e4f47a6b15522ce86726bf6335b5abbef7ecd4c01996e2",
+    "cost_usd": 0.0009456,
+    "latency_ms": 1607.5017469702289
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "groundedness",
+    "reasoning": "Every claim in the answer is entailed by the gold snippets. (1) 'NodePort exposes the Service on each Node's IP at a static node port' is directly entailed by snippet [1]. (2) 'LoadBalancer exposes the Service externally using an external load balancer' is directly entailed by snippet [2]. (3) 'Kubernetes does not provide that load balancer directly' is directly entailed by snippet [2] ('Kubernetes does not directly offer a load balancing component'). (4) 'LoadBalancer Services are typically implemented on top of NodePort' is directly entailed by snippet [3] ('Kubernetes typically starts off by making the changes that are equivalent to you requesting a Service of type: NodePort'). All claims are surface-form paraphrases or trivial inferences from the snippets.",
+    "evidence_quotes": [
+      "Exposes the Service on each Node's IP at a static port (the `NodePort`)",
+      "Exposes the Service externally using an external load balancer. Kubernetes does not directly offer a load balancing component",
+      "To implement a Service of `type: LoadBalancer`, Kubernetes typically starts off by making the changes that are equivalent to you requesting a Service of `type: NodePort`"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "3481b2f162abe62d0a04fccc7cf90a2bf04c923db921cfaffbe7a34e4379d50a",
+    "cost_usd": 0.0029392,
+    "latency_ms": 2623.643394908868
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "completeness",
+    "reasoning": "The answer covers all key points from the reference. (1) NodePort exposes on each Node's IP at a static port - covered by 'exposes the Service on each Node's IP at a static node port'. (2) LoadBalancer exposes externally using external load balancer - covered by 'exposes the Service externally using an external load balancer'. (3) Kubernetes doesn't provide the load balancer directly - covered by 'Kubernetes does not provide that load balancer directly'. (4) LoadBalancer implemented on top of NodePort - covered by 'LoadBalancer Services are typically implemented on top of NodePort'. The reference also mentions 'you must integrate with a cloud provider or supply one yourself' which is not explicitly stated in the answer, but the core point that Kubernetes doesn't provide it is covered. All essential reference points are present in the answer through paraphrase.",
+    "evidence_quotes": [
+      "NodePort exposes the Service on each Node's IP at a static node port",
+      "LoadBalancer exposes the Service externally using an external load balancer",
+      "Kubernetes does not provide that load balancer directly",
+      "LoadBalancer Services are typically implemented on top of NodePort"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "3481b2f162abe62d0a04fccc7cf90a2bf04c923db921cfaffbe7a34e4379d50a",
+    "cost_usd": 0.0036071999999999996,
+    "latency_ms": 5277.095897006802
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "relevance",
+    "reasoning": "The answer directly addresses the core question by explaining the key difference between NodePort and LoadBalancer service types. It identifies that NodePort exposes services on each node's IP at a static port, while LoadBalancer uses an external load balancer. The answer also provides additional relevant context that LoadBalancer is typically implemented on top of NodePort. This is a complete comparison that covers both sides of the question.",
+    "evidence_quotes": [
+      "A NodePort exposes the Service on each Node's IP at a static node port",
+      "a LoadBalancer exposes the Service externally using an external load balancer",
+      "LoadBalancer Services are typically implemented on top of NodePort"
+    ],
+    "score": 2,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "3481b2f162abe62d0a04fccc7cf90a2bf04c923db921cfaffbe7a34e4379d50a",
+    "cost_usd": 0.0012984000000000001,
+    "latency_ms": 1880.6827829685062
+  },
+  {
+    "item_id": "canary_absent_citation_07",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=1, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk discusses how to configure multiple ports on a Service object and the naming requirements for ports. It "
+    ],
+    "score": 0,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "3481b2f162abe62d0a04fccc7cf90a2bf04c923db921cfaffbe7a34e4379d50a",
+    "cost_usd": 0.0008952000000000001,
+    "latency_ms": 2466.403068974614
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes three claims: (1) yield dependencies run setup code before yielding a value, (2) cleanup code runs afterward in a `finally` block, and (3) this happens once the response has been sent. All three claims are directly entailed by the snippet. Claim 1 is explicitly stated ('The code before `yield` runs before the handler, the yielded value is injected as the dependency'). Claim 2 is explicitly stated ('the code after `yield` runs after the response is sent' and 'The `finally` block ensures cleanup happens'). Claim 3 is a paraphrase/combination of the snippet's description of the timing. No claims extend beyond what the snippet entails, and no embellishments or general knowledge are imported. The answer is a faithful, grounded summary of the snippet's content.",
+    "evidence_quotes": [
+      "The code before `yield` runs before the handler, the yielded value is injected as the dependency",
+      "the code after `yield` runs after the response is sent",
+      "The `finally` block ensures cleanup happens even if an exception occurs"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "626484a7df85b9cdbb20821615570b647dab9eab6d9a2e0c5d201c0f1d384ed5",
+    "cost_usd": 0.0026752,
+    "latency_ms": 2541.930955951102
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "completeness",
+    "reasoning": "The reference contains three key points: (1) yield dependencies execute code before yielding a value, (2) cleanup code runs in a finally block after the response is sent, and (3) the maximum number of yield dependencies per request is 32. The answer covers points 1 and 2 with appropriate paraphrasing ('setup code before yielding' and 'cleanup code afterward in a finally block once the response has been sent'). However, point 3 about the maximum limit of 32 yield dependencies per request is completely absent from the answer. This represents partial coverage.",
+    "evidence_quotes": [
+      "Reference point 1 (setup/execution): 'execute code before yielding a value' vs Answer: 'run setup code before yielding a value' \u2014 covered",
+      "Reference point 2 (cleanup): 'cleanup code in a finally block after the response is sent' vs Answer: 'cleanup code afterward in a `finally` block once the response has been sent' \u2014 covered",
+      "Reference point 3 (limit): 'maximum number of yield dependencies per request is 32' vs Answer: no mention of this limit \u2014 NOT covered"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "626484a7df85b9cdbb20821615570b647dab9eab6d9a2e0c5d201c0f1d384ed5",
+    "cost_usd": 0.0017224,
+    "latency_ms": 2615.1082469150424
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "relevance",
+    "reasoning": "The answer addresses the first part of the question (how yield dependencies work) with a direct and accurate explanation of the mechanism. However, it completely omits the second part of the question about the maximum number of yield dependencies supported per request. This is a partial answer that addresses only half of the compound question, fitting the definition of Score 1.",
+    "evidence_quotes": [
+      "Yield dependencies run setup code before yielding a value and cleanup code afterward in a `finally` block once the response has been sent."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "626484a7df85b9cdbb20821615570b647dab9eab6d9a2e0c5d201c0f1d384ed5",
+    "cost_usd": 0.0011072,
+    "latency_ms": 2007.841843063943
+  },
+  {
+    "item_id": "canary_incomplete_01",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=0, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk directly supports the claim. It explicitly states that code before `yield` runs before the handler, the "
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "626484a7df85b9cdbb20821615570b647dab9eab6d9a2e0c5d201c0f1d384ed5",
+    "cost_usd": 0.0012712,
+    "latency_ms": 1640.4673520009965
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "groundedness",
+    "reasoning": "The answer states 'Enable GZip compression by adding `GZipMiddleware` to the application.' This claim is directly entailed by the snippet, which shows exactly how to enable GZip compression: 'Compress responses automatically when the client supports it' via `from fastapi.middleware.gzip import GZipMiddleware` and `app.add_middleware(GZipMiddleware, minimum_size=500)`. The answer is a high-level summary of the mechanism described in the snippet. No claims are made beyond what is entailed by the source material. The answer does not embellish with details about minimum_size, compression ratios, or other specifics not explicitly stated\u2014it provides only the core actionable claim that is directly supported.",
+    "evidence_quotes": [
+      "Compress responses automatically when the client supports it: from fastapi.middleware.gzip import GZipMiddleware; app.add_middleware(GZipMiddleware, minimum_size=500)"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "62602540994ef267dd93d2510161be74645a93b098e3835306ac825a48e80c47",
+    "cost_usd": 0.0025736000000000005,
+    "latency_ms": 2687.2684210538864
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "completeness",
+    "reasoning": "The reference contains two key points: (1) GZip compression is enabled by adding GZipMiddleware, and (2) there is a minimum_size parameter with a default of 500 bytes. The answer covers the first point completely\u2014it states that GZip compression is enabled by adding GZipMiddleware to the application. However, the answer omits the second point entirely: no mention of the minimum_size parameter or the 500-byte default. This is partial coverage of the reference's facts.",
+    "evidence_quotes": [
+      "Reference point 1 (covered): 'adding GZipMiddleware to the application' \u2014 Answer: 'adding `GZipMiddleware` to the application'",
+      "Reference point 2 (missing): 'minimum_size parameter' and 'default minimum response size is 500 bytes' \u2014 not mentioned in answer"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "62602540994ef267dd93d2510161be74645a93b098e3835306ac825a48e80c47",
+    "cost_usd": 0.0014624,
+    "latency_ms": 2838.0303289741278
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "relevance",
+    "reasoning": "The answer addresses the question's topic (GZip compression middleware in FastAPI) and provides relevant information about how to enable it. However, it only partially addresses the core ask: it explains how to enable GZip compression but completely omits the minimum response size parameter, which is the first part of the two-part question. This is similar to Example D, where only half the question is addressed.",
+    "evidence_quotes": [
+      "Enable GZip compression by adding `GZipMiddleware` to the application."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "62602540994ef267dd93d2510161be74645a93b098e3835306ac825a48e80c47",
+    "cost_usd": 0.0011152,
+    "latency_ms": 2271.7500620055944
+  },
+  {
+    "item_id": "canary_incomplete_02",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=0, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk directly supports the claim. It provides the exact method for enabling GZip compression (adding `GZipMid"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "62602540994ef267dd93d2510161be74645a93b098e3835306ac825a48e80c47",
+    "cost_usd": 0.0011216,
+    "latency_ms": 1825.2698900178075
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes two claims: (1) FastAPI registers WebSocket endpoints with `@app.websocket()`, and (2) handlers receive a `WebSocket` object. Both claims are directly entailed by the gold snippet. The first claim is explicitly stated: 'The `@app.websocket()` decorator registers a WebSocket route.' The second claim is also explicitly stated: 'The handler receives a `WebSocket` object.' No claims go beyond what is entailed by the snippet, and no embellishments or unsupported inferences are present. The answer is a straightforward paraphrase of the snippet content.",
+    "evidence_quotes": [
+      "The `@app.websocket()` decorator registers a WebSocket route.",
+      "The handler receives a `WebSocket` object"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "1f73a01cd9792bfe495db2a740bb3d7766f5c026a77c882e2398f1f2f0243d20",
+    "cost_usd": 0.0023776000000000005,
+    "latency_ms": 2866.7366029694676
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "completeness",
+    "reasoning": "The reference makes two key points: (1) FastAPI handles WebSocket connections using the WebSocket class, and (2) you must call await websocket.accept() before sending or receiving data. The agent's answer covers point 1 by mentioning that handlers receive a WebSocket object and that endpoints are registered with @app.websocket(). However, point 2\u2014the critical requirement to call await websocket.accept() before data operations\u2014is completely absent from the answer. This is a significant omission of a key procedural requirement. Score = 1 (partial coverage).",
+    "evidence_quotes": [
+      "Reference point 1 covered: 'handlers receive a `WebSocket` object' matches 'FastAPI handles WebSocket connections using the WebSocket class'",
+      "Reference point 2 missing: No mention of 'await websocket.accept()' or any acceptance requirement in the agent's answer"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "1f73a01cd9792bfe495db2a740bb3d7766f5c026a77c882e2398f1f2f0243d20",
+    "cost_usd": 0.001488,
+    "latency_ms": 2297.5124769145623
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "relevance",
+    "reasoning": "The answer addresses the first part of the question (how FastAPI handles WebSocket connections) by explaining the decorator and object used. However, it completely omits the second part of the question about what must be called before sending data. This is a core requirement of the question that goes unanswered. The answer is partially relevant but misses a significant portion of the ask.",
+    "evidence_quotes": [
+      "FastAPI registers WebSocket endpoints with `@app.websocket()`, and handlers receive a `WebSocket` object."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "1f73a01cd9792bfe495db2a740bb3d7766f5c026a77c882e2398f1f2f0243d20",
+    "cost_usd": 0.0011216,
+    "latency_ms": 1606.3812100328505
+  },
+  {
+    "item_id": "canary_incomplete_03",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=0, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk directly supports the claim. The chunk explicitly states that 'The handler receives a `WebSocket` object"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "1f73a01cd9792bfe495db2a740bb3d7766f5c026a77c882e2398f1f2f0243d20",
+    "cost_usd": 0.00102,
+    "latency_ms": 1584.0763029409572
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "groundedness",
+    "reasoning": "Every claim in the answer is directly entailed by the gold snippet. The answer states: (1) namespaces isolate groups of resources within a cluster \u2014 directly entailed by 'namespaces provide a mechanism for isolating groups of resources within a single cluster'; (2) resource names need to be unique within a namespace but not across namespaces \u2014 directly entailed by 'Names of resources need to be unique within a namespace, but not across namespaces.' Both claims are surface-form paraphrases of the snippet content with no embellishment or extension beyond what is stated. The answer does not make claims about cluster-wide vs. namespaced objects, which are mentioned in the snippet but not required for a complete answer to the implicit question.",
+    "evidence_quotes": [
+      "namespaces provide a mechanism for isolating groups of resources within a single cluster",
+      "Names of resources need to be unique within a namespace, but not across namespaces"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "5b14402f5eff3c1b52418fbc3fefe899b65eea1dd83fd69b2685159e279cfdee",
+    "cost_usd": 0.0025848000000000004,
+    "latency_ms": 4335.254629026167
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains three key points: (1) Namespaces provide isolation of resource groups within a cluster, (2) Resource names must be unique within a Namespace but not across Namespaces, and (3) Namespace-based scoping applies only to namespaced objects; cluster-wide objects like Nodes, PersistentVolumes, or StorageClass are not namespaced. The agent's answer covers points 1 and 2 fully with appropriate paraphrasing ('isolate groups of resources within a cluster' and 'resource names need to be unique within a namespace but not across namespaces'). However, point 3 about the distinction between namespaced and cluster-wide objects is completely absent from the agent's answer. This represents partial coverage of the reference material.",
+    "evidence_quotes": [
+      "Namespaces isolate groups of resources within a cluster, and resource names need to be unique within a namespace but not across namespaces.",
+      "Namespace-based scoping applies only to namespaced objects such as Deployments and Services; cluster-wide objects like Nodes, PersistentVolumes, or StorageClass are not namespaced."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "5b14402f5eff3c1b52418fbc3fefe899b65eea1dd83fd69b2685159e279cfdee",
+    "cost_usd": 0.0033239999999999997,
+    "latency_ms": 4414.008892024867
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "relevance",
+    "reasoning": "The answer addresses the first part of the question (what is a Kubernetes Namespace) by explaining that namespaces isolate groups of resources and enforce name uniqueness within a namespace. However, it does not address the second part of the core ask: 'which kinds of resources does namespace scoping apply to?' The question explicitly asks for two things, and the answer only provides information about one. This is a partial response that misses a significant portion of the question's scope.",
+    "evidence_quotes": [
+      "Namespaces isolate groups of resources within a cluster, and resource names need to be unique within a namespace but not across namespaces."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "5b14402f5eff3c1b52418fbc3fefe899b65eea1dd83fd69b2685159e279cfdee",
+    "cost_usd": 0.0012368000000000001,
+    "latency_ms": 2104.839459992945
+  },
+  {
+    "item_id": "canary_incomplete_04",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=0, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk directly and comprehensively supports the claim. The chunk explicitly states that namespaces 'provide a "
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "5b14402f5eff3c1b52418fbc3fefe899b65eea1dd83fd69b2685159e279cfdee",
+    "cost_usd": 0.0011504,
+    "latency_ms": 1370.7762520061806
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "groundedness",
+    "reasoning": "The answer makes two claims: (1) 'The RBAC API declares Role and ClusterRole' and (2) 'both contain rules that represent permissions.' Claim 1 is entailed by snippet [1], which states 'The RBAC API declares four kinds of Kubernetes object: Role, ClusterRole, RoleBinding and ClusterRoleBinding.' The answer's narrower statement that the API declares Role and ClusterRole is a valid subset of this claim. Claim 2 is entailed by snippet [2], which explicitly states 'An RBAC Role or ClusterRole contains rules that represent a set of permissions.' Both claims are directly supported by the gold snippets with no embellishment or ungrounded inference.",
+    "evidence_quotes": [
+      "The RBAC API declares four kinds of Kubernetes object: *Role*, *ClusterRole*, *RoleBinding* and *ClusterRoleBinding*.",
+      "An RBAC *Role* or *ClusterRole* contains rules that represent a set of permissions."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "e7278eb612db35852107bcbf5aa91a96d6db797e9e25a901f9a1c3bd40567c84",
+    "cost_usd": 0.0027336000000000005,
+    "latency_ms": 2681.603620061651
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains four key points: (1) four object kinds exist (Role, ClusterRole, RoleBinding, ClusterRoleBinding), (2) Role and ClusterRole contain rules representing permissions, (3) RoleBinding and ClusterRoleBinding grant roles to users/groups/service accounts, and (4) Role/RoleBinding are namespaced while ClusterRole/ClusterRoleBinding are cluster-wide. The agent's answer covers point (1) partially (mentions Role and ClusterRole but omits RoleBinding and ClusterRoleBinding) and point (2) fully (rules representing permissions). Points (3) and (4) are entirely absent. This is partial coverage of the reference's key points.",
+    "evidence_quotes": [
+      "The RBAC API declares `Role` and `ClusterRole`; both contain rules that represent permissions.",
+      "Reference: Role, ClusterRole, RoleBinding, and ClusterRoleBinding... RoleBinding and ClusterRoleBinding grant those roles to users, groups, or service accounts... Role and RoleBinding are namespaced, while ClusterRole and ClusterRoleBinding are cluster-wide."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "e7278eb612db35852107bcbf5aa91a96d6db797e9e25a901f9a1c3bd40567c84",
+    "cost_usd": 0.0017744000000000002,
+    "latency_ms": 2472.957552992739
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "relevance",
+    "reasoning": "The question asks for four object kinds in the Kubernetes RBAC API and what each does. The answer only identifies two of the four kinds (Role and ClusterRole) and provides minimal explanation of their function. The answer is partially relevant because it addresses the RBAC API topic and correctly identifies some of the object kinds, but it fails to identify the other two kinds (RoleBinding and ClusterRoleBinding) and does not fully explain what each of the four does. This is a case where only half (or less) of the question is addressed.",
+    "evidence_quotes": [
+      "The question asks for 'four object kinds' but the answer provides only two",
+      "The answer states 'Role and ClusterRole; both contain rules that represent permissions' but does not identify RoleBinding and ClusterRoleBinding",
+      "The explanation of what each does is incomplete and generic"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "e7278eb612db35852107bcbf5aa91a96d6db797e9e25a901f9a1c3bd40567c84",
+    "cost_usd": 0.0014448000000000002,
+    "latency_ms": 2831.713653053157
+  },
+  {
+    "item_id": "canary_incomplete_05",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=0, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk directly supports the claim. It explicitly states that 'The RBAC API declares four kinds of Kubernetes o"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "e7278eb612db35852107bcbf5aa91a96d6db797e9e25a901f9a1c3bd40567c84",
+    "cost_usd": 0.0014448000000000002,
+    "latency_ms": 2026.1565269902349
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "groundedness",
+    "reasoning": "The answer claims that when a liveness probe fails, the kubelet restarts the container. Snippet [1] states: 'The kubelet uses liveness probes to know when to restart a container.' This directly entails the claim that the kubelet restarts a container based on liveness probe results. The answer's characterization of the restart as recovery 'from a stuck or unhealthy state' is also entailed by snippet [1], which explains the purpose: 'liveness probes could catch a deadlock, where an application is running, but unable to make progress. Restarting a container in such a state can help to make the application more available despite bugs.' Every claim in the answer is supported by the gold snippets.",
+    "evidence_quotes": [
+      "The kubelet uses liveness probes to know when to restart a container.",
+      "liveness probes could catch a deadlock, where an application is running, but unable to make progress. Restarting a container in such a state can help to make the application more available despite bugs."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_groundedness",
+    "rubric_version": "bf4f9de02373061079765f00e06d970bbc60b2c5f376a8132d68cf4be82b120b",
+    "prompt_seed": 0,
+    "system_output_hash": "b7fc61dead672eb36670a38e05ef9d5c5e073017bbb2f531b18751eb0c3fb64e",
+    "cost_usd": 0.0027408000000000003,
+    "latency_ms": 2977.6889780769125
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "completeness",
+    "reasoning": "The reference answer contains two main points: (1) liveness probe failure causes kubelet to restart the container to recover from a wedged/stuck state, and (2) readiness probe failure does NOT restart the container; instead the Pod is marked not-ready and removed from Service load balancers. The agent's answer covers point 1 fully\u2014it states that liveness probe failure causes the kubelet to restart the container to recover from a stuck or unhealthy state, which is a valid paraphrase of the reference. However, the agent's answer completely omits point 2 about readiness probes. Since only one of two key points is covered, this is partial coverage.",
+    "evidence_quotes": [
+      "Reference point 1 (covered): 'When a liveness probe fails, the kubelet restarts the container to try to recover from a wedged state'",
+      "Answer point 1 (covers reference): 'When a liveness probe fails, the kubelet restarts the container to recover from a stuck or unhealthy state'",
+      "Reference point 2 (not covered): 'When a readiness probe fails, the container is not restarted; instead, the Pod is marked not-ready and removed from Service load balancers'"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_completeness",
+    "rubric_version": "c71cdcf39c72489486b81a1306f3e5199cd5e3b6011f530302b6da979ce84f20",
+    "prompt_seed": 0,
+    "system_output_hash": "b7fc61dead672eb36670a38e05ef9d5c5e073017bbb2f531b18751eb0c3fb64e",
+    "cost_usd": 0.0018352,
+    "latency_ms": 2873.1538279680535
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "relevance",
+    "reasoning": "The answer addresses part of the question's core ask by explaining the kubelet's response to a failing liveness probe (container restart). However, it completely omits the second half of the comparison: how the kubelet responds to a failing readiness probe. The question explicitly asks for a comparison between two different probe types, and the answer only covers one. This is analogous to Example D in the rubric, where a comparison question receives only a partial answer.",
+    "evidence_quotes": [
+      "When a liveness probe fails, the kubelet restarts the container to recover from a stuck or unhealthy state."
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_relevance",
+    "rubric_version": "6db05bfe4bfc8d25eb11bd9bf1a9b005cad7fc99ecbfd72d8cc3a404a96bf68f",
+    "prompt_seed": 0,
+    "system_output_hash": "b7fc61dead672eb36670a38e05ef9d5c5e073017bbb2f531b18751eb0c3fb64e",
+    "cost_usd": 0.0011944000000000002,
+    "latency_ms": 1916.375912958756
+  },
+  {
+    "item_id": "canary_incomplete_06",
+    "dimension": "citation_faithfulness",
+    "reasoning": "all_or_nothing aggregate over 1 (claim, citation) pairs; unfaithful=0, abstained=0",
+    "evidence_quotes": [
+      "The cited chunk directly supports the claim. The first sentence explicitly states that 'The kubelet uses liveness probes"
+    ],
+    "score": 1,
+    "judge_id": "claude-haiku-4-5_citation_faithfulness",
+    "rubric_version": "8b8a35b56dcf7837f07014995d9cd027b605b795586c1e6b1b1fea6fd53a159d",
+    "prompt_seed": 0,
+    "system_output_hash": "b7fc61dead672eb36670a38e05ef9d5c5e073017bbb2f531b18751eb0c3fb64e",
+    "cost_usd": 0.0015384,
+    "latency_ms": 3391.357593005523
+  }
+]
