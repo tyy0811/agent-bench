@@ -167,6 +167,7 @@
     ],
     "source_snippets": [
       "Cross-Origin Resource Sharing (CORS) is configured using `CORSMiddleware` from Starlette:",
+      "| Parameter            | Default | Description                                        |",
       "| `max_age`            | `600`   | Seconds the browser caches preflight results       |"
     ],
     "reference_answer": "FastAPI handles CORS by adding CORSMiddleware to the application, which manages preflight requests. The default max_age for preflight caching is 600 seconds.",
