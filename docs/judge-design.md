@@ -508,6 +508,88 @@ are versioned at `tests/stats/fixtures/canary/canaries.json`,
 `results/canary/predictions_real_v1.json`, and
 `docs/_generated/canary_detection_real.md`.
 
+### 1.9 Judge unfolding on the completeness confusion (v3.2 WP9)
+
+The agreement intervals in 1.7 quantify how noisy the judge is; this section asks
+what that noise does to a reported pass-rate and whether it can be corrected. A
+judge maps a true rubric level to an observed one with some confusion, so an
+observed (jury) pass-rate is a smeared version of the true one. Unfolding inverts
+the smear: estimate the response matrix R[j,i] = P(observed j | true i) from
+labeled data, then solve for the true level distribution behind an observed one.
+The engine (`stats/unfolding.py`, pure numpy) reports two estimators and never
+silently chooses between them, a maximum-likelihood matrix inversion and
+D'Agostini iterative Bayesian unfolding, and reads their divergence as the
+diagnostic that a correction is unidentified. D'Agostini is regularized by early
+stopping at a small fixed iteration count of 4, set from a well-conditioned
+synthetic reference before any real corrected output was looked at, the same
+result-blind discipline as the agreement seed and the canary anchor; iterating to
+convergence would only reproduce the noise-amplifying inverse. Uncertainty is a
+10000-replicate bootstrap (seed 20260611, matching 1.7) decomposed into three
+passes that resample the calibration pairs (R), the observed counts (sampling),
+and both.
+
+Only completeness is demonstrable. Of the three calibration confusion matrices,
+groundedness and relevance are the identity at this label set (the v1.1 jury
+matched every joined gold label), so unfolding them is a no-op; completeness is
+the only one carrying real off-diagonal mass (0.154). The demonstration builds R
+from the calibration completeness join and applies it to a genuinely separate
+target, the 20 canary completeness verdicts, checking the corrected rate against
+the canaries' known composition. That separation is the whole point: unfolding the
+calibration set's own jury would recover its gold distribution by construction and
+validate nothing, whereas the canaries are an independent target with ground
+truth.
+
+| Quantity | Value |
+|---|---|
+| Observed (jury) pass-rate | 14/20 = 0.700 |
+| Known true pass-rate | 14/20 = 0.700 |
+| Corrected, D'Agostini | 0.641, 95% CI [0.287, 0.959] |
+| Corrected, matrix inversion | 0.684, 95% CI [-0.271, 3.125] |
+| Calibration vs canary off-diagonal mass | 0.154 vs 0.000 |
+
+The honest reading is narrow. The correction is applied to a target the judge
+already scored correctly: the canary completeness confusion is the identity, every
+one of the six planted defects was flagged and every one of the fourteen clean
+items passed (off-diagonal mass 0.000), so the observed 0.700 is already an
+unbiased estimate of the true 0.700. The transfer assumption is therefore doing
+real work and is stated rather than waved at: R is estimated on the calibration
+distribution, where the judge did err (off-diagonal mass 0.154), and applied to
+the canary distribution, where it did not (0.000), so the corrected rate inherits
+whatever mismatch exists between those two error regimes. What the unfolding does
+is perturb an already-correct rate by the amount the calibration error model
+expects, moving it to 0.64 to 0.68, and the result that matters is the interval,
+not the point: the D'Agostini 95% CI [0.287, 0.959] is wide and comfortably
+contains the known 0.700. That shows the propagation is calibrated, the correction
+does not run away from the truth, not that unfolding rescued a biased measurement,
+because there was no bias to rescue. The two estimators diverge by only 0.043 at
+the point, but the matrix-inversion interval [-0.271, 3.125] leaves the unit
+interval entirely, the precise signal that the correction is unidentified at this
+sample size and the reason the regularized estimator is the one to read. The
+bootstrap attributes the width comparably to the calibration set (R) and the
+canary target (sampling), neither dominating, because both are roughly 20 to 26
+items.
+
+The durable, structural result is the one that does not depend on the paid run:
+across both label sets, this corpus barely needs unfolding at all. Three of the four
+canary confusion matrices are identity or near-identity (off-diagonal mass at most
+0.05) and the fourth, relevance, plants no defect to measure; two of the three
+calibration matrices are the identity. Completeness is the lone dimension carrying
+real off-diagonal mass, and even there the corrected interval spans nearly the
+whole unit interval at this scale.
+The judges are accurate enough on these items that the measurement is dominated by
+sample size, not bias, so the documented next step is the same as in 1.7 and 1.8,
+a larger labeled set, not a tighter claim on this one. This is a demonstration of
+the method on roughly 30 labels, not a production correction. The engine is
+`stats/unfolding.py` with the boundary adapter
+`stats_adapters/calibration_unfolding.py` (reusing the 1.7 join); the numbers are
+pinned in `tests/stats/test_calibration_unfolding.py` and regenerate offline via
+`build_demo` over the committed
+`measurements/2026-05-04-judge-calibration-labels.jsonl`,
+`results/calibration_v1_judge_jury_kappa_weighted_v1_1.json`,
+`tests/stats/fixtures/canary/canaries.json`, and
+`results/canary/predictions_real_v1.json`, with no make target or generated
+artifact.
+
 ---
 
 ## 2. Position statement — when not to use LLM-judge
