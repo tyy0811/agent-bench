@@ -45,6 +45,12 @@ jobs:
       - name: Check README stats consistency
         run: python scripts/check_readme_stats.py
 
+      # README figures are generated from the same report and carry a source-hash
+      # of the values they drew; this fails the build if a committed SVG drifted
+      # from the report. Hash-based and matplotlib-free, so it needs no [plots].
+      - name: Check README plots freshness
+        run: python scripts/make_plots.py check
+
   docker:
     runs-on: ubuntu-latest
     steps:
