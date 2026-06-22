@@ -9,6 +9,8 @@
 | langchain-mock+00000000 | p_at_5 | 0.727 | [0.701, 0.753] (question-level) | 0.0134 | 0.0032 | n_clusters=4 | design effect=0.06 |
 | langchain-mock+00000000 | r_at_5 | 0.827 | [0.801, 0.853] (question-level) | 0.0134 | 0.0032 | n_clusters=4 | design effect=0.06 |
 
+ceiling-censored: mini custom-mock+00000000 r_at_5: the normal-approximation interval extends past the [0,1] proportion bound and is reported clamped to it; the bound sits on the ceiling rather than estimating beyond it.
+
 ## Citation accuracy zero-failure bound: mini
 
 - custom-mock+00000000: 0 failures in 12 included questions (included n=12, excluded 0 citation-free questions; cited in all epochs: 12, in some epochs: 0). Exact Clopper-Pearson 95 percent upper bound on the per-question failure rate: 0.221 (rule of three approximation 3/n = 0.250).
