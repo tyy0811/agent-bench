@@ -162,6 +162,7 @@ ceiling-censored: k8s custom-openai-k8s+470d79fa r_at_5: the normal-approximatio
 - fastapi_significant_pairs_95_count = 1
 - fastapi_icc_p_at_5 = 0.99
 - fastapi_between_question_var_p_at_5 = 0.06051
+- fastapi_within_question_var_p_at_5 = 0.00036
 - fastapi_mde_p_at_5_80 = 0.110
 - fastapi_mde_p_at_5_80_normal = 0.136
 - k8s_custom_anthropic_k8s_p_at_5_mean = 0.823
@@ -182,6 +183,7 @@ ceiling-censored: k8s custom-openai-k8s+470d79fa r_at_5: the normal-approximatio
 - k8s_significant_pairs_95_count = 0
 - k8s_icc_p_at_5 = 0.94
 - k8s_between_question_var_p_at_5 = 0.03249
+- k8s_within_question_var_p_at_5 = 0.00209
 - k8s_mde_p_at_5_80 = 0.119
 - k8s_mde_p_at_5_80_normal = 0.110
 

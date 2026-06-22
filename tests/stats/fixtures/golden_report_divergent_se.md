@@ -64,6 +64,7 @@ correlation-sensitivity caution: mini langchain-mock+00000000 p_at_5: clustered 
 - mini_significant_pairs_95_count = 2
 - mini_icc_p_at_5 = 0.98
 - mini_between_question_var_p_at_5 = 0.01393
+- mini_within_question_var_p_at_5 = 0.00031
 - mini_mde_p_at_5_80 = 0.019
 - mini_mde_p_at_5_80_normal = 0.016
 
