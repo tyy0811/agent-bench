@@ -63,6 +63,7 @@
 - mini_icc_p_at_5 = 0.88
 - mini_between_question_var_p_at_5 = 0.00227
 - mini_within_question_var_p_at_5 = 0.00031
+- mini_within_question_pct = 11.9
 - mini_mde_p_at_5_80 = 0.019
 - mini_mde_p_at_5_80_normal = 0.016
 

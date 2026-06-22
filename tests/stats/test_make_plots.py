@@ -91,11 +91,12 @@ def test_variance_rows_contrasts_within_fraction():
     assert abs(k8["within_frac"] - 0.00209 / (0.03249 + 0.00209)) < 1e-9
 
 
-def test_mde_source_reads_floor_and_gaps():
+def test_mde_source_flags_detectable_by_floor_not_significance():
     src = make_plots.mde_source(make_plots.read_values(SAMPLE), "fastapi")
     assert src["mde"] == 0.110
-    sig = next(g for g in src["gaps"] if g["significant"])
-    assert abs(sig["abs_diff"] - 0.164) < 1e-9
+    det = next(g for g in src["gaps"] if g["detectable"])
+    assert abs(det["abs_diff"] - 0.164) < 1e-9  # 0.164 >= 0.110 -> detectable
+    assert det["same_provider"] is False  # so the plot can derive "cross-provider"
 
 
 def test_unfolding_source_parses_judge_design_1_9():
@@ -103,6 +104,7 @@ def test_unfolding_source_parses_judge_design_1_9():
     # table is edited this fails, the intended drift signal for a hand-doc source.
     src = make_plots.unfolding_source()
     assert src["observed"] == 0.700
+    assert src["known_true"] == 0.700  # pinned separately so the "truth" claim can't drift unseen
     assert src["dagostini"] == {"point": 0.641, "lo": 0.287, "hi": 0.959}
     mi = src["matrix_inversion"]
     assert mi["lo"] < 0.0 and mi["hi"] > 1.0  # naive estimator leaves the unit interval

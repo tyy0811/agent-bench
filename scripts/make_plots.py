@@ -182,13 +182,21 @@ def variance_source(values: dict[str, str]) -> dict:
 
 def mde_source(values: dict[str, str], corpus: str = "fastapi") -> dict:
     """The P@5 minimum detectable effect (80 percent power) and the four
-    framework-pair |gaps| measured against it -- the detectability/power view."""
+    framework-pair |gaps| measured against it -- the detectability/power view.
+    ``detectable`` is the resolution criterion |gap| >= MDE (NOT 95 percent
+    significance); the two coincide on current data but are different questions."""
+    mde = float(values[f"{corpus}_mde_p_at_5_80"])
     gaps = [
-        {"label": r["label"], "abs_diff": abs(r["diff"]), "significant": r["significant"]}
+        {
+            "label": r["label"],
+            "abs_diff": abs(r["diff"]),
+            "detectable": abs(r["diff"]) >= mde,
+            "same_provider": r["same_provider"],
+        }
         for r in paired_rows(values, corpus)
         if r["metric"] == "p_at_5"
     ]
-    return {"mde": float(values[f"{corpus}_mde_p_at_5_80"]), "gaps": gaps}
+    return {"mde": mde, "gaps": gaps}
 
 
 def unfolding_source() -> dict:
@@ -199,18 +207,27 @@ def unfolding_source() -> dict:
     text = JUDGE_DESIGN.read_text()
 
     def row(label: str) -> tuple[float, float, float]:
-        m = re.search(rf"{re.escape(label)} \| ([\d.]+), 95% CI \[(-?[\d.]+), (-?[\d.]+)\]", text)
+        # point and bounds all sign-tolerant: the matrix-inversion estimator is the
+        # unstable one and a negative point/bound is a valid table value, not a parse error.
+        m = re.search(rf"{re.escape(label)} \| (-?[\d.]+), 95% CI \[(-?[\d.]+), (-?[\d.]+)\]", text)
         if not m:
             raise ValueError(f"judge-design.md section 1.9: row {label!r} not found/parseable")
         return float(m.group(1)), float(m.group(2)), float(m.group(3))
 
-    obs = re.search(r"Observed \(jury\) pass-rate \| [\d/]+ = ([\d.]+)", text)
-    if not obs:
-        raise ValueError("judge-design.md section 1.9: observed pass-rate not found")
+    def scalar(label: str) -> float:
+        m = re.search(rf"{re.escape(label)} \| [\d/]+ = (-?[\d.]+)", text)
+        if not m:
+            raise ValueError(f"judge-design.md section 1.9: row {label!r} not found")
+        return float(m.group(1))
+
     dago = row("Corrected, D'Agostini")
     matinv = row("Corrected, matrix inversion")
+    # Pin the KNOWN-TRUTH row, not just observed: the figure's whole claim is that
+    # the corrected CI contains a separately-known truth, so a drift in that row
+    # must invalidate the plot even though the truth line currently equals observed.
     return {
-        "observed": float(obs.group(1)),
+        "observed": scalar("Observed (jury) pass-rate"),
+        "known_true": scalar("Known true pass-rate"),
         "dagostini": {"point": dago[0], "lo": dago[1], "hi": dago[2]},
         "matrix_inversion": {"point": matinv[0], "lo": matinv[1], "hi": matinv[2]},
     }
@@ -537,8 +554,10 @@ def _render_mde(values: dict[str, str], out_path: Path) -> None:
         color="#4a5568",
         va="top",
     )
+    detectable = [g for g in src["gaps"] if g["detectable"]]
+    below = len(src["gaps"]) - len(detectable)
     for g in src["gaps"]:
-        color = sig_color if g["significant"] else base_color
+        color = sig_color if g["detectable"] else base_color  # past the floor, not 95% significance
         ax.plot(
             g["abs_diff"],
             0,
@@ -549,20 +568,33 @@ def _render_mde(values: dict[str, str], out_path: Path) -> None:
             markeredgewidth=0.8,
             zorder=3,
         )
-    sig = next(g for g in src["gaps"] if g["significant"])
-    ax.annotate(
-        f"{sig['label']}  +{sig['abs_diff']:.3f}\n(cross-provider — the one detectable gap)",
-        (sig["abs_diff"], 0),
-        xytext=(sig["abs_diff"], -0.9),
-        ha="center",
-        fontsize=8,
-        color=sig_color,
-        arrowprops=dict(arrowstyle="-", color=sig_color, lw=0.8),
-    )
+    if len(detectable) == 1:
+        g = detectable[0]
+        prov = "cross-provider" if not g["same_provider"] else "same-provider"
+        ax.annotate(
+            f"{g['label']}  +{g['abs_diff']:.3f}\n({prov}: the one gap above the floor)",
+            (g["abs_diff"], 0),
+            xytext=(g["abs_diff"], -0.9),
+            ha="center",
+            fontsize=8,
+            color=sig_color,
+            arrowprops=dict(arrowstyle="-", color=sig_color, lw=0.8),
+        )
+    else:  # 0 -> no annotation; >1 -> label each gap that clears the floor
+        for g in detectable:
+            ax.annotate(
+                g["label"],
+                (g["abs_diff"], 0),
+                xytext=(g["abs_diff"], -0.9),
+                ha="center",
+                fontsize=7.5,
+                color=sig_color,
+                arrowprops=dict(arrowstyle="-", color=sig_color, lw=0.8),
+            )
     ax.text(
         mde / 2,
         -0.9,
-        "3 of 4 P@5 gaps fall below\nthe floor (within the noise)",
+        f"{below} of {len(src['gaps'])} P@5 gaps fall below\nthe floor (within the noise)",
         ha="center",
         va="center",
         fontsize=8,
@@ -586,12 +618,18 @@ def _render_unfolding(out_path: Path) -> None:
     import matplotlib.pyplot as plt
 
     src = unfolding_source()
-    obs, dago, matinv = src["observed"], src["dagostini"], src["matrix_inversion"]
+    obs, true = src["observed"], src["known_true"]
+    dago, matinv = src["dagostini"], src["matrix_inversion"]
     reg_color, naive_color = "#2b6cb0", "#a0aec0"
 
     fig, ax = plt.subplots(figsize=(8.4, 3.0))
-    ax.axvline(obs, color="#1a202c", lw=1.3, zorder=1)
-    ax.text(obs + 0.008, 1.62, f"observed = known truth {obs:.3f}", fontsize=8.5, va="bottom")
+    # The reference line is the KNOWN TRUTH (what the corrected CI must contain),
+    # drawn from the pinned known_true row, not observed. They coincide in 1.9
+    # (the canary confusion is the identity), so say so only when they actually do.
+    ax.axvline(true, color="#1a202c", lw=1.3, zorder=1)
+    same = abs(obs - true) < 1e-9
+    label = f"observed = known truth {true:.3f}" if same else f"known truth {true:.3f}"
+    ax.text(true + 0.008, 1.62, label, fontsize=8.5, va="bottom")
 
     # D'Agostini (regularized): point + wide CI, entirely inside [0,1]
     ax.plot(
