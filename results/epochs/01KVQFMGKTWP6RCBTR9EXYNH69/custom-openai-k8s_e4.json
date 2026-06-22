@@ -1,0 +1,760 @@
+{
+ "run_id": "01KVQFMGKTWP6RCBTR9EXYNH69",
+ "timestamp": "2026-06-22T11:12:56.235507+00:00",
+ "config_id": "custom-openai-k8s+470d79fa",
+ "code_version": "3547fa9-dirty",
+ "dataset_version": "sha-b69f0f6f",
+ "epoch": 4,
+ "results": [
+  {
+   "question_id": "k8s_001",
+   "question": "What identity guarantees does Kubernetes provide to Pods managed by a StatefulSet?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7196.484665037133,
+   "tokens_used": {
+    "input_tokens": 953,
+    "output_tokens": 218,
+    "estimated_cost_usd": 0.00027375
+   },
+   "answer": "Kubernetes provides several identity guarantees to Pods managed by a StatefulSet:\n\n1. **Sticky Identity**: Each Pod in a StatefulSet has a persistent identifier that it maintains across any rescheduling. This means that even if a Pod is rescheduled, it retains its identity, which is crucial for applications that require stable identities [source: k8s_statefulset.md].\n\n2. **Unique Identity**: Each Pod has a unique identity that consists of an ordinal index, a stable network identity, and stable storage. This identity is consistent regardless of the node on which the Pod is (re)scheduled [source: k8s_statefulset.md].\n\n3. **Ordered Management**: StatefulSets can manage Pods in an ordered manner, ensuring that they are created and terminated in a specific sequence, which helps maintain their identity [source: k8s_statefulset.md]. \n\nThese guarantees make StatefulSets particularly useful for managing stateful applications that require persistent storage and stable network identities.",
+   "retrieved_sources": [
+    "k8s_statefulset.md",
+    "k8s_statefulset.md",
+    "k8s_statefulset.md",
+    "k8s_statefulset.md",
+    "k8s_statefulset.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_002",
+   "question": "How does a StatefulSet differ from a Deployment when managing Pods, and when would you prefer one over the other?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 0.5,
+   "keyword_hit_rate": 0.8,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 8615.278666024096,
+   "tokens_used": {
+    "input_tokens": 967,
+    "output_tokens": 259,
+    "estimated_cost_usd": 0.00030045
+   },
+   "answer": "A StatefulSet differs from a Deployment in several key ways when managing Pods:\n\n1. **Identity and Uniqueness**: A StatefulSet maintains a sticky identity for each of its Pods, meaning each Pod has a persistent identifier that it retains across rescheduling. In contrast, Pods managed by a Deployment are interchangeable and do not have a unique identity [source: k8s_statefulset.md].\n\n2. **Ordering Guarantees**: StatefulSets provide guarantees about the ordering and uniqueness of Pods. They can be configured to manage Pods in an ordered manner (default behavior) or in parallel, while still preserving their unique identities. Deployments do not provide such ordering guarantees [source: k8s_statefulset.md].\n\n3. **Use Cases**: StatefulSets are particularly useful for applications that require persistent storage or a stable, unique network identity, such as databases. Deployments are more suited for stateless applications where Pods can be easily replaced and do not need to maintain state [source: k8s_statefulset.md].\n\nIn summary, you would prefer a StatefulSet when managing stateful applications that require persistent storage and unique identities, while a Deployment is preferable for stateless applications.",
+   "retrieved_sources": [
+    "k8s_statefulset.md",
+    "k8s_pods.md",
+    "k8s_hpa.md",
+    "k8s_statefulset.md",
+    "k8s_statefulset.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_003",
+   "question": "How does external HTTP traffic reach a Pod inside a Kubernetes cluster, from the Ingress edge through the Service layer down to the Pod?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 8529.681824962609,
+   "tokens_used": {
+    "input_tokens": 1098,
+    "output_tokens": 262,
+    "estimated_cost_usd": 0.00032190000000000007
+   },
+   "answer": "External HTTP traffic reaches a Pod inside a Kubernetes cluster through the following process:\n\n1. **Ingress**: An Ingress resource is configured to manage external access to the services in the cluster. It provides externally-reachable URLs, load balances traffic, and can terminate SSL/TLS. The Ingress controller is responsible for fulfilling the Ingress, typically using a load balancer or configuring an edge router to handle the traffic [source: k8s_ingress.md].\n\n2. **Service**: The Ingress routes the incoming HTTP traffic to a specific Service based on defined rules. The Service acts as an abstraction that defines a logical set of Pods and a policy by which to access them. It provides a stable endpoint (IP address and port) for the Pods [source: k8s_service.md].\n\n3. **Pod**: The Service forwards the traffic to the appropriate Pod(s) based on the Service's selector, which matches the labels of the Pods. This allows the traffic to reach the specific application running inside the Pod [source: k8s_service.md].\n\nThis flow ensures that external HTTP requests are properly routed from the Ingress through the Service layer down to the targeted Pod.",
+   "retrieved_sources": [
+    "k8s_ingress.md",
+    "k8s_ingress.md",
+    "k8s_service.md",
+    "k8s_network_policies.md",
+    "k8s_ingress.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_004",
+   "question": "How do I enable Jaeger sidecar injection for distributed tracing in a Kubernetes Deployment?",
+   "category": "out_of_scope",
+   "difficulty": "medium",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 4947.97552190721,
+   "tokens_used": {
+    "input_tokens": 1046,
+    "output_tokens": 58,
+    "estimated_cost_usd": 0.0001917
+   },
+   "answer": "The retrieved context does not contain specific instructions on how to enable Jaeger sidecar injection for distributed tracing in a Kubernetes Deployment. Therefore, I cannot provide an answer to your question.",
+   "retrieved_sources": [
+    "k8s_pods.md",
+    "k8s_pods.md",
+    "k8s_init_containers.md",
+    "k8s_persistent_volumes.md",
+    "k8s_pod_lifecycle.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_005",
+   "question": "As of Kubernetes v1.31, how does Pod Security Admission behave differently when a namespace is labeled with enforce mode versus warn mode?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.6,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5281.773617025465,
+   "tokens_used": {
+    "input_tokens": 1041,
+    "output_tokens": 71,
+    "estimated_cost_usd": 0.00019875
+   },
+   "answer": "The Kubernetes documentation does not provide specific details on how Pod Security Admission behaves differently when a namespace is labeled with enforce mode versus warn mode as of v1.31. Therefore, I cannot answer your question based on the available documentation.",
+   "retrieved_sources": [
+    "k8s_pod_security_admission.md",
+    "k8s_pod_security_admission.md",
+    "k8s_pod_security_admission.md",
+    "k8s_pod_security_admission.md",
+    "k8s_pod_security_standards.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_006",
+   "question": "What is a ConfigMap in Kubernetes and what kind of data should you store in it?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 4520.288181025535,
+   "tokens_used": {
+    "input_tokens": 1059,
+    "output_tokens": 125,
+    "estimated_cost_usd": 0.00023385
+   },
+   "answer": "A ConfigMap in Kubernetes is an API object used to store non-confidential data in key-value pairs. It allows Pods to consume this data as environment variables, command-line arguments, or as configuration files in a volume [source: k8s_configmap.md].\n\nYou should store configuration data that is not sensitive in a ConfigMap. This can include settings for applications running in a Pod, such as configuration options, environment variables, or any other non-confidential data that your applications need to function [source: k8s_configmap.md].",
+   "retrieved_sources": [
+    "k8s_configmap.md",
+    "k8s_volumes.md",
+    "k8s_configmap.md",
+    "k8s_volumes.md",
+    "k8s_configmap.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_007",
+   "question": "What does a Kubernetes Job do, and how does it decide that its task is complete?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.6,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 2,
+   "latency_ms": 8982.201909995638,
+   "tokens_used": {
+    "input_tokens": 1485,
+    "output_tokens": 177,
+    "estimated_cost_usd": 0.00032895
+   },
+   "answer": "A Kubernetes Job is a resource that manages the execution of a finite or batch task that runs to completion. It ensures that a specified number of pods successfully terminate, which means that the Job will create one or more pods to carry out the task until the desired completion criteria are met [source: k8s_job.md].\n\nThe Job is considered complete when there is at least one successfully completed pod for each index, if using indexed jobs. In general, the Job controller tracks the completion of the pods, and the Job will be marked as \"Complete\" once all the required pods have successfully terminated [source: k8s_job.md].",
+   "retrieved_sources": [
+    "k8s_job.md",
+    "k8s_cronjob.md",
+    "k8s_job.md",
+    "k8s_cronjob.md",
+    "k8s_job.md",
+    "k8s_job.md",
+    "k8s_job.md",
+    "k8s_job.md",
+    "k8s_job.md",
+    "k8s_job.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_008",
+   "question": "What is a Kubernetes Namespace, and which kinds of resources does namespace scoping apply to?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 2,
+   "latency_ms": 6275.211888016202,
+   "tokens_used": {
+    "input_tokens": 1762,
+    "output_tokens": 186,
+    "estimated_cost_usd": 0.0003759
+   },
+   "answer": "In Kubernetes, *namespaces* provide a mechanism for isolating groups of resources within a single cluster. Names of resources need to be unique within a namespace, but not across namespaces. Namespace-based scoping applies only to namespaced objects, such as Deployments and Services, and not to cluster-wide objects like nodes and persistent volumes [source: k8s_namespaces.md]. \n\nMost Kubernetes resources, including pods, services, and replication controllers, are in some namespaces. However, certain resources, such as namespace resources themselves, are not in a namespace, and low-level resources like nodes and persistent volumes are not in any namespace [source: k8s_namespaces.md].",
+   "retrieved_sources": [
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_namespaces.md",
+    "k8s_rbac.md",
+    "k8s_ingress.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_009",
+   "question": "What are the four object kinds that the Kubernetes RBAC API declares, and what does each one do?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 4656.828769017011,
+   "tokens_used": {
+    "input_tokens": 1077,
+    "output_tokens": 165,
+    "estimated_cost_usd": 0.00026054999999999996
+   },
+   "answer": "The Kubernetes RBAC API declares four kinds of objects:\n\n1. **Role**: This object defines a set of permissions within a specific namespace. It allows you to grant access to resources in that namespace.\n\n2. **ClusterRole**: Similar to a Role, but it is not limited to a specific namespace. It can be used to grant access to resources across the entire cluster.\n\n3. **RoleBinding**: This object grants the permissions defined in a Role to a user or set of users within a specific namespace.\n\n4. **ClusterRoleBinding**: This object grants the permissions defined in a ClusterRole to a user or set of users across the entire cluster [source: k8s_rbac.md].",
+   "retrieved_sources": [
+    "k8s_rbac.md",
+    "k8s_rbac.md",
+    "k8s_rbac.md",
+    "k8s_rbac.md",
+    "k8s_rbac.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_010",
+   "question": "What is a DaemonSet in Kubernetes, and what kind of workload is it designed for?",
+   "category": "retrieval",
+   "difficulty": "easy",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5635.09584707208,
+   "tokens_used": {
+    "input_tokens": 1025,
+    "output_tokens": 176,
+    "estimated_cost_usd": 0.00025935
+   },
+   "answer": "A **DaemonSet** in Kubernetes is a resource that ensures that all (or some) nodes in a cluster run a copy of a specific Pod. This is particularly useful for workloads that need to provide node-local facilities, such as networking tools, storage daemons, log collection daemons, or monitoring daemons. As nodes are added to or removed from the cluster, the DaemonSet automatically manages the Pods accordingly. Deleting a DaemonSet will also clean up the Pods it created [source: k8s_daemonset.md]. \n\nTypical workloads designed for a DaemonSet include:\n- Running a cluster storage daemon on every node\n- Running a logs collection daemon on every node\n- Running a node monitoring daemon on every node [source: k8s_daemonset.md].",
+   "retrieved_sources": [
+    "k8s_daemonset.md",
+    "k8s_daemonset.md",
+    "k8s_daemonset.md",
+    "k8s_daemonset.md",
+    "k8s_daemonset.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_011",
+   "question": "When a Pod consumes a Secret, how does the behavior differ between mounting the Secret as a data volume versus exposing it as environment variables for the container?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 3,
+   "latency_ms": 19261.181187001057,
+   "tokens_used": {
+    "input_tokens": 2923,
+    "output_tokens": 389,
+    "estimated_cost_usd": 0.0006718500000000001
+   },
+   "answer": "When a Pod consumes a Secret, the behavior differs between mounting the Secret as a data volume and exposing it as environment variables in the following ways:\n\n1. **Mounting as a Data Volume**:\n   - Secrets can be mounted as files in a container's filesystem. This allows the application to read the Secret data as files. The data is stored in a `tmpfs` (a RAM-backed filesystem), ensuring that it is not written to non-volatile storage [source: k8s_volumes.md].\n   - If the Secret is updated, Kubernetes tracks this and updates the data in the volume, using an eventually-consistent approach. However, if a container uses a Secret as a `subPath` volume mount, it does not receive automated updates when the Secret changes [source: k8s_secret.md].\n\n2. **Exposing as Environment Variables**:\n   - Secrets can also be exposed as environment variables, which are name-value pairs that provide information to the container. However, it is important to note that if any keys do not meet the naming rules for environment variables, those keys will not be available to the container, although the Pod can still start [source: k8s_secret.md].\n   - Environment variables are set at the time the container starts and do not automatically update if the Secret changes [source: k8s_secret.md].\n\nIn summary, mounting a Secret as a data volume allows for file-based access and supports updates, while exposing it as environment variables provides a simpler interface but does not support updates after the container starts.",
+   "retrieved_sources": [
+    "k8s_secret.md",
+    "k8s_volumes.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_volumes.md",
+    "k8s_secret.md",
+    "k8s_secret.md",
+    "k8s_secret.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_012",
+   "question": "How does an emptyDir volume behave differently when emptyDir.medium is left as the default versus when it is set to Memory?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6222.9590569622815,
+   "tokens_used": {
+    "input_tokens": 1089,
+    "output_tokens": 142,
+    "estimated_cost_usd": 0.00024855
+   },
+   "answer": "When `emptyDir.medium` is left as the default, the `emptyDir` volume is stored on whatever medium backs the node, such as disk, SSD, or network storage, depending on the environment. In contrast, when `emptyDir.medium` is set to `\"Memory\"`, Kubernetes mounts a tmpfs (RAM-backed filesystem). This means that while tmpfs is very fast, files written to it count against the memory limit of the container that wrote them, unlike the default medium where files do not impact the container's memory limit directly [source: k8s_volumes.md].",
+   "retrieved_sources": [
+    "k8s_volumes.md",
+    "k8s_volumes.md",
+    "k8s_resource_management.md",
+    "k8s_resource_management.md",
+    "k8s_volumes.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_013",
+   "question": "How does the kubelet respond differently to a failing liveness probe versus a failing readiness probe on a container?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5172.5856439443305,
+   "tokens_used": {
+    "input_tokens": 992,
+    "output_tokens": 209,
+    "estimated_cost_usd": 0.0002742
+   },
+   "answer": "The kubelet responds differently to a failing liveness probe versus a failing readiness probe as follows:\n\n1. **Liveness Probe**: If the liveness probe fails, the kubelet kills the container, and the container is subjected to its restart policy. This means that the kubelet considers the container to be in a failed state and will attempt to restart it to recover from the failure [source: k8s_pod_lifecycle.md].\n\n2. **Readiness Probe**: If the readiness probe fails, the pod is marked as unready, and it will not receive traffic from any services. However, the container is not killed; it remains running, and the kubelet will continue to check its readiness status [source: k8s_probes.md]. \n\nIn summary, a failing liveness probe leads to the container being restarted, while a failing readiness probe simply prevents the container from receiving traffic without terminating it.",
+   "retrieved_sources": [
+    "k8s_probes.md",
+    "k8s_pod_lifecycle.md",
+    "k8s_probes.md",
+    "k8s_probes.md",
+    "k8s_probes.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_014",
+   "question": "What is the difference between a Service of type NodePort and a Service of type LoadBalancer in Kubernetes?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7035.529895918444,
+   "tokens_used": {
+    "input_tokens": 1096,
+    "output_tokens": 189,
+    "estimated_cost_usd": 0.0002778
+   },
+   "answer": "A Service of type `NodePort` exposes the Service on each Node's IP at a static port (the `NodePort`). It sets up a cluster IP address, similar to a Service of type `ClusterIP` [source: k8s_service.md].\n\nIn contrast, a Service of type `LoadBalancer` exposes the Service externally using an external load balancer. Kubernetes does not provide a load balancing component directly; you must provide one or integrate with a cloud provider [source: k8s_service.md]. \n\nTypically, when a Service of type `LoadBalancer` is created, Kubernetes first sets it up similarly to a Service of type `NodePort`, and then the cloud-controller-manager configures the external load balancer to forward traffic to the assigned node port [source: k8s_service.md].",
+   "retrieved_sources": [
+    "k8s_service.md",
+    "k8s_service.md",
+    "k8s_service.md",
+    "k8s_service.md",
+    "k8s_ingress.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_015",
+   "question": "How does a CronJob differ from a Job in Kubernetes, and when would you reach for one over the other?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 0.5,
+   "keyword_hit_rate": 0.8,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5079.905326012522,
+   "tokens_used": {
+    "input_tokens": 975,
+    "output_tokens": 137,
+    "estimated_cost_usd": 0.00022845
+   },
+   "answer": "A CronJob in Kubernetes differs from a Job in that a CronJob is designed to run Jobs on a scheduled basis, similar to a cron job in Unix systems. It creates Jobs according to a specified schedule, while a Job is responsible for managing the Pods it represents and runs to completion without a schedule [source: k8s_cronjob.md].\n\nYou would use a CronJob when you need to perform regular scheduled actions, such as backups or report generation, whereas a Job is suitable for one-time tasks that need to run to completion [source: k8s_cronjob.md].",
+   "retrieved_sources": [
+    "k8s_cronjob.md",
+    "k8s_cronjob.md",
+    "k8s_cronjob.md",
+    "k8s_cronjob.md",
+    "k8s_cronjob.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_016",
+   "question": "What is the key scheduling difference between a Deployment and a DaemonSet for running Pods in a cluster?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6912.514557945542,
+   "tokens_used": {
+    "input_tokens": 1011,
+    "output_tokens": 197,
+    "estimated_cost_usd": 0.00026984999999999997
+   },
+   "answer": "The key scheduling difference between a Deployment and a DaemonSet in Kubernetes is as follows:\n\n- A **DaemonSet** ensures that all eligible nodes run a copy of a Pod. The DaemonSet controller creates a Pod for each eligible node, and the default scheduler then binds the Pod to the target host, typically honoring any `nodeAffinity` rules specified in the DaemonSet [source: k8s_daemonset.md].\n\n- A **Deployment**, on the other hand, manages a set of Pods to run an application workload, usually one that doesn't maintain state. It provides declarative updates for Pods and ReplicaSets, but it does not inherently ensure that Pods are scheduled on every node [source: k8s_deployment.md].\n\nIn summary, a DaemonSet is designed to run a Pod on every eligible node, while a Deployment manages Pods without that requirement.",
+   "retrieved_sources": [
+    "k8s_assign_pod_node.md",
+    "k8s_daemonset.md",
+    "k8s_daemonset.md",
+    "k8s_daemonset.md",
+    "k8s_deployment.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_017",
+   "question": "When a Pod with init containers starts up, what is the order in which its init containers and regular application containers run, and what guarantees does Kubernetes make about that order?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 2967.051479034126,
+   "tokens_used": {
+    "input_tokens": 1016,
+    "output_tokens": 84,
+    "estimated_cost_usd": 0.0002028
+   },
+   "answer": "In Kubernetes, init containers run to completion before the main application containers start. The order of execution is that all init containers must complete successfully, one after the other, in a sequential manner. Only after all init containers have successfully completed does Kubernetes initialize and start the application containers [source: k8s_init_containers.md].",
+   "retrieved_sources": [
+    "k8s_init_containers.md",
+    "k8s_init_containers.md",
+    "k8s_init_containers.md",
+    "k8s_init_containers.md",
+    "k8s_init_containers.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_018",
+   "question": "As of the current Kubernetes snapshot, which autoscaling API version should you use for a HorizontalPodAutoscaler that scales a Deployment on custom or memory metrics, and why?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.8,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 3767.135006026365,
+   "tokens_used": {
+    "input_tokens": 1084,
+    "output_tokens": 93,
+    "estimated_cost_usd": 0.0002184
+   },
+   "answer": "As of the current Kubernetes snapshot, you should use the `autoscaling/v2` API version for a HorizontalPodAutoscaler that scales a Deployment on custom or memory metrics. This version includes support for scaling based on custom metrics, which allows the HorizontalPodAutoscaler to query these metrics from the Kubernetes API [source: k8s_hpa.md].",
+   "retrieved_sources": [
+    "k8s_hpa.md",
+    "k8s_hpa.md",
+    "k8s_hpa.md",
+    "k8s_hpa.md",
+    "k8s_hpa.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_019",
+   "question": "How does a value stored in a ConfigMap become available to an application running inside a Pod \u2014 what are the mechanisms Kubernetes provides?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7833.192417048849,
+   "tokens_used": {
+    "input_tokens": 1032,
+    "output_tokens": 198,
+    "estimated_cost_usd": 0.0002736
+   },
+   "answer": "A value stored in a ConfigMap becomes available to an application running inside a Pod through several mechanisms provided by Kubernetes:\n\n1. **Environment Variables**: ConfigMaps can be consumed as environment variables within the containers of a Pod. This allows the application to access the configuration data directly as environment variables.\n\n2. **Command-line Arguments**: The data from a ConfigMap can also be passed as command-line arguments to the container when it starts.\n\n3. **Volumes**: ConfigMaps can be mounted as files in a volume. This allows the application to read the configuration data from files within the container's filesystem.\n\n4. **Direct API Access**: Applications can access the Kubernetes API directly to read the ConfigMap and its data. This method allows the application to subscribe to updates whenever the ConfigMap changes, enabling it to react to those changes dynamically [source: k8s_configmap.md].",
+   "retrieved_sources": [
+    "k8s_configmap.md",
+    "k8s_configmap.md",
+    "k8s_volumes.md",
+    "k8s_configmap.md",
+    "k8s_volumes.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_020",
+   "question": "By default, is an isolated or non-isolated Pod subject to NetworkPolicy filtering, and how does a NetworkPolicy change that baseline?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.8,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 2,
+   "latency_ms": 11602.301320061088,
+   "tokens_used": {
+    "input_tokens": 1579,
+    "output_tokens": 193,
+    "estimated_cost_usd": 0.00035265000000000003
+   },
+   "answer": "By default, a Pod is non-isolated for both egress and ingress; this means that all outbound and inbound connections are allowed. A Pod becomes isolated for egress if there is any NetworkPolicy that selects the Pod and has \"Egress\" in its `policyTypes`. Similarly, a Pod is isolated for ingress if there is a NetworkPolicy that selects it and has \"Ingress\" in its `policyTypes` [source: k8s_network_policies.md]. \n\nIn summary, a NetworkPolicy changes the baseline by applying isolation rules that restrict the allowed connections based on the specified ingress and egress rules within the policy.",
+   "retrieved_sources": [
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_network_policies.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_021",
+   "question": "How does a CronJob get from a cron schedule string to an actual running Pod \u2014 what objects does Kubernetes create along the way?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 1.0,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 1.0,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 9356.889222981408,
+   "tokens_used": {
+    "input_tokens": 1031,
+    "output_tokens": 202,
+    "estimated_cost_usd": 0.00027585
+   },
+   "answer": "A CronJob in Kubernetes gets from a cron schedule string to an actual running Pod through the following process:\n\n1. **CronJob Object**: The CronJob is defined with a schedule in a cron format. This object is responsible for managing the scheduling of Jobs based on the specified cron schedule string [source: k8s_cronjob.md].\n\n2. **Job Creation**: When the scheduled time arrives, the CronJob creates a Job object. The Job is responsible for managing the Pods that it represents [source: k8s_cronjob.md].\n\n3. **Pod Creation**: The Job then creates one or more Pods to execute the specified task. If the Pods fail or are deleted, the Job can create new Pods to ensure the task is completed [source: k8s_job.md].\n\nThus, the sequence of objects created is: **CronJob \u2192 Job \u2192 Pod**.",
+   "retrieved_sources": [
+    "k8s_cronjob.md",
+    "k8s_cronjob.md",
+    "k8s_job.md",
+    "k8s_cronjob.md",
+    "k8s_cronjob.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_022",
+   "question": "How do I write an RBAC deny rule that blocks a specific user from deleting Pods in a namespace?",
+   "category": "retrieval",
+   "difficulty": "hard",
+   "retrieval_precision": 0.2,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.8,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7639.72450804431,
+   "tokens_used": {
+    "input_tokens": 1069,
+    "output_tokens": 60,
+    "estimated_cost_usd": 0.00019634999999999998
+   },
+   "answer": "The Kubernetes documentation does not provide specific guidance on writing an RBAC deny rule to block a user from deleting Pods in a namespace. Therefore, I cannot provide an answer to your question.",
+   "retrieved_sources": [
+    "k8s_network_policies.md",
+    "k8s_network_policies.md",
+    "k8s_rbac.md",
+    "k8s_network_policies.md",
+    "k8s_pod_security_admission.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_023",
+   "question": "Which container-isolation restrictions does the Pod Security Standards 'privileged' profile enforce on a Pod?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.6,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.5,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 5903.393600950949,
+   "tokens_used": {
+    "input_tokens": 1059,
+    "output_tokens": 95,
+    "estimated_cost_usd": 0.00021585
+   },
+   "answer": "The Pod Security Standards 'privileged' profile enforces no container-isolation restrictions on a Pod. This profile is purposely open and entirely unrestricted, allowing Pods to bypass typical container isolation mechanisms. For example, a Pod defined under the privileged security policy can have access to the node's host network [source: k8s_pod_security_standards.md].",
+   "retrieved_sources": [
+    "k8s_pod_security_standards.md",
+    "k8s_pod_security_standards.md",
+    "k8s_pod_security_admission.md",
+    "k8s_pod_security_standards.md",
+    "k8s_pod_security_admission.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_024",
+   "question": "How do I configure Envoy xDS aggregated discovery service (ADS) for sidecar proxies managed by a Kubernetes Deployment?",
+   "category": "out_of_scope",
+   "difficulty": "medium",
+   "retrieval_precision": 0.0,
+   "retrieval_recall": 0.0,
+   "keyword_hit_rate": 0.3333333333333333,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 6748.714460991323,
+   "tokens_used": {
+    "input_tokens": 1115,
+    "output_tokens": 57,
+    "estimated_cost_usd": 0.00020145
+   },
+   "answer": "The answer to your question about configuring Envoy xDS aggregated discovery service (ADS) for sidecar proxies managed by a Kubernetes Deployment is not in the Kubernetes documentation.",
+   "retrieved_sources": [
+    "k8s_deployment.md",
+    "k8s_service.md",
+    "k8s_rbac.md",
+    "k8s_service.md",
+    "k8s_endpoint_slices.md"
+   ],
+   "judge_scores": {}
+  },
+  {
+   "question_id": "k8s_025",
+   "question": "Which Kubernetes Service types expose an application to traffic from outside the cluster?",
+   "category": "retrieval",
+   "difficulty": "medium",
+   "retrieval_precision": 0.8,
+   "retrieval_recall": 1.0,
+   "keyword_hit_rate": 0.5,
+   "has_source_citation": true,
+   "grounded_refusal": true,
+   "citation_accuracy": 1.0,
+   "calculator_used_correctly": true,
+   "tool_calls_made": 1,
+   "latency_ms": 7671.903645968996,
+   "tokens_used": {
+    "input_tokens": 1080,
+    "output_tokens": 164,
+    "estimated_cost_usd": 0.0002604
+   },
+   "answer": "The Kubernetes Service types that expose an application to traffic from outside the cluster are:\n\n1. **NodePort**: This type allocates a port on each node in the cluster, allowing external traffic to access the service by connecting to any node's IP address and the assigned port [source: k8s_service.md].\n\n2. **Ingress**: This resource exposes HTTP and HTTPS routes from outside the cluster to services within the cluster, with traffic routing controlled by rules defined on the Ingress resource [source: k8s_ingress.md].\n\nAdditionally, you can also use **external IPs** to route traffic to services from outside the cluster [source: k8s_service.md].",
+   "retrieved_sources": [
+    "k8s_service.md",
+    "k8s_service.md",
+    "k8s_ingress.md",
+    "k8s_service.md",
+    "k8s_service.md"
+   ],
+   "judge_scores": {}
+  }
+ ]
+}

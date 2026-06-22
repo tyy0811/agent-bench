@@ -60,6 +60,36 @@ def test_always_prints_n_clusters_and_design_effect():
     assert "design effect" in text
 
 
+def test_headline_ci_clamps_to_unit_interval_and_notes_censoring():
+    # A proportion near its ceiling pushes the normal-approx upper bound past 1.0
+    # (mean 0.950, question-level SE 0.050 -> 1.048). A recall CI whose upper
+    # bound exceeds 1.0 reads as a bug to a statistical reader, so clamp to the
+    # [0,1] boundary and flag the bound as ceiling-censored. (k8s r_at_5 hit this
+    # at mean 0.957; fastapi never did, so its goldens/markers are untouched.)
+    # 8 questions over 6 clusters: seven at 1.0, one at 0.6 -> mean 0.950, SE 0.050.
+    scores = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.6]
+    clusters = ["c1", "c2", "c3", "c4", "c5", "c6", "c1", "c2"]
+    df = pd.DataFrame(
+        [
+            dict(
+                config_id="custom-ceil+abc",
+                question_id=f"q{i}",
+                cluster_id=cl,
+                metric="r_at_5",
+                score=sc,
+                epoch=1,
+            )
+            for i, (sc, cl) in enumerate(zip(scores, clusters))
+        ]
+    )
+    text = "\n".join(report._headline_section(df, "ceiltest", 20260611))
+    bounds = re.findall(r"\[([\d.]+), ([\d.]+)\]", text)
+    assert bounds, "no CI rendered"
+    assert all(float(hi) <= 1.0 for _, hi in bounds), f"upper bound exceeds 1.0: {bounds}"
+    assert "[0.852, 1.000]" in text  # raw [0.852, 1.048] -> upper clamped to the ceiling
+    assert "ceiling-censored" in text  # honest flag that the bound was clamped
+
+
 def test_byte_stability_double_render():
     # No wall-clock anywhere in the renderer: two renders of the same input
     # are byte-identical, and the golden tests in Task 4.3 pin the bytes

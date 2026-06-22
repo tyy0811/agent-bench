@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run evaluate-stats canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run epochs-dry-run-k8s evaluate-stats canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -63,6 +63,10 @@ epochs:  ## PAID, HUMAN-RUN: repeat eval k times per config. Usage: make epochs 
 epochs-dry-run:  ## Free pre-spend gate: validate the WP5 configs (corpora, golden, store, keys) with no API calls
 	$(PYTHON) scripts/run_epochs.py --k 1 --dry-run \
 		--configs custom-openai,custom-anthropic,langchain-openai,langchain-anthropic
+
+epochs-dry-run-k8s:  ## Free pre-spend gate for the UNMEASURED k8s configs (corpus/golden/store/keys); no API calls
+	$(PYTHON) scripts/run_epochs.py --k 1 --dry-run \
+		--configs custom-openai-k8s,custom-anthropic-k8s
 
 evaluate-stats:  ## Regenerate docs/_generated/stats_report.md from results/long (free, offline)
 	$(PYTHON) -m stats.report --tables results/long --out docs/_generated/stats_report.md

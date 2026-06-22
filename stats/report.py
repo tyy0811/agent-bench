@@ -25,6 +25,20 @@ HEADLINE_METRICS = ("p_at_5", "r_at_5")
 DEFAULT_SEED = 20260611
 
 
+def _unit_ci(mean: float, se: float) -> tuple[float, float, bool]:
+    """95 percent normal-approximation interval for a proportion, clamped to
+    [0, 1]. Every metric this report intervals (p_at_5, r_at_5) is a proportion
+    bounded at 1, so a raw bound outside the unit interval is a ceiling/floor
+    artifact, not a reachable parameter value (a recall CI upper bound of 1.015
+    reads as a bug). Returns (lo, hi, censored); ``censored`` is True when a raw
+    bound fell outside [0, 1] and was clamped, so callers disclose it instead of
+    hiding it. A no-op when both bounds are already inside [0, 1], so corpora
+    that never approach the ceiling render byte-identically.
+    """
+    raw_lo, raw_hi = mean - 1.96 * se, mean + 1.96 * se
+    return max(0.0, raw_lo), min(1.0, raw_hi), (raw_lo < 0.0 or raw_hi > 1.0)
+
+
 def _question_means(df: pd.DataFrame, metric: str) -> pd.DataFrame:
     sub = df[df["metric"] == metric]
     return sub.groupby(["config_id", "question_id", "cluster_id"], as_index=False).agg(
@@ -49,12 +63,18 @@ def _headline_section(df: pd.DataFrame, corpus: str, seed: int) -> list[str]:
             clustered_primary = primary_is_clustered(res.n_clusters)
             primary_se = res.clustered_se if clustered_primary else res.naive_se
             label = "clustered" if clustered_primary else "question-level"
-            lo, hi = res.mean - 1.96 * primary_se, res.mean + 1.96 * primary_se
+            lo, hi, censored = _unit_ci(res.mean, primary_se)
             lines.append(
                 f"| {config} | {metric} | {res.mean:.3f} | [{lo:.3f}, {hi:.3f}] ({label}) "
                 f"| {res.naive_se:.4f} | {res.clustered_se:.4f} | n_clusters={res.n_clusters} "
                 f"| design effect={res.design_effect:.2f} |"
             )
+            if censored:
+                cautions.append(
+                    f"ceiling-censored: {corpus} {config} {metric}: the normal-approximation "
+                    "interval extends past the [0,1] proportion bound and is reported clamped "
+                    "to it; the bound sits on the ceiling rather than estimating beyond it."
+                )
             if not clustered_primary and res.clustered_se > DIVERGENCE_RATIO * res.naive_se:
                 cautions.append(
                     f"correlation-sensitivity caution: {corpus} {config} {metric}: clustered SE "
@@ -269,7 +289,7 @@ def _readme_values_section(tables: dict[str, pd.DataFrame], seed: int) -> list[s
                     qm["score"].to_numpy(), qm["cluster_id"].to_numpy(), seed=seed
                 )
                 se = res.clustered_se if primary_is_clustered(res.n_clusters) else res.naive_se
-                lo, hi = res.mean - 1.96 * se, res.mean + 1.96 * se
+                lo, hi, _ = _unit_ci(res.mean, se)
                 stem = f"{ck}_{_key(config)}_{metric}"
                 lines.append(f"- {stem}_mean = {res.mean:.3f}")
                 lines.append(f"- {stem}_ci = [{lo:.3f}, {hi:.3f}]")
