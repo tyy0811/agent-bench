@@ -100,8 +100,10 @@ def embedded_hash(svg_text: str) -> str | None:
     return m.group(1) if m else None
 
 
-# name -> source-set builder. One entry per committed SVG.
-EXPECTED_PLOTS = {"forest_fastapi.svg": lambda v: forest_source(v, "fastapi")}
+# name -> source-set builder. One entry per committed figure. PNG (not SVG):
+# GitHub's Markdown sanitizer does not reliably render relative-path SVGs inline,
+# so the figure ships as PNG and the source-hash lives in a PNG tEXt chunk.
+EXPECTED_PLOTS = {"forest_fastapi.png": lambda v: forest_source(v, "fastapi")}
 
 
 def check(report_text: str, plots_dir: Path) -> list[str]:
@@ -114,7 +116,9 @@ def check(report_text: str, plots_dir: Path) -> list[str]:
             failures.append(f"{name} missing; run `make plots`")
             continue
         want = source_hash(builder(values))
-        got = embedded_hash(svg.read_text())
+        # latin-1 maps every byte, so this never raises on a binary PNG and keeps
+        # the ASCII source-hash substring intact (a PNG tEXt chunk is plain text).
+        got = embedded_hash(svg.read_bytes().decode("latin-1", "ignore"))
         if got != want:
             failures.append(
                 f"{name} stale: embedded source-hash {got} != report {want}; run `make plots`"
@@ -211,20 +215,21 @@ def _render_forest(values: dict[str, str], out_path: Path) -> None:
     )
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
-    is_svg = out_path.suffix == ".svg"
-    fig.savefig(out_path, metadata={"Date": None} if is_svg else None)
-    plt.close(fig)
-
-    if is_svg:  # provenance comment only meaningful for the committed SVG
-        h = source_hash(forest_source(values))
+    h = source_hash(forest_source(values))
+    if out_path.suffix == ".svg":
+        fig.savefig(out_path, metadata={"Date": None})
+        plt.close(fig)
         svg = out_path.read_text().replace("</svg>", f"<!-- source-hash: {h} -->\n</svg>", 1)
         out_path.write_text(svg)
+    else:  # raster (png): embed the hash as a PNG tEXt chunk via savefig metadata
+        fig.savefig(out_path, dpi=200, metadata={"Description": f"source-hash:{h}"})
+        plt.close(fig)
 
 
 def generate() -> None:
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     values = read_values(REPORT.read_text())
-    _render_forest(values, PLOTS_DIR / "forest_fastapi.svg")
+    _render_forest(values, PLOTS_DIR / "forest_fastapi.png")
     print(f"wrote {len(EXPECTED_PLOTS)} plot(s) to {PLOTS_DIR}")
 
 

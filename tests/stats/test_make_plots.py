@@ -59,11 +59,14 @@ def test_source_hash_is_stable_and_sensitive():
 
 def test_check_flags_missing_fresh_and_stale(tmp_path):
     want = make_plots.source_hash(make_plots.forest_source(make_plots.read_values(SAMPLE)))
-    # missing SVG
+    # the committed figure is a PNG (GitHub will not inline relative-path SVGs);
+    # check reads it as bytes, so a text stand-in carrying the hash is enough here.
+    fig = tmp_path / "forest_fastapi.png"
+    # missing
     assert any("missing" in f for f in make_plots.check(SAMPLE, tmp_path))
     # fresh: embedded hash matches the report
-    (tmp_path / "forest_fastapi.svg").write_text(f"<svg></svg>\n<!-- source-hash: {want} -->\n")
+    fig.write_text(f"PNG\x00source-hash:{want}")
     assert make_plots.check(SAMPLE, tmp_path) == []
     # stale: embedded hash does not match
-    (tmp_path / "forest_fastapi.svg").write_text("<svg></svg>\n<!-- source-hash: deadbeef -->\n")
+    fig.write_text("PNG\x00source-hash:deadbeef")
     assert any("stale" in f for f in make_plots.check(SAMPLE, tmp_path))

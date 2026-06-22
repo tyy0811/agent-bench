@@ -28,7 +28,7 @@ Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files, 5 ep
 
 No cell is bolded: of the eight framework-pair comparisons (four custom-vs-LangChain pairs across P@5 and R@5), exactly <!-- stats:fastapi_significant_pairs_95_count -->1<!-- /stats --> is statistically significant at 95 percent under the paired bootstrap.
 
-![Forest plot of the eight FastAPI headline points (four configurations by P@5 and R@5) with 95 percent confidence intervals; the intervals overlap broadly and only one pair is significant](docs/_generated/plots/forest_fastapi.svg)
+![Forest plot of the eight FastAPI headline points (four configurations by P@5 and R@5) with 95 percent confidence intervals; the intervals overlap broadly and only one pair is significant](docs/_generated/plots/forest_fastapi.png)
 
 *Each row is one configuration's score on one metric with its cluster-bootstrapped 95 percent CI. The intervals overlap broadly across frameworks; the gold-edged pair (Custom Anthropic P@5 over LangChain OpenAI) is the single comparison that clears 95 percent significance, and it differs in provider as well as framework. Generated from [the stats report](docs/_generated/stats_report.md) by `scripts/make_plots.py` and pinned to it by a source-hash (CI fails on drift).*
 
