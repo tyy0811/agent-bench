@@ -53,9 +53,13 @@ correlation-sensitivity caution: mini langchain-mock+00000000 p_at_5: clustered 
 - mini_custom_mock_vs_langchain_mock_p_at_5_tost = equivalent
 - mini_custom_mock_vs_langchain_mock_p_at_5_support = 0.031
 - mini_custom_mock_vs_langchain_mock_p_at_5_diff = +0.023
+- mini_custom_mock_vs_langchain_mock_p_at_5_ci90 = [+0.013, +0.031]
+- mini_custom_mock_vs_langchain_mock_p_at_5_ci95 = [+0.011, +0.032]
 - mini_custom_mock_vs_langchain_mock_r_at_5_tost = equivalent
 - mini_custom_mock_vs_langchain_mock_r_at_5_support = 0.031
 - mini_custom_mock_vs_langchain_mock_r_at_5_diff = +0.023
+- mini_custom_mock_vs_langchain_mock_r_at_5_ci90 = [+0.013, +0.031]
+- mini_custom_mock_vs_langchain_mock_r_at_5_ci95 = [+0.011, +0.032]
 - mini_significant_pairs_95 = custom_mock vs langchain_mock p_at_5; custom_mock vs langchain_mock r_at_5
 - mini_significant_pairs_95_count = 2
 - mini_icc_p_at_5 = 0.98

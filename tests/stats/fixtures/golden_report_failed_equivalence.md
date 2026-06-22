@@ -53,9 +53,13 @@ ceiling-censored: mini custom-mock+00000000 r_at_5: the normal-approximation int
 - mini_custom_mock_vs_langchain_mock_p_at_5_tost = not established
 - mini_custom_mock_vs_langchain_mock_p_at_5_support = 0.228
 - mini_custom_mock_vs_langchain_mock_p_at_5_diff = +0.220
+- mini_custom_mock_vs_langchain_mock_p_at_5_ci90 = [+0.211, +0.228]
+- mini_custom_mock_vs_langchain_mock_p_at_5_ci95 = [+0.209, +0.229]
 - mini_custom_mock_vs_langchain_mock_r_at_5_tost = not established
 - mini_custom_mock_vs_langchain_mock_r_at_5_support = 0.185
 - mini_custom_mock_vs_langchain_mock_r_at_5_diff = +0.167
+- mini_custom_mock_vs_langchain_mock_r_at_5_ci90 = [+0.149, +0.185]
+- mini_custom_mock_vs_langchain_mock_r_at_5_ci95 = [+0.145, +0.189]
 - mini_significant_pairs_95 = custom_mock vs langchain_mock p_at_5; custom_mock vs langchain_mock r_at_5
 - mini_significant_pairs_95_count = 2
 - mini_icc_p_at_5 = 0.88

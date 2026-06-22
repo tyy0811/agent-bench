@@ -36,6 +36,14 @@ SAMPLE = """## README values
 - fastapi_significant_pairs_95 = custom_anthropic vs langchain_openai p_at_5
 - fastapi_significant_pairs_95_count = 1
 - fastapi_mde_p_at_5_80 = 0.110
+- fastapi_custom_anthropic_vs_langchain_openai_p_at_5_diff = +0.164
+- fastapi_custom_anthropic_vs_langchain_openai_p_at_5_tost = not established
+- fastapi_custom_anthropic_vs_langchain_openai_p_at_5_ci90 = [+0.031, +0.317]
+- fastapi_custom_anthropic_vs_langchain_openai_p_at_5_ci95 = [+0.016, +0.353]
+- fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_diff = +0.000
+- fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_tost = equivalent
+- fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_ci90 = [+0.000, +0.000]
+- fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_ci95 = [+0.000, +0.000]
 """
 
 
@@ -57,16 +65,28 @@ def test_source_hash_is_stable_and_sensitive():
     assert make_plots.source_hash(make_plots.forest_source(drifted)) != h1  # one digit moves it
 
 
+def test_paired_rows_reads_nested_cis_and_flags():
+    rows = make_plots.paired_rows(make_plots.read_values(SAMPLE), "fastapi")
+    sig = next(r for r in rows if r["significant"])
+    assert sig["label"] == "Custom Anthropic - LC OpenAI" and sig["metric"] == "p_at_5"
+    assert sig["diff"] == 0.164
+    assert sig["ci90"] == (0.031, 0.317) and sig["ci95"] == (0.016, 0.353)
+    assert sig["same_provider"] is False  # anthropic vs openai
+    tie = next(r for r in rows if r["ci95"] == (0.0, 0.0))
+    assert tie["same_provider"] is True and tie["tost"] == "equivalent"
+
+
 def test_check_flags_missing_fresh_and_stale(tmp_path):
-    want = make_plots.source_hash(make_plots.forest_source(make_plots.read_values(SAMPLE)))
-    # the committed figure is a PNG (GitHub will not inline relative-path SVGs);
-    # check reads it as bytes, so a text stand-in carrying the hash is enough here.
-    fig = tmp_path / "forest_fastapi.png"
-    # missing
+    vals = make_plots.read_values(SAMPLE)
+    # the committed figures are PNGs (GitHub will not inline relative-path SVGs);
+    # check reads them as bytes, so text stand-ins carrying the hash are enough.
+    # missing: no files yet
     assert any("missing" in f for f in make_plots.check(SAMPLE, tmp_path))
-    # fresh: embedded hash matches the report
-    fig.write_text(f"PNG\x00source-hash:{want}")
+    # fresh: every expected plot present with its correct 16-hex source-hash
+    for name, builder in make_plots.EXPECTED_PLOTS.items():
+        (tmp_path / name).write_text(f"PNG\x00source-hash:{make_plots.source_hash(builder(vals))}")
     assert make_plots.check(SAMPLE, tmp_path) == []
-    # stale: embedded hash does not match
-    fig.write_text("PNG\x00source-hash:deadbeef")
+    # stale: one plot carries a valid-shape but wrong hash
+    bad = next(iter(make_plots.EXPECTED_PLOTS))
+    (tmp_path / bad).write_text("PNG\x00source-hash:deadbeefdeadbeef")
     assert any("stale" in f for f in make_plots.check(SAMPLE, tmp_path))
