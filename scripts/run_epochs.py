@@ -143,6 +143,26 @@ REGISTRY: dict[str, dict] = {
         "provider": "anthropic",
         "golden": Path("agent_bench/evaluation/datasets/tech_docs_golden.json"),
     },
+    # --- k8s corpus (campaign executed 2026-06-22, paid) --------------------
+    # The full 25-question k8s campaign has run: K=5 per config, one run_id each.
+    # Envelopes live under results/epochs/ (gitignored, force-added like the
+    # fastapi run); tidy rows in results/long/k8s/; the report's k8s section
+    # regenerates with `make evaluate-stats`. langchain has no --corpus flag (see
+    # _entry_cmd), so k8s is custom-only and the framework-equivalence (TOST)
+    # section is empty by construction, not a regression. Re-run with:
+    #   make epochs K=5 CONFIGS=custom-openai-k8s,custom-anthropic-k8s CONFIRM_PAID=1
+    "custom-openai-k8s": {
+        "entry": "custom",
+        "config": Path("configs/default.yaml"),
+        "corpus": "k8s",
+        "golden": Path("agent_bench/evaluation/datasets/k8s_golden.json"),
+    },
+    "custom-anthropic-k8s": {
+        "entry": "custom",
+        "config": Path("configs/anthropic.yaml"),
+        "corpus": "k8s",
+        "golden": Path("agent_bench/evaluation/datasets/k8s_golden.json"),
+    },
 }
 
 

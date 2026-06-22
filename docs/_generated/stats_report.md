@@ -46,12 +46,47 @@
 | langchain-anthropic+claude-haiku-4-5-20251001 | 5 | 0.200 | 0.200 | [0.005, 0.716] | 5 |
 | langchain-openai+gpt-4o-mini | 5 | 0.760 | 0.600 | [0.147, 0.947] | 5 |
 
+## Headline intervals: k8s
+
+| config | metric | mean | 95 percent interval (primary) | naive SE | clustered SE | n_clusters | design effect |
+|---|---|---|---|---|---|---|---|
+| custom-anthropic-k8s+0bc9cd53 | p_at_5 | 0.823 | [0.736, 0.910] (question-level) | 0.0444 | 0.0510 | n_clusters=6 | design effect=1.32 |
+| custom-anthropic-k8s+0bc9cd53 | r_at_5 | 0.943 | [0.881, 1.000] (question-level) | 0.0319 | 0.0537 | n_clusters=6 | design effect=2.82 |
+| custom-openai-k8s+470d79fa | p_at_5 | 0.814 | [0.734, 0.894] (question-level) | 0.0408 | 0.0504 | n_clusters=6 | design effect=1.53 |
+| custom-openai-k8s+470d79fa | r_at_5 | 0.957 | [0.898, 1.000] (question-level) | 0.0300 | 0.0413 | n_clusters=6 | design effect=1.89 |
+
+ceiling-censored: k8s custom-anthropic-k8s+0bc9cd53 r_at_5: the normal-approximation interval extends past the [0,1] proportion bound and is reported clamped to it; the bound sits on the ceiling rather than estimating beyond it.
+correlation-sensitivity caution: k8s custom-anthropic-k8s+0bc9cd53 r_at_5: clustered SE 0.0537 exceeds 1.5x the question-level SE 0.0319; the question-level headline interval likely understates uncertainty.
+ceiling-censored: k8s custom-openai-k8s+470d79fa r_at_5: the normal-approximation interval extends past the [0,1] proportion bound and is reported clamped to it; the bound sits on the ceiling rather than estimating beyond it.
+
+## Citation accuracy zero-failure bound: k8s
+
+- custom-anthropic-k8s+0bc9cd53: 0 failures in 22 included questions (included n=22, excluded 1 citation-free questions; cited in all epochs: 20, in some epochs: 2). Exact Clopper-Pearson 95 percent upper bound on the per-question failure rate: 0.127 (rule of three approximation 3/n = 0.136).
+- custom-openai-k8s+470d79fa: 0 failures in 22 included questions (included n=22, excluded 1 citation-free questions; cited in all epochs: 21, in some epochs: 1). Exact Clopper-Pearson 95 percent upper bound on the per-question failure rate: 0.127 (rule of three approximation 3/n = 0.136).
+
+## Framework equivalence (TOST): k8s
+
+
+## Variance decomposition and power: k8s
+
+- p_at_5 variance: between-question 0.03249, within-question 0.00209, ICC 0.94 (23 questions x 5 epochs).
+- Error budget preview: the interval above is the statistical term only; template sensitivity and judge bias are systematic terms, scoped for v3.2.
+- Minimum detectable p_at_5 difference at 80 percent power: 0.119 (normal approximation 0.110).
+
+## Refusal reliability (pass^k): k8s
+
+| config | k | single-run | pass^k | 95 percent interval | n_questions |
+|---|---|---|---|---|---|
+| custom-anthropic-k8s+0bc9cd53 | 5 | 0.800 | 0.500 | [0.013, 0.987] | 2 |
+| custom-openai-k8s+470d79fa | 5 | 1.000 | 1.000 | [0.158, 1.000] | 2 |
+
 ## Methods appendix
 
 - Estimators: cluster bootstrap over cluster_id (10000 replicates); paired bootstrap on per-question epoch-mean differences; TOST at margin 0.10 absolute, alpha 0.05 per one-sided test, no multiplicity adjustment across P@5 and R@5 (pre-registered, design spec section 2, frozen 2026-06-11 before any WP5 data existed).
 - Zero-failure bounding: a question succeeds only if zero hallucinated citations occurred across all epochs and all citations; collapsing epochs bounds the any-of-k failure rate, which also bounds the per-answer rate.
 - Seed: 20260611. No wall-clock values appear in this report.
 - Input table fastapi: 1878 rows, content hash c28484520117.
+- Input table k8s: 925 rows, content hash 986cda71bb39.
 
 ## README values
 
@@ -113,4 +148,24 @@
 - fastapi_between_question_var_p_at_5 = 0.06051
 - fastapi_mde_p_at_5_80 = 0.110
 - fastapi_mde_p_at_5_80_normal = 0.136
+- k8s_custom_anthropic_k8s_p_at_5_mean = 0.823
+- k8s_custom_anthropic_k8s_p_at_5_ci = [0.736, 0.910]
+- k8s_custom_anthropic_k8s_r_at_5_mean = 0.943
+- k8s_custom_anthropic_k8s_r_at_5_ci = [0.881, 1.000]
+- k8s_custom_openai_k8s_p_at_5_mean = 0.814
+- k8s_custom_openai_k8s_p_at_5_ci = [0.734, 0.894]
+- k8s_custom_openai_k8s_r_at_5_mean = 0.957
+- k8s_custom_openai_k8s_r_at_5_ci = [0.898, 1.000]
+- k8s_custom_anthropic_k8s_citation_n = 22
+- k8s_custom_anthropic_k8s_citation_upper = 0.127
+- k8s_custom_anthropic_k8s_citation_rule_of_three = 0.136
+- k8s_custom_openai_k8s_citation_n = 22
+- k8s_custom_openai_k8s_citation_upper = 0.127
+- k8s_custom_openai_k8s_citation_rule_of_three = 0.136
+- k8s_significant_pairs_95 = none
+- k8s_significant_pairs_95_count = 0
+- k8s_icc_p_at_5 = 0.94
+- k8s_between_question_var_p_at_5 = 0.03249
+- k8s_mde_p_at_5_80 = 0.119
+- k8s_mde_p_at_5_80_normal = 0.110
 

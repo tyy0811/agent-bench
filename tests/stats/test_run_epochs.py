@@ -182,3 +182,28 @@ def test_langchain_eval_hard_fails_on_error_rows():
     run_langchain_eval._raise_if_errors([], 10)  # no errored questions -> returns
     with pytest.raises(SystemExit, match="errored"):
         run_langchain_eval._raise_if_errors([object()], 10)  # one error -> hard-fail (#5)
+
+
+# k8s prep (UNMEASURED, 2026-06-22): the runner is made k8s-capable so a full
+# campaign is one `make epochs CONFIGS=...-k8s CONFIRM_PAID=1` command away. No
+# paid k8s run has been executed and nothing exists under results/long/k8s/, so
+# these tests assert only the registry shape, never k8s results.
+
+
+def test_k8s_configs_registered_custom_only():
+    # langchain entries have no --corpus flag (see _entry_cmd), so a k8s corpus is
+    # reachable only through custom entries. Exactly the two custom providers.
+    k8s = {n for n, s in run_epochs.REGISTRY.items() if s.get("corpus") == "k8s"}
+    assert k8s == {"custom-openai-k8s", "custom-anthropic-k8s"}
+    for name in k8s:
+        spec = run_epochs.REGISTRY[name]
+        assert spec["entry"] == "custom"
+        assert spec["golden"] == Path("agent_bench/evaluation/datasets/k8s_golden.json")
+        assert Path(spec["config"]).exists()
+
+
+def test_k8s_registry_golden_is_full_corpus_not_pilot():
+    # The entries must target the 25-question corpus, not the 6-question pilot the
+    # only on-disk k8s results came from; guards against a pilot/full mix-up.
+    golden = json.loads(Path("agent_bench/evaluation/datasets/k8s_golden.json").read_text())
+    assert len(golden["questions"]) == 25
