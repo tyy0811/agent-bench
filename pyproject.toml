@@ -39,6 +39,11 @@ stats = [
     "scipy>=1.11.0",
     "pandas>=3.0,<4",
 ]
+plots = [
+    # Only needed to regenerate README figures (`make plots`); the CI freshness
+    # check is hash-based and matplotlib-free, so this stays out of [dev].
+    "matplotlib>=3.8,<4",
+]
 modal = [
     "modal>=0.66.0",
 ]

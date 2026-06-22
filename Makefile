@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run epochs-dry-run-k8s evaluate-stats canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run epochs-dry-run-k8s evaluate-stats plots canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -9,9 +9,9 @@ test:
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 lint:
-	ruff check agent_bench/ stats/ stats_adapters/ tests/ scripts/run_epochs.py scripts/run_canary_eval.py
-	ruff format --check stats/ stats_adapters/ tests/stats/ scripts/run_epochs.py scripts/run_canary_eval.py
-	mypy agent_bench/ stats/ stats_adapters/ scripts/run_epochs.py scripts/run_canary_eval.py --ignore-missing-imports
+	ruff check agent_bench/ stats/ stats_adapters/ tests/ scripts/run_epochs.py scripts/run_canary_eval.py scripts/make_plots.py
+	ruff format --check stats/ stats_adapters/ tests/stats/ scripts/run_epochs.py scripts/run_canary_eval.py scripts/make_plots.py
+	mypy agent_bench/ stats/ stats_adapters/ scripts/run_epochs.py scripts/run_canary_eval.py scripts/make_plots.py --ignore-missing-imports
 
 serve:
 	$(PYTHON) -m uvicorn agent_bench.serving.app:create_app --factory --reload --port 8000
@@ -70,6 +70,9 @@ epochs-dry-run-k8s:  ## Free pre-spend gate for the UNMEASURED k8s configs (corp
 
 evaluate-stats:  ## Regenerate docs/_generated/stats_report.md from results/long (free, offline)
 	$(PYTHON) -m stats.report --tables results/long --out docs/_generated/stats_report.md
+
+plots:  ## Regenerate README figures from the stats report (needs `pip install -e .[plots]`)
+	$(PYTHON) scripts/make_plots.py generate
 
 canary-report:  ## Regenerate docs/_generated/canary_detection.md from the committed canary fixtures (free, offline; verdicts are simulated)
 	$(PYTHON) scripts/run_canary_eval.py build-report \
