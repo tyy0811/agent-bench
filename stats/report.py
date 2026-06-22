@@ -330,6 +330,19 @@ def _readme_values_section(tables: dict[str, pd.DataFrame], seed: int) -> list[s
                     )
                     lines.append(f"- {stem}_support = {teq.support_margin:.3f}")
                     lines.append(f"- {stem}_diff = {diffs.mean():+.3f}")
+                    # Nested paired CIs for the difference plot: the 90% interval
+                    # reads against the +/-margin band (TOST equivalence), the 95%
+                    # against zero (significance). Both pinned so each claim is
+                    # independently checkable, and so the plot can draw both levels
+                    # without recomputing -- their divergence at low cluster counts
+                    # is a real property, not a rounding artifact.
+                    for conf in (0.90, 0.95):
+                        pr = paired_bootstrap(
+                            diffs, clusters=clusters if use else None, confidence=conf, seed=seed
+                        )
+                        lines.append(
+                            f"- {stem}_ci{int(conf * 100)} = [{pr.ci_low:+.3f}, {pr.ci_high:+.3f}]"
+                        )
         # Pairwise significance summary (drives the README bolding rule).
         sig = _significant_pairs(df, seed)
         lines.append(f"- {ck}_significant_pairs_95 = {'; '.join(sig) if sig else 'none'}")

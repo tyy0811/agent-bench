@@ -27,7 +27,10 @@ PLOTS_DIR = ROOT / "docs" / "_generated" / "plots"
 
 # Same KEY = value block the README markers pin to (scripts/check_readme_stats.py).
 VALUE_RE = re.compile(r"^- ([a-z0-9_]+) = (.+)$", re.MULTILINE)
-HASH_RE = re.compile(r"source-hash:\s*([0-9a-f]+)")
+# Exactly 16 hex chars: source_hash() returns sha256()[:16], and bounding the
+# length stops the match from running into a PNG tEXt chunk's trailing CRC byte
+# when that byte happens to be an ASCII hex digit (seen on paired_diff).
+HASH_RE = re.compile(r"source-hash:\s*([0-9a-f]{16})")
 
 # (value-key fragment, display label, framework) in table-column order.
 _CONFIGS = (
@@ -91,6 +94,58 @@ def forest_source(values: dict[str, str], corpus: str = "fastapi") -> dict:
     }
 
 
+# (custom-key, langchain-key, display label) for the framework difference plot.
+_PAIRS = (
+    ("custom_openai", "langchain_openai", "Custom OpenAI - LC OpenAI"),
+    ("custom_anthropic", "langchain_anthropic", "Custom Anthropic - LC Anthropic"),
+    ("custom_openai", "langchain_anthropic", "Custom OpenAI - LC Anthropic"),
+    ("custom_anthropic", "langchain_openai", "Custom Anthropic - LC OpenAI"),
+)
+
+
+def significant_pairs(values: dict[str, str], corpus: str = "fastapi") -> set:
+    """The (custom, langchain, metric) tuples flagged significant at 95 percent."""
+    raw = values.get(f"{corpus}_significant_pairs_95", "none")
+    out = set()
+    for clause in raw.split(";"):
+        m = re.match(r"\s*(\w+) vs (\w+) (p_at_5|r_at_5)\s*$", clause)
+        if m:
+            out.add((m.group(1), m.group(2), m.group(3)))
+    return out
+
+
+def paired_rows(values: dict[str, str], corpus: str = "fastapi") -> list[dict]:
+    """One row per framework comparison: the mean paired difference with its
+    nested 90/95 percent CIs and the pinned TOST verdict. The 90 percent CI reads
+    against the +/-margin band (equivalence), the 95 percent against zero."""
+    sig = significant_pairs(values, corpus)
+    rows = []
+    for custom, lc, label in _PAIRS:
+        for metric, mlabel in _METRICS:
+            stem = f"{corpus}_{custom}_vs_{lc}_{metric}"
+            if f"{stem}_diff" not in values:
+                continue
+            rows.append(
+                {
+                    "label": label,
+                    "metric": metric,
+                    "metric_label": mlabel,
+                    "diff": float(values[f"{stem}_diff"]),
+                    "ci90": _ci(values[f"{stem}_ci90"]),
+                    "ci95": _ci(values[f"{stem}_ci95"]),
+                    "tost": values.get(f"{stem}_tost", ""),
+                    "significant": (custom, lc, metric) in sig,
+                    "same_provider": custom.rsplit("_", 1)[1] == lc.rsplit("_", 1)[1],
+                }
+            )
+    return rows
+
+
+def paired_source(values: dict[str, str], corpus: str = "fastapi") -> dict:
+    """The exact value set the paired-difference plot draws -- hashed for provenance."""
+    return {"rows": paired_rows(values, corpus)}
+
+
 def source_hash(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()[:16]
 
@@ -103,7 +158,10 @@ def embedded_hash(svg_text: str) -> str | None:
 # name -> source-set builder. One entry per committed figure. PNG (not SVG):
 # GitHub's Markdown sanitizer does not reliably render relative-path SVGs inline,
 # so the figure ships as PNG and the source-hash lives in a PNG tEXt chunk.
-EXPECTED_PLOTS = {"forest_fastapi.png": lambda v: forest_source(v, "fastapi")}
+EXPECTED_PLOTS = {
+    "forest_fastapi.png": lambda v: forest_source(v, "fastapi"),
+    "paired_diff_fastapi.png": lambda v: paired_source(v, "fastapi"),
+}
 
 
 def check(report_text: str, plots_dir: Path) -> list[str]:
@@ -124,6 +182,21 @@ def check(report_text: str, plots_dir: Path) -> list[str]:
                 f"{name} stale: embedded source-hash {got} != report {want}; run `make plots`"
             )
     return failures
+
+
+def _save_with_hash(fig, out_path: Path, h: str) -> None:
+    """Write the figure and embed ``source-hash:<h>`` -- an XML comment for SVG,
+    a PNG tEXt chunk for raster. ``check`` reads it back to detect drift."""
+    import matplotlib.pyplot as plt
+
+    if out_path.suffix == ".svg":
+        fig.savefig(out_path, metadata={"Date": None})
+        plt.close(fig)
+        svg = out_path.read_text().replace("</svg>", f"<!-- source-hash: {h} -->\n</svg>", 1)
+        out_path.write_text(svg)
+    else:  # raster (png): the hash rides in a PNG tEXt chunk via savefig metadata
+        fig.savefig(out_path, dpi=200, metadata={"Description": f"source-hash:{h}"})
+        plt.close(fig)
 
 
 def _render_forest(values: dict[str, str], out_path: Path) -> None:
@@ -215,21 +288,110 @@ def _render_forest(values: dict[str, str], out_path: Path) -> None:
     )
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
-    h = source_hash(forest_source(values))
-    if out_path.suffix == ".svg":
-        fig.savefig(out_path, metadata={"Date": None})
-        plt.close(fig)
-        svg = out_path.read_text().replace("</svg>", f"<!-- source-hash: {h} -->\n</svg>", 1)
-        out_path.write_text(svg)
-    else:  # raster (png): embed the hash as a PNG tEXt chunk via savefig metadata
-        fig.savefig(out_path, dpi=200, metadata={"Description": f"source-hash:{h}"})
-        plt.close(fig)
+    _save_with_hash(fig, out_path, source_hash(forest_source(values)))
+
+
+def _render_paired(values: dict[str, str], out_path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    matplotlib.rcParams["svg.hashsalt"] = "agent-bench"
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    rows = paired_rows(values)
+    margin = 0.10
+    sig_color, base_color, tie_color = "#b7791f", "#2b6cb0", "#718096"
+
+    # group by metric (P@5 top, R@5 below); same-provider before cross within each
+    def order(r: dict) -> tuple:
+        return (0 if r["same_provider"] else 1, r["label"])
+
+    groups = [
+        (mlabel, sorted((r for r in rows if r["metric"] == metric), key=order))
+        for metric, mlabel in _METRICS
+    ]
+
+    fig, ax = plt.subplots(figsize=(8.4, 5.6))
+    ax.axvspan(-margin, margin, color="#e2e8f0", zorder=0)  # equivalence band, for the 90% bar
+    ax.axvline(0.0, color="#1a202c", lw=1.3, zorder=1)  # zero rule, for the 95% caps
+
+    y = float(sum(len(g) for _, g in groups) + len(groups))
+    group_tops = []
+    for mlabel, group in groups:
+        group_tops.append((mlabel, y))
+        for r in group:
+            color = sig_color if r["significant"] else base_color
+            lo95, hi95 = r["ci95"]
+            lo90, hi90 = r["ci90"]
+            if lo95 == hi95 == 0.0:  # identical recall: a 0-width bar would read as a render bug
+                ax.plot(0.0, y, marker="D", color=tie_color, markersize=8, zorder=6)
+                ax.text(0.024, y, "exact tie (Δ=0)", va="center", fontsize=7.5, color=tie_color)
+            else:
+                ax.plot([lo95, hi95], [y, y], color=color, lw=1.3, zorder=3)  # 95% thin
+                for x in (lo95, hi95):  # 95% caps
+                    ax.plot([x, x], [y - 0.14, y + 0.14], color=color, lw=1.3, zorder=3)
+                ax.plot([lo90, hi90], [y, y], color=color, lw=5.5, solid_capstyle="butt", zorder=4)
+                ax.plot(
+                    r["diff"],
+                    y,
+                    marker="o",
+                    color=color,
+                    markersize=9 if r["significant"] else 6,
+                    markeredgecolor="white",
+                    markeredgewidth=0.8,
+                    zorder=6,
+                )
+            ax.text(-0.215, y, r["label"], ha="right", va="center", fontsize=8)
+            y -= 1
+        y -= 1
+
+    ax.set_yticks([])
+    ax.set_xlim(-0.22, 0.40)
+    # Headroom above the top group so the title clears the bold "P@5" label.
+    ax.set_ylim(1.2, max(t for _, t in group_tops) + 1.6)
+    ax.set_xlabel("paired difference: custom − LangChain  (per-question, cluster bootstrap)")
+    for mlabel, top in group_tops:
+        ax.text(-0.215, top + 0.5, mlabel, fontsize=11, fontweight="bold", va="bottom")
+    ax.set_title(
+        "Framework difference (paired): equivalence vs the ±0.10 band, significance vs zero",
+        fontsize=10.5,
+        pad=12,
+    )
+
+    handles = [
+        Line2D([0], [0], color=base_color, lw=5.5, label="90% CI — equivalence (vs ±0.10 band)"),
+        Line2D([0], [0], color=base_color, lw=1.3, label="95% CI — significance (vs zero)"),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=sig_color,
+            markersize=8,
+            label="significant pair (95%)",
+        ),
+        Patch(facecolor="#e2e8f0", label="±0.10 TOST margin"),
+    ]
+    ax.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.11),
+        ncol=2,
+        fontsize=8,
+        frameon=False,
+    )
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    fig.tight_layout()
+    _save_with_hash(fig, out_path, source_hash(paired_source(values)))
 
 
 def generate() -> None:
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     values = read_values(REPORT.read_text())
     _render_forest(values, PLOTS_DIR / "forest_fastapi.png")
+    _render_paired(values, PLOTS_DIR / "paired_diff_fastapi.png")
     print(f"wrote {len(EXPECTED_PLOTS)} plot(s) to {PLOTS_DIR}")
 
 
