@@ -357,6 +357,13 @@ def _readme_values_section(tables: dict[str, pd.DataFrame], seed: int) -> list[s
             )
             lines.append(f"- {ck}_icc_p_at_5 = {dec.icc:.2f}")
             lines.append(f"- {ck}_between_question_var_p_at_5 = {dec.between_question:.5f}")
+            lines.append(f"- {ck}_within_question_var_p_at_5 = {dec.within_question:.5f}")
+            _vtot = dec.between_question + dec.within_question
+            lines.append(
+                f"- {ck}_within_question_pct = {100.0 * dec.within_question / _vtot:.1f}"
+                if _vtot
+                else f"- {ck}_within_question_pct = 0.0"
+            )
         if len(configs) >= 2:
             a = _question_means(df[df["config_id"] == configs[0]], "p_at_5").set_index(
                 "question_id"

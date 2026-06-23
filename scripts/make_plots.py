@@ -23,6 +23,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "docs" / "_generated" / "stats_report.md"
+# The judge-unfolding demonstration lives in the hand-maintained design doc, not
+# the auto-generated report, so its one plot pins to this file instead.
+JUDGE_DESIGN = ROOT / "docs" / "judge-design.md"
 PLOTS_DIR = ROOT / "docs" / "_generated" / "plots"
 
 # Same KEY = value block the README markers pin to (scripts/check_readme_stats.py).
@@ -146,6 +149,90 @@ def paired_source(values: dict[str, str], corpus: str = "fastapi") -> dict:
     return {"rows": paired_rows(values, corpus)}
 
 
+# (corpus-key, display label) for the variance-decomposition contrast.
+_VAR_CORPORA = (("fastapi", "FastAPI"), ("k8s", "Kubernetes"))
+
+
+def variance_rows(values: dict[str, str]) -> list[dict]:
+    """Per corpus: the P@5 variance split into between-question (stable difficulty)
+    and within-question (epoch noise a single run hides), plus the ICC."""
+    rows = []
+    for key, label in _VAR_CORPORA:
+        if f"{key}_icc_p_at_5" not in values:
+            continue
+        between = float(values[f"{key}_between_question_var_p_at_5"])
+        within = float(values[f"{key}_within_question_var_p_at_5"])
+        total = between + within
+        rows.append(
+            {
+                "label": label,
+                "between": between,
+                "within": within,
+                "icc": float(values[f"{key}_icc_p_at_5"]),
+                "within_frac": within / total if total else 0.0,
+            }
+        )
+    return rows
+
+
+def variance_source(values: dict[str, str]) -> dict:
+    """The exact value set the ICC-contrast plot draws -- hashed for provenance."""
+    return {"rows": variance_rows(values)}
+
+
+def mde_source(values: dict[str, str], corpus: str = "fastapi") -> dict:
+    """The P@5 minimum detectable effect (80 percent power) and the four
+    framework-pair |gaps| measured against it -- the detectability/power view.
+    ``detectable`` is the resolution criterion |gap| >= MDE (NOT 95 percent
+    significance); the two coincide on current data but are different questions."""
+    mde = float(values[f"{corpus}_mde_p_at_5_80"])
+    gaps = [
+        {
+            "label": r["label"],
+            "abs_diff": abs(r["diff"]),
+            "detectable": abs(r["diff"]) >= mde,
+            "same_provider": r["same_provider"],
+        }
+        for r in paired_rows(values, corpus)
+        if r["metric"] == "p_at_5"
+    ]
+    return {"mde": mde, "gaps": gaps}
+
+
+def unfolding_source() -> dict:
+    """Parse the judge-unfolding table from judge-design.md section 1.9. Pinned to
+    that hand-maintained doc (NOT the auto report); editing the table fails the
+    freshness check. Returns observed/truth pass-rate and the two corrected
+    estimators (regularized D'Agostini, naive matrix inversion) with their CIs."""
+    text = JUDGE_DESIGN.read_text()
+
+    def row(label: str) -> tuple[float, float, float]:
+        # point and bounds all sign-tolerant: the matrix-inversion estimator is the
+        # unstable one and a negative point/bound is a valid table value, not a parse error.
+        m = re.search(rf"{re.escape(label)} \| (-?[\d.]+), 95% CI \[(-?[\d.]+), (-?[\d.]+)\]", text)
+        if not m:
+            raise ValueError(f"judge-design.md section 1.9: row {label!r} not found/parseable")
+        return float(m.group(1)), float(m.group(2)), float(m.group(3))
+
+    def scalar(label: str) -> float:
+        m = re.search(rf"{re.escape(label)} \| [\d/]+ = (-?[\d.]+)", text)
+        if not m:
+            raise ValueError(f"judge-design.md section 1.9: row {label!r} not found")
+        return float(m.group(1))
+
+    dago = row("Corrected, D'Agostini")
+    matinv = row("Corrected, matrix inversion")
+    # Pin the KNOWN-TRUTH row, not just observed: the figure's whole claim is that
+    # the corrected CI contains a separately-known truth, so a drift in that row
+    # must invalidate the plot even though the truth line currently equals observed.
+    return {
+        "observed": scalar("Observed (jury) pass-rate"),
+        "known_true": scalar("Known true pass-rate"),
+        "dagostini": {"point": dago[0], "lo": dago[1], "hi": dago[2]},
+        "matrix_inversion": {"point": matinv[0], "lo": matinv[1], "hi": matinv[2]},
+    }
+
+
 def source_hash(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()[:16]
 
@@ -161,6 +248,9 @@ def embedded_hash(svg_text: str) -> str | None:
 EXPECTED_PLOTS = {
     "forest_fastapi.png": lambda v: forest_source(v, "fastapi"),
     "paired_diff_fastapi.png": lambda v: paired_source(v, "fastapi"),
+    "icc_contrast.png": variance_source,
+    "mde_resolution.png": lambda v: mde_source(v, "fastapi"),
+    "unfolding_shift.png": lambda v: unfolding_source(),
 }
 
 
@@ -387,11 +477,225 @@ def _render_paired(values: dict[str, str], out_path: Path) -> None:
     _save_with_hash(fig, out_path, source_hash(paired_source(values)))
 
 
+def _render_icc(values: dict[str, str], out_path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    matplotlib.rcParams["svg.hashsalt"] = "agent-bench"
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
+    rows = variance_rows(values)
+    between_color, within_color = "#cbd5e0", "#dd6b20"
+
+    fig, ax = plt.subplots(figsize=(8.2, 2.9))
+    ys = list(range(len(rows)))[::-1]  # first corpus on top
+    for r, y in zip(rows, ys):
+        bf = 1.0 - r["within_frac"]  # between-question fraction == ICC
+        ax.barh(y, bf, height=0.5, color=between_color)
+        ax.barh(y, r["within_frac"], left=bf, height=0.5, color=within_color)
+        ax.text(1.015, y, f"ICC {r['icc']:.2f}", va="center", fontsize=10, fontweight="bold")
+        ax.text(
+            0.0,
+            y - 0.42,
+            f"within-question (epoch noise): {r['within_frac'] * 100:.1f}% of P@5 variance",
+            va="top",
+            ha="left",
+            fontsize=8,
+            color="#4a5568",
+        )
+    ax.set_yticks(ys)
+    ax.set_yticklabels([r["label"] for r in rows], fontsize=12, fontweight="bold")
+    ax.set_xlim(0, 1.0)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_xticklabels(["0", "25%", "50%", "75%", "100%"])
+    ax.set_ylim(-0.85, max(ys) + 0.75)
+    ax.set_xlabel("share of P@5 variance")
+    ax.set_title(
+        "A single run hides a distribution — and how much depends on the corpus",
+        fontsize=11,
+        pad=10,
+    )
+    ax.legend(
+        handles=[
+            Patch(facecolor=between_color, label="between-question (stable difficulty)"),
+            Patch(facecolor=within_color, label="within-question (epoch noise, hidden by one run)"),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.32),
+        ncol=2,
+        fontsize=8,
+        frameon=False,
+    )
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    fig.tight_layout()
+    _save_with_hash(fig, out_path, source_hash(variance_source(values)))
+
+
+def _render_mde(values: dict[str, str], out_path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    matplotlib.rcParams["svg.hashsalt"] = "agent-bench"
+    import matplotlib.pyplot as plt
+
+    src = mde_source(values)
+    mde = src["mde"]
+    sig_color, base_color = "#b7791f", "#2b6cb0"
+
+    fig, ax = plt.subplots(figsize=(8.2, 2.4))
+    ax.axvspan(0, mde, color="#e2e8f0", zorder=0)  # below-resolution zone
+    ax.axvline(mde, color="#718096", lw=1.3, ls="--", zorder=1)
+    ax.text(
+        mde + 0.004,
+        0.82,
+        f"resolution floor\nMDE {mde:.3f} (80% power)",
+        fontsize=8.5,
+        color="#4a5568",
+        va="top",
+    )
+    detectable = [g for g in src["gaps"] if g["detectable"]]
+    below = len(src["gaps"]) - len(detectable)
+    for g in src["gaps"]:
+        color = sig_color if g["detectable"] else base_color  # past the floor, not 95% significance
+        ax.plot(
+            g["abs_diff"],
+            0,
+            marker="o",
+            markersize=11,
+            color=color,
+            markeredgecolor="white",
+            markeredgewidth=0.8,
+            zorder=3,
+        )
+    if len(detectable) == 1:
+        g = detectable[0]
+        prov = "cross-provider" if not g["same_provider"] else "same-provider"
+        ax.annotate(
+            f"{g['label']}  +{g['abs_diff']:.3f}\n({prov}: the one gap above the floor)",
+            (g["abs_diff"], 0),
+            xytext=(g["abs_diff"], -0.9),
+            ha="center",
+            fontsize=8,
+            color=sig_color,
+            arrowprops=dict(arrowstyle="-", color=sig_color, lw=0.8),
+        )
+    else:  # 0 -> no annotation; >1 -> label each gap that clears the floor
+        for g in detectable:
+            ax.annotate(
+                g["label"],
+                (g["abs_diff"], 0),
+                xytext=(g["abs_diff"], -0.9),
+                ha="center",
+                fontsize=7.5,
+                color=sig_color,
+                arrowprops=dict(arrowstyle="-", color=sig_color, lw=0.8),
+            )
+    ax.text(
+        mde / 2,
+        -0.9,
+        f"{below} of {len(src['gaps'])} P@5 gaps fall below\nthe floor (within the noise)",
+        ha="center",
+        va="center",
+        fontsize=8,
+        color=base_color,
+    )
+    ax.set_ylim(-1.5, 1.4)
+    ax.set_yticks([])
+    ax.set_xlim(0, 0.20)
+    ax.set_xlabel("|P@5 difference|, custom vs LangChain")
+    ax.set_title("What the benchmark can resolve at this sample size", fontsize=11)
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    fig.tight_layout()
+    _save_with_hash(fig, out_path, source_hash(mde_source(values)))
+
+
+def _render_unfolding(out_path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    matplotlib.rcParams["svg.hashsalt"] = "agent-bench"
+    import matplotlib.pyplot as plt
+
+    src = unfolding_source()
+    obs, true = src["observed"], src["known_true"]
+    dago, matinv = src["dagostini"], src["matrix_inversion"]
+    reg_color, naive_color = "#2b6cb0", "#a0aec0"
+
+    fig, ax = plt.subplots(figsize=(8.4, 3.0))
+    # The reference line is the KNOWN TRUTH (what the corrected CI must contain),
+    # drawn from the pinned known_true row, not observed. They coincide in 1.9
+    # (the canary confusion is the identity), so say so only when they actually do.
+    ax.axvline(true, color="#1a202c", lw=1.3, zorder=1)
+    same = abs(obs - true) < 1e-9
+    label = f"observed = known truth {true:.3f}" if same else f"known truth {true:.3f}"
+    ax.text(true + 0.008, 1.62, label, fontsize=8.5, va="bottom")
+
+    # D'Agostini (regularized): point + wide CI, entirely inside [0,1]
+    ax.plot(
+        [dago["lo"], dago["hi"]], [1, 1], color=reg_color, lw=4, solid_capstyle="butt", zorder=3
+    )
+    for x in (dago["lo"], dago["hi"]):
+        ax.plot([x, x], [0.88, 1.12], color=reg_color, lw=2, zorder=3)
+    ax.plot(dago["point"], 1, "o", ms=10, color=reg_color, mec="white", mew=0.8, zorder=4)
+    ax.text(
+        dago["hi"] + 0.012,
+        1,
+        f"{dago['point']:.3f}  [{dago['lo']:.3f}, {dago['hi']:.3f}]",
+        va="center",
+        fontsize=8,
+        color=reg_color,
+    )
+
+    # matrix inversion (naive): CI leaves [0,1] -> bar across with off-axis arrows
+    ax.plot([0.0, 1.0], [0, 0], color=naive_color, lw=4, solid_capstyle="butt", zorder=2)
+    ax.annotate(
+        "",
+        xy=(-0.025, 0),
+        xytext=(0.05, 0),
+        arrowprops=dict(arrowstyle="->", color=naive_color, lw=2.5),
+    )
+    ax.annotate(
+        "",
+        xy=(1.025, 0),
+        xytext=(0.95, 0),
+        arrowprops=dict(arrowstyle="->", color=naive_color, lw=2.5),
+    )
+    ax.plot(matinv["point"], 0, "o", ms=10, color=naive_color, mec="white", mew=0.8, zorder=4)
+    ax.text(
+        0.5,
+        -0.36,
+        f"95% CI [{matinv['lo']:.3f}, {matinv['hi']:.3f}] — leaves [0,1]: unidentified at n≈20",
+        ha="center",
+        va="top",
+        fontsize=8,
+        color="#718096",
+    )
+
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(["matrix inversion\n(naive)", "D'Agostini\n(regularized)"], fontsize=9)
+    ax.set_ylim(-0.75, 1.9)
+    ax.set_xlim(-0.04, 1.04)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_xlabel("completeness pass-rate (corrected through the judge confusion matrix)")
+    ax.set_title(
+        "Judge unfolding: the correction moves the rate and widens the honest uncertainty",
+        fontsize=10.5,
+        pad=8,
+    )
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    fig.tight_layout()
+    _save_with_hash(fig, out_path, source_hash(unfolding_source()))
+
+
 def generate() -> None:
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
     values = read_values(REPORT.read_text())
     _render_forest(values, PLOTS_DIR / "forest_fastapi.png")
     _render_paired(values, PLOTS_DIR / "paired_diff_fastapi.png")
+    _render_icc(values, PLOTS_DIR / "icc_contrast.png")
+    _render_mde(values, PLOTS_DIR / "mde_resolution.png")
+    _render_unfolding(PLOTS_DIR / "unfolding_shift.png")
     print(f"wrote {len(EXPECTED_PLOTS)} plot(s) to {PLOTS_DIR}")
 
 

@@ -44,6 +44,12 @@ SAMPLE = """## README values
 - fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_tost = equivalent
 - fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_ci90 = [+0.000, +0.000]
 - fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_ci95 = [+0.000, +0.000]
+- fastapi_between_question_var_p_at_5 = 0.06051
+- fastapi_within_question_var_p_at_5 = 0.00036
+- fastapi_icc_p_at_5 = 0.99
+- k8s_between_question_var_p_at_5 = 0.03249
+- k8s_within_question_var_p_at_5 = 0.00209
+- k8s_icc_p_at_5 = 0.94
 """
 
 
@@ -74,6 +80,34 @@ def test_paired_rows_reads_nested_cis_and_flags():
     assert sig["same_provider"] is False  # anthropic vs openai
     tie = next(r for r in rows if r["ci95"] == (0.0, 0.0))
     assert tie["same_provider"] is True and tie["tost"] == "equivalent"
+
+
+def test_variance_rows_contrasts_within_fraction():
+    rows = make_plots.variance_rows(make_plots.read_values(SAMPLE))
+    fa = next(r for r in rows if r["label"] == "FastAPI")
+    k8 = next(r for r in rows if r["label"] == "Kubernetes")
+    assert fa["icc"] == 0.99 and k8["icc"] == 0.94
+    assert fa["within_frac"] < k8["within_frac"]  # k8s hides more epoch noise
+    assert abs(k8["within_frac"] - 0.00209 / (0.03249 + 0.00209)) < 1e-9
+
+
+def test_mde_source_flags_detectable_by_floor_not_significance():
+    src = make_plots.mde_source(make_plots.read_values(SAMPLE), "fastapi")
+    assert src["mde"] == 0.110
+    det = next(g for g in src["gaps"] if g["detectable"])
+    assert abs(det["abs_diff"] - 0.164) < 1e-9  # 0.164 >= 0.110 -> detectable
+    assert det["same_provider"] is False  # so the plot can derive "cross-provider"
+
+
+def test_unfolding_source_parses_judge_design_1_9():
+    # Pins the plot to judge-design.md section 1.9 (not the auto report); if the
+    # table is edited this fails, the intended drift signal for a hand-doc source.
+    src = make_plots.unfolding_source()
+    assert src["observed"] == 0.700
+    assert src["known_true"] == 0.700  # pinned separately so the "truth" claim can't drift unseen
+    assert src["dagostini"] == {"point": 0.641, "lo": 0.287, "hi": 0.959}
+    mi = src["matrix_inversion"]
+    assert mi["lo"] < 0.0 and mi["hi"] > 1.0  # naive estimator leaves the unit interval
 
 
 def test_check_flags_missing_fresh_and_stale(tmp_path):

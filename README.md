@@ -48,6 +48,10 @@ Citation accuracy is 1.00 across all four configurations, but zero observed fail
 
 At this sample size (5 epochs per configuration), the minimum detectable P@5 difference at 80 percent power is <!-- stats:fastapi_mde_p_at_5_80 -->0.110<!-- /stats --> (cluster bootstrap; normal approximation <!-- stats:fastapi_mde_p_at_5_80_normal -->0.136<!-- /stats -->). Three of the four framework pairs have P@5 gaps below that floor and cannot be distinguished from noise; only the +0.164 cross-provider gap clears it. Differences smaller than the MDE are out of this benchmark's resolution, which is the honest result, not a hedge.
 
+![Resolution strip: the four P@5 framework gaps against the 0.110 minimum-detectable-effect floor; three fall below it, only the cross-provider +0.164 clears it](docs/_generated/plots/mde_resolution.png)
+
+*The four custom-vs-LangChain P@5 gaps against the <!-- stats:fastapi_mde_p_at_5_80 -->0.110<!-- /stats --> resolution floor (80 percent power): three sit within it (indistinguishable from noise at this n), and only the cross-provider <!-- stats:fastapi_custom_anthropic_vs_langchain_openai_p_at_5_diff -->+0.164<!-- /stats --> clears it. The floor nearly coincides with the 0.10 TOST equivalence margin, so "below resolution" and "within the equivalence band" are almost the same statement here. Pinned to the report by a source-hash.*
+
 Full analysis: [comparison report](results/comparison_custom_vs_langchain.md)
 
 ### Provider Comparison (Custom Pipeline)
@@ -339,11 +343,21 @@ The layer is calibrated against a 30-item hand-labeled set spanning both corpora
 
 Agreement is reported with Gwet's AC1 on prevalence-skewed dimensions and Cohen's κ where the gold distribution supports it. The calibration surfaced a κ-as-weight degeneracy — under an intervention that shifts a judge's marginals, κ can fall even as accuracy rises — which AC1 reads correctly. The full methodology (rubric-drift stress-test against a frontier model, the v1 jury weight-pipeline bug, two distinct small-model failure modes, and the v1.2 fix-list) is in **[docs/judge-design.md](docs/judge-design.md)**.
 
+A v3.2 extension borrows confusion-matrix unfolding from experimental physics to ask what the judge's own scoring noise does to a reported pass-rate, and whether it can be corrected:
+
+![Judge unfolding: the observed completeness pass-rate corrected with a wide 95 percent CI that contains the known truth, while the naive matrix-inversion estimator's CI leaves the unit interval](docs/_generated/plots/unfolding_shift.png)
+
+*Correcting the completeness pass-rate through the judge's confusion matrix moves it down and widens the honest uncertainty. The regularized D'Agostini interval is wide but contains the known truth, so the propagation is calibrated; it is not a claim that unfolding rescued a biased measurement (the canary confusion here is the identity). The naive matrix-inversion interval leaves [0,1] entirely, the precise signal that the correction is unidentified at this sample size. The figure and its numbers come from [docs/judge-design.md](docs/judge-design.md) section 1.9, and the figure is pinned to that table by a source-hash.*
+
 ## Methodology Notes
 
 **Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015 — the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
 
 The v3.1 statistics layer turns this run-to-run variance into a measured quantity rather than an anecdote. On the FastAPI P@5 campaign, the variance decomposition gives an intraclass correlation of <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->: almost all of the metric's variance is stable between-question difficulty, with epoch-to-epoch noise near zero. That is the FastAPI-side counterpart to the K8s refusal-gate finding above: a metric reported from a single run hides a distribution, and the fix is to measure across epochs and cluster by question, which is exactly what produces the 95 percent intervals in the Benchmark Results tables.
+
+![Variance decomposition contrast: stacked bars for FastAPI and Kubernetes showing within-question epoch noise as 0.6 percent of FastAPI variance versus 6.0 percent for Kubernetes](docs/_generated/plots/icc_contrast.png)
+
+*How much a single run hides depends on the corpus. FastAPI's metric is near-deterministic (within-question epoch noise is <!-- stats:fastapi_within_question_pct -->0.6<!-- /stats --> percent of its variance, ICC <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->), while Kubernetes carries ten times as much (<!-- stats:k8s_within_question_pct -->6.0<!-- /stats --> percent, ICC <!-- stats:k8s_icc_p_at_5 -->0.94<!-- /stats -->), because its agentic retrieval issues LLM-written queries that vary run-to-run. Same statistics layer, different amount of hidden distribution. Pinned to the report by a source-hash.*
 
 ## Testing
 

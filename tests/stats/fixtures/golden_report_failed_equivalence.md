@@ -64,6 +64,8 @@ ceiling-censored: mini custom-mock+00000000 r_at_5: the normal-approximation int
 - mini_significant_pairs_95_count = 2
 - mini_icc_p_at_5 = 0.88
 - mini_between_question_var_p_at_5 = 0.00213
+- mini_within_question_var_p_at_5 = 0.00029
+- mini_within_question_pct = 12.0
 - mini_mde_p_at_5_80 = 0.018
 - mini_mde_p_at_5_80_normal = 0.015
 
