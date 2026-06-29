@@ -164,9 +164,9 @@ flowchart LR
 - **Security (audit & compliance)**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
 - **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 713 deterministic tests with mock providers
 
-## Security Architecture
+## Security (production hardening)
 
-Injection detection → PII redaction → output validation → audit logging. Four guardrails, each independently configurable, each degrades gracefully.
+One capability in the production stack, included to show the same honest-degradation discipline the measurement work uses: injection detection runs heuristic-only without a GPU and classifier-backed when one is available, PII redaction and output validation gate every request, and the result is audit-logged either way. Degraded mode is declared, not silent.
 
 ```
 User Input
