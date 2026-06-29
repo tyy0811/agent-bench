@@ -36,17 +36,17 @@ Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files, 5 ep
 
 No cell is bolded: of the eight framework-pair comparisons (four custom-vs-LangChain pairs across P@5 and R@5), exactly <!-- stats:fastapi_significant_pairs_95_count -->1<!-- /stats --> is statistically significant at 95 percent under the paired bootstrap.
 
-Compared on absolute levels the four configurations barely separate — the headline intervals overlap broadly:
+Compared on absolute levels the four configurations barely separate, with the headline intervals overlapping broadly:
 
 ![Forest plot of the eight FastAPI headline points (four configurations by P@5 and R@5) with 95 percent confidence intervals; the intervals overlap broadly](docs/_generated/plots/forest_fastapi.png)
 
-*The eight headline points with cluster-bootstrapped 95 percent CIs. They are wide and overlapping because between-question difficulty variance dominates the metric — the wrong lens for a framework comparison, not a negative result. That variance is shared across frameworks, so it cancels when the same questions are differenced pipeline-against-pipeline, which is exactly the comparison below.*
+*The eight headline points with cluster-bootstrapped 95 percent CIs. They are wide and overlapping because between-question difficulty variance dominates the metric, the wrong lens for a framework comparison, not a negative result. That variance is shared across frameworks, so it cancels when the same questions are differenced pipeline-against-pipeline, which is exactly the comparison below.*
 
-Framework-versus-framework is a **paired** question — the same questions through both pipelines — so it is answered on per-question differences, where the shared difficulty variance cancels and the comparison sharpens:
+Framework-versus-framework is a **paired** question (the same questions through both pipelines), so it is answered on per-question differences, where the shared difficulty variance cancels and the comparison sharpens:
 
 ![Paired-difference plot: per-question custom minus LangChain differences with nested 90 and 95 percent confidence intervals, read against a zero line for significance and the plus-or-minus 0.10 equivalence band for TOST](docs/_generated/plots/paired_diff_fastapi.png)
 
-*Per-question paired differences (custom − LangChain) with nested intervals: the thick 90 percent CI reads against the ±0.10 equivalence band (TOST), the thin 95 percent caps against zero (significance). Equivalence and significance are different questions asked at different confidence levels, and the plot draws both — most pairs' 90 percent intervals sit inside the band (equivalent), while only Custom Anthropic's P@5 over LangChain OpenAI (gold) excludes zero at 95 percent, and only just (lower bound +0.016) and only cross-provider. On one pair (R@5) the two levels disagree — equivalent at 90 percent, its 95 percent interval crossing the band — which the nested view shows rather than hides. Generated from [the stats report](docs/_generated/stats_report.md) by `scripts/make_plots.py` and pinned to it by a source-hash (CI fails on drift).*
+*Per-question paired differences (custom minus LangChain) with nested intervals: the thick 90 percent CI reads against the ±0.10 equivalence band (TOST), the thin 95 percent caps against zero (significance). Equivalence and significance are different questions asked at different confidence levels, and the plot draws both: most pairs' 90 percent intervals sit inside the band (equivalent), while only Custom Anthropic's P@5 over LangChain OpenAI (gold) excludes zero at 95 percent, and only just (lower bound +0.016) and only cross-provider. On one pair (R@5) the two levels disagree (equivalent at 90 percent, its 95 percent interval crossing the band), which the nested view shows rather than hides. Generated from [the stats report](docs/_generated/stats_report.md) by `scripts/make_plots.py` and pinned to it by a source-hash (CI fails on drift).*
 
 > **Key insight: retrieval quality is set by the shared retrieval stack (FAISS + BM25 + RRF + cross-encoder), not the orchestration framework.** Holding the provider fixed, the custom and LangChain pipelines are statistically indistinguishable: for Anthropic the paired P@5 difference is equivalent within plus or minus <!-- stats:fastapi_custom_anthropic_vs_langchain_anthropic_p_at_5_support -->0.076<!-- /stats --> (TOST) and recall is identical (mean difference <!-- stats:fastapi_custom_anthropic_vs_langchain_anthropic_r_at_5_diff -->+0.000<!-- /stats -->); for OpenAI recall is equivalent within plus or minus <!-- stats:fastapi_custom_openai_vs_langchain_openai_r_at_5_support -->0.043<!-- /stats --> and the P@5 difference is not significant. The single significant comparison is Custom Anthropic's P@5 over LangChain OpenAI (mean difference <!-- stats:fastapi_custom_anthropic_vs_langchain_openai_p_at_5_diff -->+0.164<!-- /stats -->); that pair differs in model as well as framework, so it reflects provider choice, not the abstraction layer. The cost of framework abstraction shows up in price, not quality: LangChain's Anthropic path runs about 6.6x the per-query cost of the custom Anthropic pipeline (single-run cost).
 
@@ -83,7 +83,7 @@ The API providers are directly comparable (same config). Mistral-7B's context co
 
 ## Live Demo
 
-**https://nomearod-agentbench.hf.space** (Hugging Face Spaces — cold wake on idle takes ~2 minutes, warm queries respond in ~5s; see [DECISIONS.md](DECISIONS.md) for the bounded measurement and v1.1 contingency)
+**https://nomearod-agentbench.hf.space** (Hugging Face Spaces, cold wake on idle takes ~2 minutes, warm queries respond in ~5s; see [DECISIONS.md](DECISIONS.md) for the bounded measurement and v1.1 contingency)
 
 ```bash
 # In-scope question (expect answer with sources)
@@ -221,7 +221,7 @@ User Input
        Response
 ```
 
-**Injection detection** uses a two-tier architecture: heuristic regex rules catch common patterns (<1ms), and an optional DeBERTa classifier on Modal GPU provides high-confidence classification. Without GPU, the system runs heuristic-only — honest degradation, not silent failure.
+**Injection detection** uses a two-tier architecture: heuristic regex rules catch common patterns (<1ms), and an optional DeBERTa classifier on Modal GPU provides high-confidence classification. Without GPU, the system runs heuristic-only: honest degradation, not silent failure.
 
 **PII redaction** runs regex patterns for high-risk types (SSN, credit card, email, phone, IP address) on every retrieved chunk before it enters the LLM context window. Optional spaCy NER adds PERSON/ORG detection for deployments that need it.
 
@@ -235,7 +235,7 @@ jq 'select(.injection_verdict.safe == false)' logs/audit.jsonl
 jq 'select(.session_id == "abc123")' logs/audit.jsonl
 ```
 
-This is an application-layer security pipeline — it does not replace network-level security, authentication, or infrastructure hardening.
+This is an application-layer security pipeline; it does not replace network-level security, authentication, or infrastructure hardening.
 
 See [SECURITY.md](SECURITY.md) for the OWASP LLM Top 10 (2025) mapping. See [DECISIONS.md](DECISIONS.md) for why we chose two-tier detection over three, regex-only PII by default, JSONL over SQLite for audit, and HMAC over plain SHA-256 for IP hashing.
 
@@ -276,8 +276,8 @@ security:
 - **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
 - **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
-- **Security — detection & redaction**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
-- **Security — audit & compliance**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
+- **Security (detection & redaction)**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
+- **Security (audit & compliance)**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
 - **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 713 deterministic tests with mock providers
 
 <details><summary>API Reference</summary>
@@ -331,17 +331,17 @@ make benchmark            # Generate markdown report from results
 make evaluate-langchain   # Run LangChain baseline comparison
 ```
 
-The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store — no LLM-judged ground truth, no paraphrase fuzz.
+The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store: no LLM-judged ground truth, no paraphrase fuzz.
 
 ## LLM-as-Judge Evaluation
 
-The deterministic metrics above answer *did retrieval find the right chunks*. They cannot answer *did the agent's prose stay grounded in those chunks*. `make evaluate-full` adds an offline LLM-judge layer for that — it is not in the `/ask` request path.
+The deterministic metrics above answer *did retrieval find the right chunks*. They cannot answer *did the agent's prose stay grounded in those chunks*. `make evaluate-full` adds an offline LLM-judge layer for that; it is not in the `/ask` request path.
 
 Three per-dimension judges score each in-scope answer against an anchored discrete rubric:
 
-- **Groundedness** — every claim is entailed by a retrieved snippet. Scope is strict: the *snippets*, not the corpus they were drawn from. This strict scope is what makes the "zero hallucinated citations" claim measurable.
-- **Relevance** — the answer addresses the question (the only dimension scored on out-of-scope items).
-- **Completeness** — the answer covers the reference answer's points, paraphrase allowed.
+- **Groundedness**: every claim is entailed by a retrieved snippet. Scope is strict: the *snippets*, not the corpus they were drawn from. This strict scope is what makes the "zero hallucinated citations" claim measurable.
+- **Relevance**: the answer addresses the question (the only dimension scored on out-of-scope items).
+- **Completeness**: the answer covers the reference answer's points, paraphrase allowed.
 
 Judges support an explicit abstain verdict and rubric permutation as a variance control. A 2-judge κ-weighted jury (Anthropic Haiku + OpenAI gpt-4o-mini) aggregates verdicts; weights come from each judge's per-dimension agreement with hand labels.
 
@@ -349,7 +349,7 @@ Judges support an explicit abstain verdict and rubric permutation as a variance 
 
 The layer is calibrated against a 30-item hand-labeled set spanning both corpora. `make calibrate` scores 6 ablation rows (rubric anchors, CoT, abstain, jury, permutation) and regenerates [`docs/_generated/kappa_table.md`](docs/_generated/kappa_table.md). Headline agreement at v1.1: groundedness AC1 = 1.000, relevance AC1 = 1.000, completeness κ = 0.416.
 
-Agreement is reported with Gwet's AC1 on prevalence-skewed dimensions and Cohen's κ where the gold distribution supports it. The calibration surfaced a κ-as-weight degeneracy — under an intervention that shifts a judge's marginals, κ can fall even as accuracy rises — which AC1 reads correctly. The full methodology (rubric-drift stress-test against a frontier model, the v1 jury weight-pipeline bug, two distinct small-model failure modes, and the v1.2 fix-list) is in **[docs/judge-design.md](docs/judge-design.md)**.
+Agreement is reported with Gwet's AC1 on prevalence-skewed dimensions and Cohen's κ where the gold distribution supports it. The calibration surfaced a κ-as-weight degeneracy (under an intervention that shifts a judge's marginals, κ can fall even as accuracy rises), which AC1 reads correctly. The full methodology (rubric-drift stress-test against a frontier model, the v1 jury weight-pipeline bug, two distinct small-model failure modes, and the v1.2 fix-list) is in **[docs/judge-design.md](docs/judge-design.md)**.
 
 A v3.2 extension borrows confusion-matrix unfolding from experimental physics to ask what the judge's own scoring noise does to a reported pass-rate, and whether it can be corrected:
 
@@ -359,7 +359,7 @@ A v3.2 extension borrows confusion-matrix unfolding from experimental physics to
 
 ## Methodology Notes
 
-**Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015 — the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
+**Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015, the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
 
 The v3.1 statistics layer turns this run-to-run variance into a measured quantity rather than an anecdote. On the FastAPI P@5 campaign, the variance decomposition gives an intraclass correlation of <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->: almost all of the metric's variance is stable between-question difficulty, with epoch-to-epoch noise near zero. That is the FastAPI-side counterpart to the K8s refusal-gate finding above: a metric reported from a single run hides a distribution, and the fix is to measure across epochs and cluster by question, which is exactly what produces the 95 percent intervals in the Benchmark Results tables.
 
@@ -382,10 +382,10 @@ These Make targets call paid LLM APIs. Run locally; they are excluded from CI.
 
 | Target | Requires API key | Approximate cost | What it produces |
 |---|---|---|---|
-| `make evaluate-full` | OpenAI or Anthropic | $0.01–0.10 per run | Full-corpus harness run with L1 + L2 judges; results in `results/{run_label}.json`. Cost scales with item count × judge dimensions: in-scope items get all 3 (groundedness + relevance + completeness), out-of-scope items get relevance only (~$0.0001/item). |
+| `make evaluate-full` | OpenAI or Anthropic | $0.01-0.10 per run | Full-corpus harness run with L1 + L2 judges; results in `results/{run_label}.json`. Cost scales with item count × judge dimensions: in-scope items get all 3 (groundedness + relevance + completeness), out-of-scope items get relevance only (~$0.0001/item). |
 | `make calibrate` | Anthropic + OpenAI | ~$2 per full run | Generates frozen system outputs, scores all 6 ablation rows, builds `docs/_generated/kappa_table.md` |
 | `make evaluate-judges` | Anthropic + OpenAI | ~$1 per run | Re-runs the 6 rows against existing system outputs (no regeneration) |
-| `make evaluate-langchain` | OpenAI or Anthropic | $0.01–0.05 per run | LangChain baseline harness for the comparison report |
+| `make evaluate-langchain` | OpenAI or Anthropic | $0.01-0.05 per run | LangChain baseline harness for the comparison report |
 
 Set keys via `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` environment variables. CI does not have these (test job uses `MockProvider`).
 
