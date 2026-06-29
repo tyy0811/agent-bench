@@ -16,6 +16,14 @@ make test            # 713 deterministic tests, no API keys
 make evaluate-stats  # regenerate docs/_generated/stats_report.md from results/long (offline)
 ```
 
+## What this demonstrates
+
+This is not a leaderboard. It is a measurement case study. The question it answers is not "which RAG framework wins" but what claims this benchmark can actually support, and its own headline finding is that most framework differences here are statistically indistinguishable, or equivalent within the band, with cost the only clean separator.
+
+The discipline runs end to end: a score, then an interval, then a paired comparison, then power and minimum detectable effect, then a calibrated judge, then a defensible claim. The benchmark also reports what it cannot detect, not only what it can.
+
+Provider-neutral by construction: the same harness runs OpenAI, Anthropic, and a self-hosted model on equal footing, and the comparison is built to be replayed rather than trusted.
+
 ## Benchmark Results
 
 Evaluated on 27 hand-crafted questions over 16 FastAPI documentation files, 5 epochs per configuration. Both pipelines use identical retrieval (FAISS + BM25 + RRF + cross-encoder reranker). P@5, R@5, and citation accuracy are campaign results; intervals are cluster-bootstrapped 95 percent CIs and every figure below is pinned to [the generated statistics report](docs/_generated/stats_report.md) by `scripts/check_readme_stats.py`.
