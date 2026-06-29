@@ -60,7 +60,7 @@ Framework-versus-framework is a **paired** question (the same questions through 
 
 Citation accuracy is 1.00 across all four configurations, but zero observed failures is not a zero rate: with the campaign's smallest included-question count (Custom OpenAI, n=<!-- stats:fastapi_custom_openai_citation_n -->19<!-- /stats -->), the exact Clopper-Pearson 95 percent upper bound on the per-question citation-failure rate is <!-- stats:fastapi_custom_openai_citation_upper -->0.146<!-- /stats --> (rule of three, 3/n = <!-- stats:fastapi_custom_openai_citation_rule_of_three -->0.158<!-- /stats -->). The campaign rules out a high hallucination rate, not a small one.
 
-### What this benchmark can detect
+### What this benchmark can and cannot detect
 
 At this sample size (5 epochs per configuration), the minimum detectable P@5 difference at 80 percent power is <!-- stats:fastapi_mde_p_at_5_80 -->0.110<!-- /stats --> (cluster bootstrap; normal approximation <!-- stats:fastapi_mde_p_at_5_80_normal -->0.136<!-- /stats -->). Three of the four framework pairs have P@5 gaps below that floor and cannot be distinguished from noise; only the +0.164 cross-provider gap clears it. Differences smaller than the MDE are out of this benchmark's resolution, which is the honest result, not a hedge.
 
@@ -89,7 +89,33 @@ The API providers are directly comparable (same config). Mistral-7B's context co
 
 [Full benchmark report](docs/benchmark_report.md) | [Statistics report](docs/_generated/stats_report.md) | [Provider comparison](docs/provider_comparison.md) | [Judge calibration](docs/judge-design.md) | [Design decisions](DECISIONS.md)
 
+## LLM-as-Judge Evaluation
+
+The deterministic metrics above answer *did retrieval find the right chunks*. They cannot answer *did the agent's prose stay grounded in those chunks*. `make evaluate-full` adds an offline LLM-judge layer for that; it is not in the `/ask` request path.
+
+Three per-dimension judges score each in-scope answer against an anchored discrete rubric:
+
+- **Groundedness**: every claim is entailed by a retrieved snippet. Scope is strict: the *snippets*, not the corpus they were drawn from. This strict scope is what makes the "zero hallucinated citations" claim measurable.
+- **Relevance**: the answer addresses the question (the only dimension scored on out-of-scope items).
+- **Completeness**: the answer covers the reference answer's points, paraphrase allowed.
+
+Judges support an explicit abstain verdict and rubric permutation as a variance control. A 2-judge κ-weighted jury (Anthropic Haiku + OpenAI gpt-4o-mini) aggregates verdicts; weights come from each judge's per-dimension agreement with hand labels.
+
+### Calibration
+
+The layer is calibrated against a 30-item hand-labeled set spanning both corpora. `make calibrate` scores 6 ablation rows (rubric anchors, CoT, abstain, jury, permutation) and regenerates [`docs/_generated/kappa_table.md`](docs/_generated/kappa_table.md). Headline agreement at v1.1: groundedness AC1 = 1.000, relevance AC1 = 1.000, completeness κ = 0.416.
+
+Agreement is reported with Gwet's AC1 on prevalence-skewed dimensions and Cohen's κ where the gold distribution supports it. The calibration surfaced a κ-as-weight degeneracy (under an intervention that shifts a judge's marginals, κ can fall even as accuracy rises), which AC1 reads correctly. The full methodology (rubric-drift stress-test against a frontier model, the v1 jury weight-pipeline bug, two distinct small-model failure modes, and the v1.2 fix-list) is in **[docs/judge-design.md](docs/judge-design.md)**.
+
+A v3.2 extension borrows confusion-matrix unfolding from experimental physics to ask what the judge's own scoring noise does to a reported pass-rate, and whether it can be corrected:
+
+![Judge unfolding: the observed completeness pass-rate corrected with a wide 95 percent CI that contains the known truth, while the naive matrix-inversion estimator's CI leaves the unit interval](docs/_generated/plots/unfolding_shift.png)
+
+*Correcting the completeness pass-rate through the judge's confusion matrix moves it down and widens the honest uncertainty. The regularized D'Agostini interval is wide but contains the known truth, so the propagation is calibrated; it is not a claim that unfolding rescued a biased measurement (the canary confusion here is the identity). The naive matrix-inversion interval leaves [0,1] entirely, the precise signal that the correction is unidentified at this sample size. The figure and its numbers come from [docs/judge-design.md](docs/judge-design.md) section 1.9, and the figure is pinned to that table by a source-hash.*
+
 ## Live Demo
+
+The live API is the front door into the evidence: the same system that produced the numbers above is the one you can query here.
 
 **https://nomearod-agentbench.hf.space** (Hugging Face Spaces, cold wake on idle takes ~2 minutes, warm queries respond in ~5s; see [DECISIONS.md](DECISIONS.md) for the bounded measurement and v1.1 contingency)
 
@@ -107,60 +133,6 @@ curl -X POST https://nomearod-agentbench.hf.space/ask \
 # Health check
 curl https://nomearod-agentbench.hf.space/health
 ```
-
-## Quick Start (Local)
-
-```bash
-make install    # Install dependencies
-make ingest     # Chunk + embed 16 FastAPI docs into FAISS + BM25
-make serve      # Start FastAPI server on :8000
-```
-
-```bash
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "How do I define a path parameter in FastAPI?"}'
-```
-
-### With Docker
-
-```bash
-OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
-```
-
-### Self-Hosted LLM via Modal (no local GPU needed)
-
-```bash
-pip install -e ".[modal]"                                # Install Modal SDK
-modal setup                                              # Authenticate with Modal
-modal secret create huggingface-secret HF_TOKEN=hf_...   # HF token for model download
-make modal-deploy                                        # Deploy vLLM on Modal A10G
-export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
-AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider
-
-# Run provider comparison (requires all provider API keys)
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
-make benchmark-all
-
-# Or run only the self-hosted provider
-python modal/run_benchmark.py --base-url $MODAL_VLLM_URL --only selfhosted_modal
-```
-
-### Self-Hosted LLM via Docker Compose (requires local NVIDIA GPU)
-
-```bash
-docker compose -f docker/docker-compose.vllm.yml up --build
-```
-
-### Kubernetes (Helm)
-
-```bash
-make k8s-dev     # Dev: 1 replica, no HPA
-make k8s-prod    # Prod: 3 replicas, HPA 2-8 pods
-```
-
-See [docs/k8s-local-setup.md](docs/k8s-local-setup.md) for minikube walkthrough.
 
 ## Architecture
 
@@ -181,6 +153,16 @@ flowchart LR
         LLM --- SelfHosted[SelfHosted<br/>vLLM / TGI / Ollama]
     end
 ```
+
+## Engineering Scope
+
+- **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
+- **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
+- **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
+- **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
+- **Security (detection & redaction)**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
+- **Security (audit & compliance)**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 713 deterministic tests with mock providers
 
 ## Security Architecture
 
@@ -278,15 +260,80 @@ security:
 
 </details>
 
-## Engineering Scope
+## Quick Start (Local)
 
-- **Agent design & evaluation**: Built two independent orchestration approaches (custom tool-calling loop + LangChain AgentExecutor) and evaluated both on identical metrics to quantify framework tradeoffs
-- **Retrieval engineering**: Hybrid FAISS + BM25 with Reciprocal Rank Fusion, cross-encoder reranking, evaluated across 27 questions with P@5, R@5, citation accuracy
-- **Infrastructure:** Kubernetes (Helm), Terraform (GCP/GKE), self-hosted LLM serving (vLLM on Modal + Docker Compose)
-- **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
-- **Security (detection & redaction)**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
-- **Security (audit & compliance)**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 713 deterministic tests with mock providers
+```bash
+make install    # Install dependencies
+make ingest     # Chunk + embed 16 FastAPI docs into FAISS + BM25
+make serve      # Start FastAPI server on :8000
+```
+
+```bash
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How do I define a path parameter in FastAPI?"}'
+```
+
+### With Docker
+
+```bash
+OPENAI_API_KEY=sk-... docker-compose -f docker/docker-compose.yaml up --build
+```
+
+### Self-Hosted LLM via Modal (no local GPU needed)
+
+```bash
+pip install -e ".[modal]"                                # Install Modal SDK
+modal setup                                              # Authenticate with Modal
+modal secret create huggingface-secret HF_TOKEN=hf_...   # HF token for model download
+make modal-deploy                                        # Deploy vLLM on Modal A10G
+export MODAL_VLLM_URL=https://your--agent-bench-vllm-serve.modal.run/v1
+AGENT_BENCH_ENV=selfhosted_modal make serve              # Serve with self-hosted provider
+
+# Run provider comparison (requires all provider API keys)
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+make benchmark-all
+
+# Or run only the self-hosted provider
+python modal/run_benchmark.py --base-url $MODAL_VLLM_URL --only selfhosted_modal
+```
+
+### Self-Hosted LLM via Docker Compose (requires local NVIDIA GPU)
+
+```bash
+docker compose -f docker/docker-compose.vllm.yml up --build
+```
+
+### Kubernetes (Helm)
+
+```bash
+make k8s-dev     # Dev: 1 replica, no HPA
+make k8s-prod    # Prod: 3 replicas, HPA 2-8 pods
+```
+
+See [docs/k8s-local-setup.md](docs/k8s-local-setup.md) for minikube walkthrough.
+
+## Methodology Notes
+
+**Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015, the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
+
+The v3.1 statistics layer turns this run-to-run variance into a measured quantity rather than an anecdote. On the FastAPI P@5 campaign, the variance decomposition gives an intraclass correlation of <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->: almost all of the metric's variance is stable between-question difficulty, with epoch-to-epoch noise near zero. That is the FastAPI-side counterpart to the K8s refusal-gate finding above: a metric reported from a single run hides a distribution, and the fix is to measure across epochs and cluster by question, which is exactly what produces the 95 percent intervals in the Benchmark Results tables.
+
+![Variance decomposition contrast: stacked bars for FastAPI and Kubernetes showing within-question epoch noise as 0.6 percent of FastAPI variance versus 6.0 percent for Kubernetes](docs/_generated/plots/icc_contrast.png)
+
+*How much a single run hides depends on the corpus. FastAPI's metric is near-deterministic (within-question epoch noise is <!-- stats:fastapi_within_question_pct -->0.6<!-- /stats --> percent of its variance, ICC <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->), while Kubernetes carries ten times as much (<!-- stats:k8s_within_question_pct -->6.0<!-- /stats --> percent, ICC <!-- stats:k8s_icc_p_at_5 -->0.94<!-- /stats -->), because its agentic retrieval issues LLM-written queries that vary run-to-run. Same statistics layer, different amount of hidden distribution. Pinned to the report by a source-hash.*
+
+## Evaluation
+
+```bash
+make evaluate-fast        # Deterministic metrics only (needs API key)
+make evaluate-full        # + LLM-judge metrics (costs more)
+make benchmark            # Generate markdown report from results
+make evaluate-langchain   # Run LangChain baseline comparison
+```
+
+The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store: no LLM-judged ground truth, no paraphrase fuzz.
 
 <details><summary>API Reference</summary>
 
@@ -329,51 +376,6 @@ Response:
 ```
 
 </details>
-
-## Evaluation
-
-```bash
-make evaluate-fast        # Deterministic metrics only (needs API key)
-make evaluate-full        # + LLM-judge metrics (costs more)
-make benchmark            # Generate markdown report from results
-make evaluate-langchain   # Run LangChain baseline comparison
-```
-
-The golden dataset contains 27 hand-crafted FastAPI questions (19 retrieval · 3 calculation · 5 out-of-scope) and 25 hand-crafted Kubernetes questions across the CRAG 8-type taxonomy (6 simple · 4 simple-with-condition · 4 comparison · 6 multi-hop · 4 false-premise · 1 set). Questions are authored with index-aligned `source_snippets`/`source_chunk_ids` so every expected answer can be traced back to a verbatim string in the ingested store: no LLM-judged ground truth, no paraphrase fuzz.
-
-## LLM-as-Judge Evaluation
-
-The deterministic metrics above answer *did retrieval find the right chunks*. They cannot answer *did the agent's prose stay grounded in those chunks*. `make evaluate-full` adds an offline LLM-judge layer for that; it is not in the `/ask` request path.
-
-Three per-dimension judges score each in-scope answer against an anchored discrete rubric:
-
-- **Groundedness**: every claim is entailed by a retrieved snippet. Scope is strict: the *snippets*, not the corpus they were drawn from. This strict scope is what makes the "zero hallucinated citations" claim measurable.
-- **Relevance**: the answer addresses the question (the only dimension scored on out-of-scope items).
-- **Completeness**: the answer covers the reference answer's points, paraphrase allowed.
-
-Judges support an explicit abstain verdict and rubric permutation as a variance control. A 2-judge κ-weighted jury (Anthropic Haiku + OpenAI gpt-4o-mini) aggregates verdicts; weights come from each judge's per-dimension agreement with hand labels.
-
-### Calibration
-
-The layer is calibrated against a 30-item hand-labeled set spanning both corpora. `make calibrate` scores 6 ablation rows (rubric anchors, CoT, abstain, jury, permutation) and regenerates [`docs/_generated/kappa_table.md`](docs/_generated/kappa_table.md). Headline agreement at v1.1: groundedness AC1 = 1.000, relevance AC1 = 1.000, completeness κ = 0.416.
-
-Agreement is reported with Gwet's AC1 on prevalence-skewed dimensions and Cohen's κ where the gold distribution supports it. The calibration surfaced a κ-as-weight degeneracy (under an intervention that shifts a judge's marginals, κ can fall even as accuracy rises), which AC1 reads correctly. The full methodology (rubric-drift stress-test against a frontier model, the v1 jury weight-pipeline bug, two distinct small-model failure modes, and the v1.2 fix-list) is in **[docs/judge-design.md](docs/judge-design.md)**.
-
-A v3.2 extension borrows confusion-matrix unfolding from experimental physics to ask what the judge's own scoring noise does to a reported pass-rate, and whether it can be corrected:
-
-![Judge unfolding: the observed completeness pass-rate corrected with a wide 95 percent CI that contains the known truth, while the naive matrix-inversion estimator's CI leaves the unit interval](docs/_generated/plots/unfolding_shift.png)
-
-*Correcting the completeness pass-rate through the judge's confusion matrix moves it down and widens the honest uncertainty. The regularized D'Agostini interval is wide but contains the known truth, so the propagation is calibrated; it is not a claim that unfolding rescued a biased measurement (the canary confusion here is the identity). The naive matrix-inversion interval leaves [0,1] entirely, the precise signal that the correction is unidentified at this sample size. The figure and its numbers come from [docs/judge-design.md](docs/judge-design.md) section 1.9, and the figure is pinned to that table by a source-hash.*
-
-## Methodology Notes
-
-**Refusal-gate thresholds under LLM-driven query formulation are non-deterministic.** During the Kubernetes 25-question threshold sweep (see [DECISIONS.md](DECISIONS.md) for the full write-up), an unexpected result surfaced: raising `refusal_threshold` from 0.015 to 0.025 produced _fewer_ retrieval-gate trips than 0.020, even though higher thresholds should be strictly more restrictive. Root cause: the orchestrator issues LLM-written queries to the search tool, so the same golden-dataset question produces different retrieval max_scores run-to-run, depending on what query the LLM chose to write. The sweep's "broken retrieval" count at each threshold is therefore not a fixed number but a distribution. The practical implication is that refusal-gate calibration in RAG systems with LLM-driven query formulation requires measuring run-to-run variance and sitting below the noisy floor with margin, not just picking the highest value that passes a one-shot sweep. The K8s threshold is pinned at 0.015, the empirical pilot floor, validated against the full 25-question set with the variance finding explicitly accounted for.
-
-The v3.1 statistics layer turns this run-to-run variance into a measured quantity rather than an anecdote. On the FastAPI P@5 campaign, the variance decomposition gives an intraclass correlation of <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->: almost all of the metric's variance is stable between-question difficulty, with epoch-to-epoch noise near zero. That is the FastAPI-side counterpart to the K8s refusal-gate finding above: a metric reported from a single run hides a distribution, and the fix is to measure across epochs and cluster by question, which is exactly what produces the 95 percent intervals in the Benchmark Results tables.
-
-![Variance decomposition contrast: stacked bars for FastAPI and Kubernetes showing within-question epoch noise as 0.6 percent of FastAPI variance versus 6.0 percent for Kubernetes](docs/_generated/plots/icc_contrast.png)
-
-*How much a single run hides depends on the corpus. FastAPI's metric is near-deterministic (within-question epoch noise is <!-- stats:fastapi_within_question_pct -->0.6<!-- /stats --> percent of its variance, ICC <!-- stats:fastapi_icc_p_at_5 -->0.99<!-- /stats -->), while Kubernetes carries ten times as much (<!-- stats:k8s_within_question_pct -->6.0<!-- /stats --> percent, ICC <!-- stats:k8s_icc_p_at_5 -->0.94<!-- /stats -->), because its agentic retrieval issues LLM-written queries that vary run-to-run. Same statistics layer, different amount of hidden distribution. Pinned to the report by a source-hash.*
 
 ## Testing
 
