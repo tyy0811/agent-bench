@@ -420,3 +420,9 @@ See [DECISIONS.md](DECISIONS.md) for rationale on building from primitives, RRF 
 | Tests | 97 | 205 | 528 |
 
 P@5 figures in this evolution table are single-run historical milestones (the V1 to V2 cross-encoder gain); the current campaign means with 95 percent intervals are in the Benchmark Results tables above.
+
+## Where this goes next
+
+The same measurement discipline is applied in `eu-ai-act-internal-control`, a provider-side EU AI Act conformity-engineering proof asset. agent-bench demonstrates the evaluation statistics; the conformity repo shows how those claims become evidence registers, findings, documentation inserts, and monitoring metrics.
+
+The statistics layer is intentionally harness-agnostic and currently ships inside agent-bench; extraction waits until the conformity repo becomes the second consumer.
