@@ -1,0 +1,48 @@
+{
+  "collapse": {
+    "corpus": "FastAPI",
+    "metric": "precision@5",
+    "model_label": "claude-haiku-4-5",
+    "a": {
+      "label": "Custom \u00b7 Anthropic",
+      "p_at_5": 0.791,
+      "ci": [
+        0.664,
+        0.917
+      ]
+    },
+    "b": {
+      "label": "LangChain \u00b7 Anthropic",
+      "p_at_5": 0.76,
+      "ci": [
+        0.645,
+        0.875
+      ]
+    },
+    "paired_diff": 0.031,
+    "paired_ci90": [
+      -0.013,
+      0.076
+    ],
+    "tost": "equivalent",
+    "tost_support": 0.076,
+    "r_at_5_diff": 0.0,
+    "source": "docs/_generated/stats_report.md",
+    "provenance": "campaign-bootstrap-ci"
+  },
+  "cost": {
+    "a_per_query": 0.0007,
+    "b_per_query": 0.0046,
+    "ratio": "6.6x",
+    "source": "results/comparison_custom_vs_langchain.md",
+    "provenance": "single-run"
+  },
+  "floor": {
+    "api_citation": 1.0,
+    "self_hosted_citation": 0.14,
+    "self_hosted_model": "Mistral-7B-Instruct-v0.3",
+    "settings": "iterations=1, top_k=3, 8K context",
+    "source": "docs/provider_comparison.md",
+    "provenance": "single-run-citation"
+  }
+}
