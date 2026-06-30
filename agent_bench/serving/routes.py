@@ -134,6 +134,68 @@ def _get_landing_html_template() -> str:
     return _LANDING_HTML_TEMPLATE
 
 
+_REVEAL_ANCHOR: dict | None = None
+
+
+def _get_reveal_anchor() -> dict:
+    """Read and cache the committed reveal anchor (single source of reveal numbers)."""
+    global _REVEAL_ANCHOR  # noqa: PLW0603
+    if _REVEAL_ANCHOR is None:
+        import json as _json
+        from pathlib import Path
+
+        path = Path(__file__).parent / "static" / "reveal_anchor.json"
+        _REVEAL_ANCHOR = _json.loads(path.read_text())
+    return _REVEAL_ANCHOR
+
+
+def _apply_reveal_placeholders(html: str, anchor: dict) -> str:
+    """Fill {{REVEAL_*}} display and {{REVEAL_GEOM}} geometry placeholders from
+    the anchor. Every displayed number is derived here from the committed JSON;
+    none is typed into the template."""
+    c, cost, floor = anchor["collapse"], anchor["cost"], anchor["floor"]
+    a, b = c["a"], c["b"]
+
+    def pct(x: float) -> str:
+        return f"{x * 100:.1f}%"
+
+    def ci(pair: list) -> str:
+        return f"[{pair[0]:.3f}, {pair[1]:.3f}]"
+
+    def signed_ci(pair: list) -> str:
+        return f"[{pair[0]:+.3f}, {pair[1]:+.3f}]"
+
+    geom = (
+        f"--a-p5:{pct(a['p_at_5'])};--b-p5:{pct(b['p_at_5'])};"
+        f"--a-lo:{pct(a['ci'][0])};--a-hi:{pct(a['ci'][1])};"
+        f"--b-lo:{pct(b['ci'][0])};--b-hi:{pct(b['ci'][1])};"
+        f"--f-api:{pct(floor['api_citation'])};--f-sh:{pct(floor['self_hosted_citation'])}"
+    )
+    subs = {
+        "{{REVEAL_MODEL}}": c["model_label"],
+        "{{REVEAL_A_LABEL}}": a["label"],
+        "{{REVEAL_A_P5}}": f"{a['p_at_5']:.3f}",
+        "{{REVEAL_A_CI}}": ci(a["ci"]),
+        "{{REVEAL_B_LABEL}}": b["label"],
+        "{{REVEAL_B_P5}}": f"{b['p_at_5']:.3f}",
+        "{{REVEAL_B_CI}}": ci(b["ci"]),
+        "{{REVEAL_DIFF}}": f"{c['paired_diff']:+.3f}",
+        "{{REVEAL_DIFF_CI90}}": signed_ci(c["paired_ci90"]),
+        "{{REVEAL_TOST}}": c["tost"],
+        "{{REVEAL_SUPPORT}}": f"{c['tost_support']:.3f}",
+        "{{REVEAL_RDIFF}}": f"{c['r_at_5_diff']:+.3f}",
+        "{{REVEAL_COST_A}}": f"${cost['a_per_query']:.4f}",
+        "{{REVEAL_COST_B}}": f"${cost['b_per_query']:.4f}",
+        "{{REVEAL_COST_RATIO}}": cost["ratio"],
+        "{{REVEAL_FLOOR_API}}": f"{floor['api_citation']:.2f}",
+        "{{REVEAL_FLOOR_7B}}": f"{floor['self_hosted_citation']:.2f}",
+        "{{REVEAL_GEOM}}": geom,
+    }
+    for key, value in subs.items():
+        html = html.replace(key, value)
+    return html
+
+
 def _render_landing_html(config: AppConfig) -> str:
     """Inject per-server corpus availability into the cached HTML.
 
@@ -156,7 +218,11 @@ def _render_landing_html(config: AppConfig) -> str:
     # Escape </script> to avoid HTML injection if a config value ever
     # contains one. json.dumps already escapes backslashes and quotes.
     payload = payload.replace("</", "<\\/")
-    return template.replace("{{CORPUS_CONFIG_JSON}}", payload)
+    html = template.replace("{{CORPUS_CONFIG_JSON}}", payload)
+    anchor = _get_reveal_anchor()
+    reveal_json = _json.dumps(anchor).replace("</", "<\\/")
+    html = html.replace("{{REVEAL_ANCHOR_JSON}}", reveal_json)
+    return _apply_reveal_placeholders(html, anchor)
 
 
 @router.get("/")
