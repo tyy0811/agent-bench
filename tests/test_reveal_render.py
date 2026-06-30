@@ -64,13 +64,16 @@ def test_anchor_block_parseable(tmp_path):
 
 def test_static_dom_is_revealed_truth_with_no_dead_controls(tmp_path):
     html = _render_landing_html(_make_config(tmp_path))
-    # The self-sufficient revealed caption is present.
-    assert "within noise" in html
-    # The JS-only controls and resting caption are NOT in the static markup.
-    assert "Show the confidence intervals" not in html
-    assert "Real difference, or noise" not in html
-    # No winner-asserting language in the reveal block itself.
+    # Scope to the server-rendered reveal DOM (excludes the trailing JS source,
+    # which legitimately contains the control strings it injects at runtime).
     reveal_block = html.split("<!-- Reveal:")[1].split("<!-- Demo -->")[0]
+    # The self-sufficient revealed caption is present in the static reveal DOM.
+    assert "within noise" in reveal_block
+    # The JS-only controls / resting caption are NOT server-rendered as elements.
+    assert "<button" not in reveal_block
+    assert "Show the confidence intervals" not in reveal_block
+    assert "Real difference, or noise" not in reveal_block
+    # No winner-asserting language in the reveal block itself.
     assert "ahead" not in reveal_block.lower()
 
 

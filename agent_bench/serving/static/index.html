@@ -1982,5 +1982,44 @@ returnToIdle();
 
 </script>
 
+<script>
+/* Reveal interaction: progressive enhancement. Static DOM = revealed truth;
+   this injects the resting "posed" state + the reveal control on top, so a
+   no-JS visitor sees the truth with no dead controls. Numbers come from the
+   injected anchor JSON, never typed here. */
+(function () {
+  var reveal = document.getElementById('reveal');
+  var anchorEl = document.getElementById('reveal-anchor');
+  var bars = document.getElementById('revealBars');
+  if (!reveal || !anchorEl || !bars) return;
+  var data;
+  try { data = JSON.parse(anchorEl.textContent); } catch (e) { return; }
+
+  var diff = data.collapse.paired_diff;
+  var diffStr = (diff >= 0 ? '+' : '') + Number(diff).toFixed(3);
+
+  var cap = document.createElement('p');
+  cap.className = 'reveal-resting-cap';
+  cap.textContent = diffStr + ' apart. Real difference, or noise?';
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'reveal-btn';
+
+  bars.insertAdjacentElement('afterend', cap);
+  cap.insertAdjacentElement('afterend', btn);
+
+  function render(resting) {
+    reveal.classList.toggle('resting', resting);
+    cap.style.display = resting ? '' : 'none';
+    btn.textContent = resting ? 'Show the confidence intervals →' : 'Reset';
+  }
+  render(true);
+  btn.addEventListener('click', function () {
+    render(!reveal.classList.contains('resting'));
+  });
+})();
+</script>
+
 </body>
 </html>
