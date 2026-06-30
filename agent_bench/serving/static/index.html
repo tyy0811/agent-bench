@@ -868,6 +868,48 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
   .delta-col .sub{margin: 10px 0 0 !important}
   .topbar, .hero, .section, .footer{padding-left: 20px; padding-right: 20px}
 }
+
+/* ── Reveal (naive vs rigorous) ─────────────────── */
+.reveal{margin:28px 0 8px;max-width:760px}
+.reveal-beat{padding:18px 0}
+.reveal-beat + .reveal-beat{border-top:1px solid var(--rule)}
+.reveal-scope{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-3);letter-spacing:.02em;margin-bottom:12px}
+.reveal-row{display:grid;grid-template-columns:140px 1fr 56px;align-items:center;gap:12px;margin:10px 0}
+.reveal-lab{font-size:.82rem;color:var(--ink-2)}
+.reveal-val{font-family:var(--font-mono);font-size:.9rem;text-align:right}
+.reveal-track{position:relative;height:18px;background:var(--paper-2);border-radius:3px}
+.reveal-bar{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:3px;transition:width .5s ease}
+.reveal-bar.b{background:var(--ink-2)}
+.reveal-ci{position:absolute;top:50%;height:8px;transform:translateY(-50%);
+  border-left:2px solid var(--accent);border-right:2px solid var(--accent);
+  background:var(--accent-soft);opacity:1;transition:opacity .45s ease}
+.reveal-ci::after{content:"";position:absolute;top:50%;left:0;right:0;height:2px;
+  transform:translateY(-50%);background:var(--accent)}
+.reveal-readout{font-size:.88rem;color:var(--ink-2);margin-top:14px;opacity:1;transition:opacity .45s ease}
+.reveal-cost{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-top:14px;
+  padding:10px 14px;background:var(--paper-2);border-left:3px solid var(--stop);border-radius:3px;
+  opacity:1;transition:opacity .45s ease}
+.reveal-cost-lab{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-3);text-transform:uppercase}
+.reveal-cost-vals{font-family:var(--font-mono);font-size:.95rem}
+.reveal-cost-note{font-size:.74rem;color:var(--ink-3)}
+.reveal-floor-head{font-size:.92rem;font-weight:600;margin-bottom:10px}
+.reveal-floor-row{display:grid;grid-template-columns:110px 1fr 44px;align-items:center;gap:10px;margin:6px 0}
+.reveal-floor-row .lab{font-size:.78rem;color:var(--ink-2)}
+.reveal-floor-row .track{position:relative;height:14px;background:var(--paper-2);border-radius:3px}
+.reveal-floor-row .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--ok)}
+.reveal-floor-row.cliff .fill{background:var(--stop)}
+.reveal-floor-row .v{font-family:var(--font-mono);font-size:.85rem;text-align:right}
+.reveal-floor-note{font-size:.8rem;color:var(--ink-3);margin-top:10px}
+.reveal-depth{display:inline-block;margin-top:10px;font-family:var(--font-mono);font-size:.78rem}
+.reveal-bar.a{width:var(--a-p5)} .reveal-bar.b{width:var(--b-p5)}
+.reveal-ci.a{left:var(--a-lo);width:calc(var(--a-hi) - var(--a-lo))}
+.reveal-ci.b{left:var(--b-lo);width:calc(var(--b-hi) - var(--b-lo))}
+.reveal-floor-row .fill.api{width:var(--f-api)} .reveal-floor-row .fill.sh{width:var(--f-sh)}
+/* Resting (JS-injected) state: CIs / readout / cost hidden until revealed. */
+.reveal.resting .reveal-ci,.reveal.resting .reveal-readout,.reveal.resting .reveal-cost{opacity:0;pointer-events:none}
+.reveal-btn{margin-top:14px;font:inherit;font-size:.82rem;padding:8px 14px;cursor:pointer;
+  background:var(--ink);color:var(--paper);border:0;border-radius:4px}
+.reveal-resting-cap{font-size:.9rem;color:var(--ink-2);margin-top:12px}
 </style>
 </head>
 <body>
@@ -887,23 +929,49 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
 <!-- Hero -->
 <section class="hero">
   <div class="eyebrow"><span class="dot"></span>LIVE · FASTAPI + K8S CORPORA · 3 PROVIDERS</div>
-  <h1>Production RAG, benchmarked <em>honestly</em> — including the model-size floor where agentic retrieval breaks down.</h1>
+  <h1>Production RAG, benchmarked <em>honestly</em>: most apparent winners are noise, and the method knows the difference.</h1>
   <p class="deck">A custom tool-calling orchestrator and a LangChain baseline, evaluated on the same 27-question FastAPI golden set (plus a 6-question Kubernetes set) across OpenAI, Anthropic, and a self-hosted Mistral-7B. Every stage is instrumented. The interesting finding isn't which pipeline wins — it's where both fail.</p>
   <p class="byline">Built by <a href="https://github.com/tyy0811" target="_blank" rel="noopener">Jane Yeung</a> · Munich · Open to AI/ML roles in Germany</p>
 
-  <!-- Headline delta: API vs self-hosted citation accuracy -->
-  <div class="delta" aria-label="Citation accuracy: API models vs self-hosted Mistral-7B">
-    <div class="delta-col win">
-      <div class="lab">API models</div>
-      <div class="num">1.00</div>
-      <div class="sub">OpenAI <span class="mono">gpt-4o-mini</span> and Anthropic <span class="mono">claude-haiku-4-5</span>, 27/27 correct citations.</div>
+  <!-- Reveal: naive-vs-rigorous collapse (beat 1) + model-size floor (beat 2).
+       Numbers are injected from reveal_anchor.json by _render_landing_html.
+       The resting "posed" state and its controls are injected by JS at runtime,
+       so a no-JS visitor sees the revealed truth with no dead controls. -->
+  <div class="reveal" id="reveal" style="{{REVEAL_GEOM}}">
+    <script id="reveal-anchor" type="application/json">{{REVEAL_ANCHOR_JSON}}</script>
+
+    <div class="reveal-beat reveal-collapse">
+      <div class="reveal-scope">{{REVEAL_MODEL}} · FastAPI · precision@5 · paired campaign</div>
+      <div class="reveal-bars" id="revealBars">
+        <div class="reveal-row">
+          <span class="reveal-lab">{{REVEAL_A_LABEL}}</span>
+          <span class="reveal-track"><span class="reveal-bar a"></span><span class="reveal-ci a" aria-label="confidence interval {{REVEAL_A_CI}}"></span></span>
+          <span class="reveal-val">{{REVEAL_A_P5}}</span>
+        </div>
+        <div class="reveal-row">
+          <span class="reveal-lab">{{REVEAL_B_LABEL}}</span>
+          <span class="reveal-track"><span class="reveal-bar b"></span><span class="reveal-ci b" aria-label="confidence interval {{REVEAL_B_CI}}"></span></span>
+          <span class="reveal-val">{{REVEAL_B_P5}}</span>
+        </div>
+      </div>
+      <p class="reveal-readout" id="revealReadout">The apparent gap is within noise: paired difference {{REVEAL_DIFF}} (90% CI {{REVEAL_DIFF_CI90}}, crosses zero), TOST {{REVEAL_TOST}} within ±{{REVEAL_SUPPORT}}, recall identical ({{REVEAL_RDIFF}}). The real separator is cost.</p>
+      <div class="reveal-cost">
+        <span class="reveal-cost-lab">cost / query</span>
+        <span class="reveal-cost-vals">{{REVEAL_COST_B}} vs {{REVEAL_COST_A}} = <b>{{REVEAL_COST_RATIO}}</b></span>
+        <span class="reveal-cost-note">single-run†, not a campaign interval</span>
+      </div>
     </div>
-    <div class="delta-gap" aria-hidden="true"></div>
-    <div class="delta-col loss right">
-      <div class="lab">Self-hosted · 7B</div>
-      <div class="num">0.14</div>
-      <div class="sub"><span class="mono">Mistral-7B</span> on 8K context — agentic retrieval can't recover from a weak first pass.</div>
+
+    <div class="reveal-beat reveal-floor">
+      <div class="reveal-floor-head">...but the instrument is not blind</div>
+      <div class="reveal-floor-viz">
+        <span class="reveal-floor-row"><span class="lab">citation · API</span><span class="track"><span class="fill api"></span></span><span class="v">{{REVEAL_FLOOR_API}}</span></span>
+        <span class="reveal-floor-row cliff"><span class="lab">citation · 7B</span><span class="track"><span class="fill sh"></span></span><span class="v">{{REVEAL_FLOOR_7B}}</span></span>
+      </div>
+      <p class="reveal-floor-note">When an effect is real and large it is unmistakable here: a 7B model on 8K context drops citation accuracy from {{REVEAL_FLOOR_API}} to {{REVEAL_FLOOR_7B}}. Single-run citation accuracy, provider comparison: a different measurement than the campaign above. <a href="#findings">see the finding ↓</a></p>
     </div>
+
+    <a class="reveal-depth" href="https://github.com/tyy0811/agent-bench/blob/main/docs/_generated/stats_report.md" target="_blank" rel="noopener">full paired-difference analysis ↗</a>
   </div>
 
   <div class="meta-strip">
