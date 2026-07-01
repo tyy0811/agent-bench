@@ -17,7 +17,7 @@ from agent_bench.core.config import (
     RAGConfig,
 )
 from agent_bench.serving.app import create_app
-from agent_bench.serving.routes import _render_landing_html
+from agent_bench.serving.routes import _get_reveal_anchor, _render_landing_html
 
 
 def _make_config(tmp_path):
@@ -75,6 +75,22 @@ def test_static_dom_is_revealed_truth_with_no_dead_controls(tmp_path):
     assert "Real difference, or noise" not in reveal_block
     # No winner-asserting language in the reveal block itself.
     assert "ahead" not in reveal_block.lower()
+
+
+def test_reveal_descriptors_trace_to_anchor(tmp_path):
+    """Prose descriptors in the reveal (corpus, metric, model size, context)
+    must be consistent with the anchor, so regenerating the anchor to different
+    study parameters cannot leave stale prose next to fresh numbers (review [0])."""
+    html = _render_landing_html(_make_config(tmp_path))
+    anchor = _get_reveal_anchor()
+    block = html.split("<!-- Reveal:")[1].split("<!-- Demo -->")[0]
+    c, floor = anchor["collapse"], anchor["floor"]
+    # corpus + metric are injected, so they always match the anchor:
+    assert c["corpus"] in block
+    assert c["metric"] in block
+    # model-size + context descriptors are prose; assert they trace to the anchor:
+    assert "8K context" in block and "8K context" in floor["settings"]
+    assert "7B" in block and "7B" in floor["self_hosted_model"]
 
 
 @pytest.mark.asyncio

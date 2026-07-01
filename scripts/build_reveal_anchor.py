@@ -68,10 +68,16 @@ def _collapse(g: dict[str, str]) -> dict[str, Any]:
 
 def _cost(text: str) -> dict[str, Any]:
     # The Anthropic section's row: "| Cost per query | **$0.0007** | $0.0046 | ... |"
-    section = text.split("## Anthropic", 1)[1]
+    marker = "## Anthropic"
+    if marker not in text:
+        raise ValueError(f"cost source missing '{marker}' section heading")
+    section = text.split(marker, 1)[1]
     row = next(
-        ln for ln in section.splitlines() if ln.strip().startswith("| Cost per query")
+        (ln for ln in section.splitlines() if ln.strip().startswith("| Cost per query")),
+        None,
     )
+    if row is None:
+        raise ValueError("cost source: no '| Cost per query' row under the Anthropic section")
     cells = [c.strip() for c in row.strip().strip("|").split("|")]
     a = float(cells[1].replace("*", "").replace("$", ""))
     b = float(cells[2].replace("*", "").replace("$", ""))
@@ -86,10 +92,18 @@ def _cost(text: str) -> dict[str, Any]:
 
 def _floor(text: str) -> dict[str, Any]:
     rows = [ln for ln in text.splitlines() if ln.strip().startswith("|")]
-    header = next(ln for ln in rows if "Citation Acc" in ln)
+    # Same substring predicate finds the header and resolves its column, so a
+    # superstring rename ("Citation Accuracy") stays consistent instead of
+    # matching the header row but crashing an exact column lookup.
+    header = next((ln for ln in rows if "Citation Acc" in ln), None)
+    if header is None:
+        raise ValueError("floor source: no table header with a 'Citation Acc' column")
     cols = [c.strip() for c in header.strip().strip("|").split("|")]
-    ci_idx = cols.index("Citation Acc")
-    api_vals: set[str] = set()
+    ci_idx = next((i for i, c in enumerate(cols) if "Citation Acc" in c), None)
+    if ci_idx is None:
+        raise ValueError(f"floor source: 'Citation Acc' column not found in header {cols}")
+    # Compare numeric values, not raw strings, so "1.0" and "1.00" agree.
+    api_vals: set[float] = set()
     self_val: str | None = None
     self_model: str | None = None
     for ln in rows:
@@ -98,14 +112,14 @@ def _floor(text: str) -> dict[str, Any]:
             continue
         provider = cells[0]
         if "(API)" in provider:
-            api_vals.add(cells[ci_idx])
+            api_vals.add(float(cells[ci_idx]))
         elif "Self-hosted" in provider:
             self_val = cells[ci_idx]
             self_model = cells[1]
     assert len(api_vals) == 1, f"API citation accuracies disagree: {api_vals}"
     assert self_val is not None and self_model is not None, "self-hosted row not found"
     return {
-        "api_citation": float(api_vals.pop()),
+        "api_citation": api_vals.pop(),
         "self_hosted_citation": float(self_val),
         "self_hosted_model": self_model,
         "settings": "iterations=1, top_k=3, 8K context",

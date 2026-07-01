@@ -33,3 +33,46 @@ def test_provenance_tiers_are_distinct():
     assert anchor["collapse"]["provenance"] == "campaign-bootstrap-ci"
     assert anchor["cost"]["provenance"] == "single-run"
     assert anchor["floor"]["provenance"] == "single-run-citation"
+
+
+# --- parser robustness (review findings [1], [2], [3]) ---
+
+
+def test_floor_handles_renamed_citation_column():
+    """A superstring header ('Citation Accuracy') must still resolve the column,
+    not pass the header find and then crash on an exact index lookup."""
+    gen = _gen()
+    text = (
+        "| Provider | Model | Citation Accuracy |\n"
+        "| --- | --- | --- |\n"
+        "| OpenAI (API) | gpt | 1.00 |\n"
+        "| Self-hosted (Modal) | Mistral-7B | 0.14 |\n"
+    )
+    floor = gen._floor(text)
+    assert floor["api_citation"] == 1.0
+    assert floor["self_hosted_citation"] == 0.14
+
+
+def test_floor_tolerates_precision_mismatch_in_api_rows():
+    """Numerically-equal API citation cells with different precision ('1.0' vs
+    '1.00') must not abort the build."""
+    gen = _gen()
+    text = (
+        "| Provider | Model | Citation Acc |\n"
+        "| --- | --- | --- |\n"
+        "| OpenAI (API) | gpt | 1.0 |\n"
+        "| Anthropic (API) | claude | 1.00 |\n"
+        "| Self-hosted (Modal) | Mistral-7B | 0.14 |\n"
+    )
+    floor = gen._floor(text)
+    assert floor["api_citation"] == 1.0
+
+
+def test_cost_missing_section_raises_clear_error():
+    """A renamed Anthropic heading must fail with a clear message, not an opaque
+    IndexError."""
+    import pytest
+
+    gen = _gen()
+    with pytest.raises(ValueError, match="Anthropic"):
+        gen._cost("no such heading here")

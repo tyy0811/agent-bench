@@ -173,6 +173,8 @@ def _apply_reveal_placeholders(html: str, anchor: dict) -> str:
     )
     subs = {
         "{{REVEAL_MODEL}}": c["model_label"],
+        "{{REVEAL_CORPUS}}": c["corpus"],
+        "{{REVEAL_METRIC}}": c["metric"],
         "{{REVEAL_A_LABEL}}": a["label"],
         "{{REVEAL_A_P5}}": f"{a['p_at_5']:.3f}",
         "{{REVEAL_A_CI}}": ci(a["ci"]),

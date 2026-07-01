@@ -6,7 +6,7 @@ A worked benchmark that turns agent scores into defensible claims: clustered con
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-`722 tests` · `2 corpora` · `5-epoch eval campaign` · `clustered CIs` · `TOST` · `power/MDE` · `judge calibration` · `live HF demo`
+`726 tests` · `2 corpora` · `5-epoch eval campaign` · `clustered CIs` · `TOST` · `power/MDE` · `judge calibration` · `live HF demo`
 
 **Run or inspect the evidence** (free, offline, no API keys):
 
