@@ -426,3 +426,9 @@ P@5 figures in this evolution table are single-run historical milestones (the V1
 The same measurement discipline is applied in `eu-ai-act-internal-control`, a provider-side EU AI Act conformity-engineering proof asset. agent-bench demonstrates the evaluation statistics; the conformity repo shows how those claims become evidence registers, findings, documentation inserts, and monitoring metrics.
 
 The statistics layer is intentionally harness-agnostic and currently ships inside agent-bench; extraction waits until the conformity repo becomes the second consumer.
+
+## Work with me
+
+I build evaluation harnesses and statistical analysis like this for teams shipping LLM features: one-week eval audits, benchmark builds, judge calibration, CI integration. Munich based, remote across EU time zones.
+
+Contact: tyjaneyeung@gmail.com · [live dashboard](https://nomearod-agentbench.hf.space) · [LinkedIn](https://de.linkedin.com/in/jane-yeung)
