@@ -27,6 +27,11 @@ REPORT = ROOT / "docs" / "_generated" / "stats_report.md"
 # the auto-generated report, so its one plot pins to this file instead.
 JUDGE_DESIGN = ROOT / "docs" / "judge-design.md"
 PLOTS_DIR = ROOT / "docs" / "_generated" / "plots"
+# The 1280x640 GitHub social-preview card. It lives outside PLOTS_DIR because it
+# is uploaded in repo settings rather than embedded in the README, so the
+# freshness check (which walks PLOTS_DIR) does not gate it; it still carries the
+# same source-hash pin and regenerates with `make plots`.
+ASSETS_DIR = ROOT / "assets"
 
 # Same KEY = value block the README markers pin to (scripts/check_readme_stats.py).
 VALUE_RE = re.compile(r"^- ([a-z0-9_]+) = (.+)$", re.MULTILINE)
@@ -274,7 +279,7 @@ def check(report_text: str, plots_dir: Path) -> list[str]:
     return failures
 
 
-def _save_with_hash(fig, out_path: Path, h: str) -> None:
+def _save_with_hash(fig, out_path: Path, h: str, dpi: int = 200) -> None:
     """Write the figure and embed ``source-hash:<h>`` -- an XML comment for SVG,
     a PNG tEXt chunk for raster. ``check`` reads it back to detect drift."""
     import matplotlib.pyplot as plt
@@ -285,11 +290,17 @@ def _save_with_hash(fig, out_path: Path, h: str) -> None:
         svg = out_path.read_text().replace("</svg>", f"<!-- source-hash: {h} -->\n</svg>", 1)
         out_path.write_text(svg)
     else:  # raster (png): the hash rides in a PNG tEXt chunk via savefig metadata
-        fig.savefig(out_path, dpi=200, metadata={"Description": f"source-hash:{h}"})
+        fig.savefig(out_path, dpi=dpi, metadata={"Description": f"source-hash:{h}"})
         plt.close(fig)
 
 
-def _render_forest(values: dict[str, str], out_path: Path) -> None:
+def _render_forest(
+    values: dict[str, str],
+    out_path: Path,
+    figsize: tuple[float, float] = (7.6, 4.4),
+    title: str = "FastAPI retrieval: framework comparison (overlapping CIs)",
+    dpi: int = 200,
+) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -304,7 +315,7 @@ def _render_forest(values: dict[str, str], out_path: Path) -> None:
     # P@5 group on top, R@5 below; four configs each in table order. y descends so
     # the first config sits highest in its group, with a one-row gap between groups.
     groups = [[r for r in rows if r["metric"] == metric] for metric, _ in _METRICS]
-    fig, ax = plt.subplots(figsize=(7.6, 4.4))
+    fig, ax = plt.subplots(figsize=figsize)
     y = float(len(rows) + 1)
     group_tops = []
     for group in groups:
@@ -335,7 +346,7 @@ def _render_forest(values: dict[str, str], out_path: Path) -> None:
     ax.set_xlabel("score (95% CI, cluster bootstrap)")
     for (_, mlabel), top in zip(_METRICS, group_tops):
         ax.text(0.40, top + 0.5, mlabel, fontsize=11, fontweight="bold", va="bottom")
-    ax.set_title("FastAPI retrieval: framework comparison (overlapping CIs)", fontsize=11)
+    ax.set_title(title, fontsize=11)
 
     handles = [
         Line2D(
@@ -378,7 +389,7 @@ def _render_forest(values: dict[str, str], out_path: Path) -> None:
     )
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
-    _save_with_hash(fig, out_path, source_hash(forest_source(values)))
+    _save_with_hash(fig, out_path, source_hash(forest_source(values)), dpi=dpi)
 
 
 def _render_paired(values: dict[str, str], out_path: Path) -> None:
@@ -696,7 +707,17 @@ def generate() -> None:
     _render_icc(values, PLOTS_DIR / "icc_contrast.png")
     _render_mde(values, PLOTS_DIR / "mde_resolution.png")
     _render_unfolding(PLOTS_DIR / "unfolding_shift.png")
-    print(f"wrote {len(EXPECTED_PLOTS)} plot(s) to {PLOTS_DIR}")
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    # 8.0x4.0 in at 160 dpi = exactly 1280x640 px, close to the README forest's
+    # committed 7.6x4.4 proportions so the layout survives the aspect change.
+    _render_forest(
+        values,
+        ASSETS_DIR / "social_preview.png",
+        figsize=(8.0, 4.0),
+        title="agent-bench · FastAPI retrieval: framework comparison (overlapping CIs)",
+        dpi=160,
+    )
+    print(f"wrote {len(EXPECTED_PLOTS)} plot(s) to {PLOTS_DIR} + social card to {ASSETS_DIR}")
 
 
 def main() -> int:
