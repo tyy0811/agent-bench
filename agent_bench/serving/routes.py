@@ -1,4 +1,5 @@
-"""API routes: /ask, /ask/stream, /health, /metrics, /metrics/prometheus."""
+"""API routes: /ask, /ask/stream, /health, /metrics, /metrics/prometheus,
+plus the static footer pages /impressum and /privacy."""
 
 from __future__ import annotations
 
@@ -233,6 +234,38 @@ async def root(request: Request) -> Response:
     from starlette.responses import HTMLResponse
 
     return HTMLResponse(content=_render_landing_html(request.app.state.config))
+
+
+_STATIC_PAGES: dict[str, str] = {}
+
+
+def _get_static_page(name: str) -> str:
+    """Read and cache a small static footer page on first call."""
+    if name not in _STATIC_PAGES:
+        from pathlib import Path
+
+        path = Path(__file__).parent / "static" / f"{name}.html"
+        _STATIC_PAGES[name] = path.read_text()
+    return _STATIC_PAGES[name]
+
+
+@router.get("/impressum")
+async def impressum() -> Response:
+    """Legal notice (Impressum), linked from the dashboard footer.
+
+    IMPRESSUM_* placeholder tokens stay in the page until Jane fills the
+    legal details."""
+    from starlette.responses import HTMLResponse
+
+    return HTMLResponse(content=_get_static_page("impressum"))
+
+
+@router.get("/privacy")
+async def privacy() -> Response:
+    """Privacy note for the demo request log, linked from the dashboard footer."""
+    from starlette.responses import HTMLResponse
+
+    return HTMLResponse(content=_get_static_page("privacy"))
 
 
 @router.post("/ask", response_model=AskResponse)
