@@ -16,15 +16,19 @@
 </head>
 <body>
 <h1>Privacy note</h1>
-<p>The demo box on this page runs entirely in your browser against canned
-responses: questions you type are never sent to a server, and the request log
-shown is a static sample plus your own browser-local entries, cleared on
-reload. Requests made directly to the live API endpoints (/ask, /ask/stream)
-are processed to generate an answer and recorded in a server-side audit log
-(question text, hashed client IP, safety verdicts, token and latency counts)
-kept for abuse monitoring and debugging, alongside aggregate service metrics.
-Nothing is used for analytics, profiling, or model training, and nothing is
-shared with third parties.</p>
+<p>This demo runs only in your browser and clears on reload. Direct API
+requests may be processed by an external AI provider and logged for security
+and debugging, so please do not submit personal data.</p>
+<details>
+<summary>API data handling</summary>
+<p>Direct calls to <code>/ask</code> or <code>/ask/stream</code> send the question
+and relevant conversation context to the selected provider. Agent-bench records
+question text, a hashed client IP, and safety results in its audit log. If you
+supply a session ID, it also saves the question and answer for conversation
+history. The service also records aggregate operational metrics. Agent-bench
+does not use this data for profiling or model training; external providers
+process submitted content under their own terms.</p>
+</details>
 <p>Legal notice: see the <a href="/impressum">Impressum</a>.</p>
 <nav><a href="/">back to dashboard</a></nav>
 </body>

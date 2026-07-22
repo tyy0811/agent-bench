@@ -18,6 +18,21 @@ from httpx import ASGITransport, AsyncClient
 STATIC_DIR = Path(__file__).parent.parent / "agent_bench" / "serving" / "static"
 
 
+def test_privacy_notice_is_concise_with_expandable_api_details():
+    html = (STATIC_DIR / "privacy.html").read_text()
+    text = " ".join(html.split())
+
+    assert "This demo runs only in your browser and clears on reload." in text
+    assert (
+        "Direct API requests may be processed by an external AI provider and logged "
+        "for security and debugging, so please do not submit personal data."
+    ) in text
+    assert "<details>" in html
+    assert "<summary>API data handling</summary>" in html
+    assert "session ID" in text
+    assert "external providers process submitted content under their own terms" in text
+
+
 class TestStaticPages:
     @pytest.mark.asyncio
     async def test_impressum_serves(self, two_corpus_two_provider_app):
@@ -37,7 +52,7 @@ class TestStaticPages:
         ) as client:
             resp = await client.get("/privacy")
         assert resp.status_code == 200
-        assert "request log" in resp.text
+        assert "<h1>Privacy note</h1>" in resp.text
         assert "/impressum" in resp.text
 
     def test_footer_links_both_pages(self):
