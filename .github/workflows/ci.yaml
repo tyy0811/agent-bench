@@ -51,6 +51,12 @@ jobs:
       - name: Check README plots freshness
         run: python scripts/make_plots.py check
 
+      # The README's test-count claims sit in code chips and bash fences the
+      # stats marker protocol cannot wrap; this fails the build if any claimed
+      # count drifts from what pytest actually collects.
+      - name: Check README test count
+        run: python scripts/check_readme_test_count.py
+
   docker:
     runs-on: ubuntu-latest
     steps:
