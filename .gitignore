@@ -62,3 +62,4 @@ results/epochs/
 # Neither belongs in version control.
 .claude/settings.local.json
 .claude/*.lock
+.venv-phase2/
