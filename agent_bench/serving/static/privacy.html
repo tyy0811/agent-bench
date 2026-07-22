@@ -16,11 +16,15 @@
 </head>
 <body>
 <h1>Privacy note</h1>
-<p>Demo queries submitted on this dashboard are logged and displayed in the
-public request log on the landing page. They are stored for that display only
-and are not used for analytics, profiling, or model training, and are not
-shared with third parties. Please do not include personal data in demo
-queries.</p>
+<p>The demo box on this page runs entirely in your browser against canned
+responses: questions you type are never sent to a server, and the request log
+shown is a static sample plus your own browser-local entries, cleared on
+reload. Requests made directly to the live API endpoints (/ask, /ask/stream)
+are processed to generate an answer and recorded in a server-side audit log
+(question text, hashed client IP, safety verdicts, token and latency counts)
+kept for abuse monitoring and debugging, alongside aggregate service metrics.
+Nothing is used for analytics, profiling, or model training, and nothing is
+shared with third parties.</p>
 <p>Legal notice: see the <a href="/impressum">Impressum</a>.</p>
 <nav><a href="/">back to dashboard</a></nav>
 </body>
