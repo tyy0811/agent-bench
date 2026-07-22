@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Privacy · agent-bench</title>
+<style>
+  body{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       max-width: 640px; margin: 48px auto; padding: 0 20px; line-height: 1.65;
+       color: #1c1b18; background: #faf9f6}
+  h1{font-size: 1.3rem; margin-bottom: 4px}
+  a{color: inherit}
+  nav{margin-top: 40px; font-size: 0.85rem}
+</style>
+</head>
+<body>
+<h1>Privacy note</h1>
+<p>This demo runs only in your browser and clears on reload. Direct API
+requests may be processed by an external AI provider and logged for security
+and debugging, so please do not submit personal data.</p>
+<details>
+<summary>API data handling</summary>
+<p>Direct calls to <code>/ask</code> or <code>/ask/stream</code> send the question
+and relevant conversation context to the selected provider. Agent-bench records
+question text, a hashed client IP, and safety results in its audit log. If you
+supply a session ID, it also saves the question and answer for conversation
+history. The service also records aggregate operational metrics. Agent-bench
+does not use this data for profiling or model training; external providers
+process submitted content under their own terms.</p>
+</details>
+<p>Legal notice: see the <a href="/impressum">Impressum</a>.</p>
+<nav><a href="/">back to dashboard</a></nav>
+</body>
+</html>

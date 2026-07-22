@@ -6,13 +6,13 @@ A worked benchmark that turns agent scores into defensible claims: clustered con
 
 ![CI](https://github.com/tyy0811/agent-bench/actions/workflows/ci.yaml/badge.svg)
 
-`726 tests` · `2 corpora` · `5-epoch eval campaign` · `clustered CIs` · `TOST` · `power/MDE` · `judge calibration` · `live HF demo`
+`739 tests` · `2 corpora` · `5-epoch eval campaign` · `clustered CIs` · `TOST` · `power/MDE` · `judge calibration` · `live HF demo`
 
 **Run or inspect the evidence** (free, offline, no API keys):
 
 ```bash
 make install         # dependencies
-make test            # 713 deterministic tests, no API keys
+make test            # 739 deterministic tests, no API keys
 make evaluate-stats  # regenerate docs/_generated/stats_report.md from results/long (offline)
 ```
 
@@ -162,7 +162,7 @@ flowchart LR
 - **MLOps:** Provider comparison benchmark (API vs self-hosted, real measured data)
 - **Security (detection & redaction)**: Two-tier prompt injection detection (heuristic regex + DeBERTa classifier), PII redaction on retrieved context, output validation gate (PII leakage, URL hallucination, blocklist)
 - **Security (audit & compliance)**: Append-only JSONL audit trail, HMAC-SHA256 IP hashing (GDPR-aligned), log rotation, config-driven security with Literal-constrained enums
-- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 713 deterministic tests with mock providers
+- **Production engineering**: FastAPI, Docker, CI/CD, structured logging, rate limiting, SSE streaming, conversation sessions, 739 deterministic tests with mock providers
 
 ## Security (production hardening)
 
@@ -380,7 +380,7 @@ Response:
 ## Testing
 
 ```bash
-make test    # 713 deterministic tests, no API keys needed
+make test    # 739 deterministic tests, no API keys needed
 make lint    # ruff + mypy
 ```
 
@@ -426,3 +426,9 @@ P@5 figures in this evolution table are single-run historical milestones (the V1
 The same measurement discipline is applied in `eu-ai-act-internal-control`, a provider-side EU AI Act conformity-engineering proof asset. agent-bench demonstrates the evaluation statistics; the conformity repo shows how those claims become evidence registers, findings, documentation inserts, and monitoring metrics.
 
 The statistics layer is intentionally harness-agnostic and currently ships inside agent-bench; extraction waits until the conformity repo becomes the second consumer.
+
+## Work with me
+
+I build evaluation harnesses and statistical analysis like this for teams shipping LLM features: one-week eval audits, benchmark builds, judge calibration, CI integration. Munich based, remote across EU time zones.
+
+Contact: tyjaneyeung@gmail.com · [live dashboard](https://nomearod-agentbench.hf.space) · [LinkedIn](https://de.linkedin.com/in/jane-yeung)

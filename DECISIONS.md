@@ -2814,3 +2814,59 @@ itself doesn't need changes."
 
 **Total session spend:** $0.0099 reported (~$0.013–0.018 actual after
 gpt-4o pricing correction).
+
+## Phase 1 surface and register fixes (2026-07-22)
+
+Scope: the public-surface pass from the implementation plan (byline,
+footer, license, README contact section, legal pages, social card,
+test-count consistency). No eval logic, stats internals, golden sets,
+or hero framing touched.
+
+**What changed and why:**
+
+- Dashboard byline and footer repositioned from job-seeking to
+  consulting (eval audits). The booking link target is the literal
+  placeholder token BOOKING_URL in both instances until the booking
+  mechanism is decided; one sed swaps every instance.
+- LICENSE (MIT, 2026 Jane Yeung) added; the footer had claimed MIT
+  since the first deploy without a license file in the tree.
+- /impressum and /privacy static pages added and linked from the
+  footer. IMPRESSUM_NAME, IMPRESSUM_ADDRESS, IMPRESSUM_CONTACT are
+  placeholder tokens; Jane fills the legal details by hand before the
+  next HF deploy, and make preflight-deploy refuses a deploy while any
+  token is unresolved.
+- assets/social_preview.png (1280x640) renders the forest plot through
+  the same _render_forest code path and source-hash pin as the README
+  figure. It is not in EXPECTED_PLOTS: it is uploaded via GitHub repo
+  settings rather than embedded in the README, so the freshness gate
+  does not cover it. Byte-level tests pin format, dimensions and the
+  hash pin.
+- Test count reconciled empirically on all four README surfaces.
+  Decision: the historical 726 badge vs 713 deterministic split was
+  two snapshots of the same suite taken at different times, not a real
+  subset split (make test runs tests/ with no marker filters). All
+  surfaces now carry one number, CI-gated by
+  scripts/check_readme_test_count.py against pytest's collected count.
+  The 205 in the V1/V2/V3 evolution table is a milestone series, not a
+  stale count, and stays.
+
+**Deliberately not done:** GitHub About description, topics and the
+social-image upload are repo-settings actions left to Jane (listed as
+MANUAL in the plan); the HF Space deploy of the new dashboard surfaces
+is a separate manual push to the hf remote after this branch merges,
+gated on the incognito audit and on make preflight-deploy passing.
+
+**Review revision (2026-07-22, same branch, pre-merge):** four findings
+from PR review, all accepted after verification. (1) The privacy note
+had described server-side logging of demo queries; the demo box is
+canned and browser-only, while the real /ask path does audit-log
+question text with hashed client IP. Rewritten to state both
+truthfully. (2) The reconciled test counts were unmarked literals no
+checker read; scripts/check_readme_test_count.py now CI-gates every
+count claim against pytest's collected count. (3) The social-preview
+hash test accepted any 16-hex string; it now compares the embedded
+hash against the forest source computed from the live report, making
+it the card's freshness gate. (4) The IMPRESSUM_* token test pin was
+inverted (CI approved the unresolved page and would break on Jane's
+legitimate fill); route tests now pass in both states and the ship
+guard moved to the deploy preflight.

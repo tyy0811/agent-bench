@@ -1,6 +1,6 @@
 PYTHON ?= /usr/local/opt/python@3.11/bin/python3.11
 
-.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run epochs-dry-run-k8s evaluate-stats plots canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
+.PHONY: install test lint serve ingest ingest-k8s evaluate-fast evaluate-full benchmark evaluate-langchain calibrate evaluate-judges stats-table epochs epochs-dry-run epochs-dry-run-k8s evaluate-stats plots preflight-deploy canary-report docker modal-deploy modal-stop vllm-up benchmark-all k8s-dev k8s-prod tf-plan tf-validate
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -73,6 +73,9 @@ evaluate-stats:  ## Regenerate docs/_generated/stats_report.md from results/long
 
 plots:  ## Regenerate README figures from the stats report (needs `pip install -e .[plots]`)
 	$(PYTHON) scripts/make_plots.py generate
+
+preflight-deploy:  ## Refuse unresolved placeholder tokens on deploy surfaces (run before any push to the hf remote)
+	$(PYTHON) scripts/preflight_deploy.py
 
 canary-report:  ## Regenerate docs/_generated/canary_detection.md from the committed canary fixtures (free, offline; verdicts are simulated)
 	$(PYTHON) scripts/run_canary_eval.py build-report \
