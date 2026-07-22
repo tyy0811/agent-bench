@@ -143,11 +143,10 @@ prose review rather than a checker).
   appended inside the blockquote; the 6.6x number itself is unchanged.
 - Dashboard (`agent_bench/serving/static/index.html`): version note added
   to the reveal cost caption, the meta-strip chip, and the cost finding
-  card. The card's added note also records that the probe leaves the
-  mechanism unresolved. The card's original mechanism sentence (extra
-  re-sends per iteration) predates the probe and is now contradicted by
-  it; rewording that sentence is flagged for Jane since it is original
-  findings copy.
+  card. The card's original mechanism sentence (extra re-sends per
+  iteration) predated the probe and was contradicted by it; on Jane's
+  instruction (2026-07-22) it now states the probe result and that the
+  remaining candidate mechanisms need per-call live traces.
 - `agent_bench/serving/static/reveal_anchor.json`: unchanged; provenance
   string "single-run" is pinned by tests and the ratio derives from the
   comparison artifact's cost row, which is unchanged.

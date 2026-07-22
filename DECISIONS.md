@@ -2905,9 +2905,10 @@ in docs/cost_reverification_2026-07.md.
   stamp paragraph), dashboard reveal caption, meta-strip chip and cost
   finding card (added note), and a dated addendum in
   results/comparison_custom_vs_langchain.md. Original findings sentences
-  and numbers are untouched; the finding card's original mechanism
-  sentence (extra re-sends per iteration) is now contradicted by the
-  probe and its rewording is flagged for Jane.
+  and numbers are untouched, with one exception on Jane's instruction:
+  the finding card's mechanism sentence (extra re-sends per iteration)
+  was contradicted by the probe and now states the probe result with
+  the mechanism explicitly unresolved, pending per-call live traces.
 - The optional magnitude refresh (both arms, 27 questions, single run,
   ~$0.15) stays behind the paid boundary; runbook in the doc uses
   --mode deterministic for the custom arm (full mode would add
