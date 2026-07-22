@@ -10,28 +10,32 @@ describes current library versions.
 
 The claim is correct as originally scoped but must be version-stamped:
 
-- **As measured (langchain 0.3.x): the code path exists and its payload
-  structure is unchanged.** The comparison ran LangChain `AgentExecutor` with
-  `create_tool_calling_agent` over `langchain-anthropic`'s `ChatAnthropic`.
+- **As measured: the pre-1.0 AgentExecutor stack.** The comparison ran
+  LangChain `AgentExecutor` with `create_tool_calling_agent` over
+  `langchain-anthropic`'s `ChatAnthropic`. The exact installed minor
+  versions at measurement time were not captured (pyproject pins ranges,
+  no lockfile); the surviving repo environment resolves to 0.3.28/0.3.22
+  at re-verification time.
 - **As of langchain 1.3.14 (current on 2026-07-22): the measured adapter path
   no longer exists.** `from langchain.agents import AgentExecutor` raises
   ImportError; the 1.x line replaced the AgentExecutor agent stack with the
   LangGraph-based `create_agent`. The 6.6x figure therefore cannot be
   reproduced or refuted on current langchain; it is a statement about the
-  0.3.x line, which is exactly what this repo pins (`langchain>=0.2.0,<1.0.0`
+  pre-1.0 line, which is what this repo pins (`langchain>=0.2.0,<1.0.0`
   in pyproject.toml).
-- **Mechanism refinement.** A zero-API structural probe (below) shows both
-  arms resend the system prompt and tool schemas on every iteration with
-  near-identical fixed overhead, so per-iteration payload resending does NOT
-  explain the cost gap. The gap is behavioral: how many LLM calls and tool
-  iterations the AgentExecutor loop actually makes under real Claude
-  responses (the original artifact's hypothesis of additional intermediate
-  calls), which only a live run exhibits.
+- **Mechanism narrowed, not resolved.** A zero-API structural probe (below)
+  shows both arms resend their fixed prompt and tool-schema material on
+  every iteration with similar fixed overhead (within 2 percent in a canned
+  two-call trajectory), so per-iteration payload resending does not explain
+  the cost gap. What does remains unresolved without per-call live traces:
+  extra LLM calls or iterations (the original artifact's stated hypothesis,
+  qualified there as "likely"), different real response and output lengths,
+  or accumulated history differences are all still possible.
 
 ## Versions
 
-| Package | Pinned env (as measured and as shipped) | Current (2026-07-22, isolated venv) |
-|---------|------------------------------------------|--------------------------------------|
+| Package | Repo env at re-verification (pre-1.0 line) | Current (2026-07-22, isolated venv) |
+|---------|---------------------------------------------|--------------------------------------|
 | langchain | 0.3.28 | 1.3.14 |
 | langchain-anthropic | 0.3.22 | 1.5.0 |
 | langchain-openai | 0.3.35 | 1.4.0 |
@@ -43,6 +47,12 @@ Isolated venv: `.venv-phase2/` (gitignored), built with
 `pip install -e . && pip install -U langchain langchain-anthropic langchain-openai`.
 The upgrade violates the repo's `<1.0.0` pin by construction; that conflict is
 the point of the check.
+
+Provenance caveat: the original measurement predates this check and did not
+record package versions, so the left column is the surviving environment's
+resolution of the range pins, not a lock captured at measurement time. What
+is certain is that the measurement used the pre-1.0 AgentExecutor stack,
+because that is the only path the code has ever had.
 
 ## Method
 
@@ -60,11 +70,19 @@ Outcome (c) of the pre-declared re-verification plan: structural change.
 The anthropic SDK's `Messages.create` (sync and async) was monkeypatched to
 capture every request payload and return canned responses: call 1 returns a
 `tool_use` block for `search_documents`, call 2 returns an `end_turn` text
-block. One question was driven through both arms with identical tool schemas
-and byte-identical canned tool output (five formatted passages), so any
-payload difference is framework structure, not model behavior. No network;
-fake API key. ChatAnthropic was forced through its non-streaming path
-(`disable_streaming=True`); payload structure is identical either way.
+block. One question was driven through both arms with the same two tools
+and byte-identical canned tool output (five formatted passages), forcing an
+identical two-call trajectory. No network; fake API key. ChatAnthropic was
+forced through its non-streaming path (`disable_streaming=True`); payload
+structure is identical either way.
+
+The two arms carry the same two tools (search_documents, calculator) but
+each arm's own serialization of them: the custom arm's Anthropic-format
+schemas total 751 chars, LangChain's conversion 649. The system prompts
+also differ by construction (446 chars custom template vs 532 chars
+LangChain default). What is byte-identical across arms is the canned tool
+OUTPUT and the forced trajectory; payload differences beyond that are
+framework structure.
 
 Per-call capture, custom arm (Orchestrator + AnthropicProvider):
 
@@ -82,26 +100,35 @@ Per-call capture, LangChain arm (AgentExecutor + create_tool_calling_agent):
 
 Reading: fixed per-call overhead (system + tools, resent every iteration) is
 1197 chars for the custom arm and 1181 for LangChain, a difference under 2
-percent. Message-history growth is likewise equivalent given identical
-behavior (2592 vs 2611 chars). Two calls each. Conclusion: with the model's
-behavior held constant, the two frameworks send the API nearly the same
-bytes; the 6.6x gap must arise from call-count and iteration behavior under
-real responses, not from payload structure.
+percent in this canned two-call trajectory. Message-history growth is
+likewise equivalent given identical forced behavior (2592 vs 2611 chars).
+Two calls each. Conclusion: fixed payload overhead does not explain the
+6.6x gap. What does cannot be determined from this probe; distinguishing
+extra calls, longer real outputs, or accumulated-history differences
+requires per-call live traces from a paid run.
 
 ## What was deliberately not run
 
 The magnitude re-measurement (both arms, same 27-question set, single run,
-pinned env) requires live OpenAI and Anthropic calls and is excluded from
-agent sessions by the repo's paid boundary. It is optional given the verdict
+pre-1.0 env) requires live Anthropic calls and is excluded from agent
+sessions by the repo's paid boundary. It is optional given the verdict
 above (the claim is version-stamped either way), and if wanted it is one
-probe plus two commands in the pinned env, roughly $0.15 total at the
+probe plus two commands in the repo env, roughly $0.15 total at the
 original per-query costs:
 
 ```
 python scripts/run_langchain_eval.py --provider anthropic --max-questions 1   # probe one item first
 python scripts/run_langchain_eval.py --provider anthropic                     # ~27 x $0.0046
-python scripts/evaluate.py --config configs/anthropic.yaml --mode full        # custom arm, same set
+python scripts/evaluate.py --config configs/anthropic.yaml --mode deterministic  # custom arm, same set
 ```
+
+Mode note: the custom arm must run `--mode deterministic`. Full mode
+constructs an LLM judge provider and makes one judge call per question,
+which is spend outside this comparison and would also contaminate the
+cost-per-query readout. Probe-first limitation: `scripts/evaluate.py` has
+no `--max-questions` flag, so the one-item probe covers only the LangChain
+arm; the custom arm's first live call is the full 27-question run (~$0.02
+at the original per-query cost).
 
 If the refreshed ratio differs materially from 6.6x, regenerate
 `agent_bench/serving/static/reveal_anchor.json` through
@@ -110,18 +137,22 @@ If the refreshed ratio differs materially from 6.6x, regenerate
 then be updated in the same change (it is currently plain text, pinned by
 prose review rather than a checker).
 
-## Surfaces carrying the claim, and what this check implies for each
+## Surfaces carrying the claim, and how each is stamped
 
-- `README.md` key-insight blockquote: "about 6.6x the per-query cost ...
-  (single-run cost)". Existing findings text, untouched by this check.
-  Proposed one-sentence addition for Jane's review: "Measured on the
-  langchain 0.3 line; langchain 1.0 removed the AgentExecutor path this
-  measures." Not applied here because findings text is edit-protected.
-- `agent_bench/serving/static/reveal_anchor.json` cost block: provenance
-  already says single-run; ratio derives from the committed comparison
-  artifact, which is unchanged.
-- `results/comparison_custom_vs_langchain.md`: unchanged (protected findings
-  text); this document is the dated addendum.
+- `README.md` key-insight blockquote: adjacent version-stamp paragraph
+  appended inside the blockquote; the 6.6x number itself is unchanged.
+- Dashboard (`agent_bench/serving/static/index.html`): version note added
+  to the reveal cost caption, the meta-strip chip, and the cost finding
+  card. The card's added note also records that the probe leaves the
+  mechanism unresolved. The card's original mechanism sentence (extra
+  re-sends per iteration) predates the probe and is now contradicted by
+  it; rewording that sentence is flagged for Jane since it is original
+  findings copy.
+- `agent_bench/serving/static/reveal_anchor.json`: unchanged; provenance
+  string "single-run" is pinned by tests and the ratio derives from the
+  comparison artifact's cost row, which is unchanged.
+- `results/comparison_custom_vs_langchain.md`: dated version-stamp
+  addendum appended; original text and numbers untouched.
 
 ## Probe script
 

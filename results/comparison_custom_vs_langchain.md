@@ -51,3 +51,15 @@ Custom pipeline numbers are from `docs/provider_comparison.md` (V2, reranker ena
 
 - Latency is not directly compared because the custom and LangChain runs were executed at different times on the same machine. Network conditions, API server load, and local resource contention differ between runs.
 - Token cost for LangChain Anthropic ($0.0046/query) is higher than custom Anthropic ($0.0007/query), likely because the `AgentExecutor` makes additional LLM calls for intermediate reasoning steps. This reflects a real framework cost difference.
+
+## Version stamp (2026-07-22)
+
+The LangChain arm above ran on the pre-1.0 AgentExecutor and
+create_tool_calling_agent stack (this repo pins langchain>=0.2.0,<1.0.0).
+langchain 1.0 removed that path, so the cost figures describe the 0.3 line;
+the exact installed minor versions at measurement time were not captured.
+A zero-API structural probe later found both pipelines resend the system
+prompt and tool schemas on every iteration with near-identical fixed
+overhead, so the cost gap's mechanism is not payload structure and remains
+unresolved without per-call live traces. Method and evidence:
+docs/cost_reverification_2026-07.md.

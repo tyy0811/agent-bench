@@ -2880,30 +2880,40 @@ in docs/cost_reverification_2026-07.md.
 
 **Findings:**
 
-- Current langchain is 1.3.14 (repo pins <1.0.0 and runs 0.3.28). The
-  AgentExecutor + create_tool_calling_agent path the claim measures was
-  removed in the langchain 1.x line: importing it fails outright. The
-  pre-declared outcome (c) applies: the claim is date-stamped as a
-  statement about the 0.3.x line rather than re-measured.
+- Current langchain is 1.3.14 (repo pins <1.0.0; the surviving env
+  resolves to 0.3.28, though the original measurement's exact minors were
+  never captured). The AgentExecutor + create_tool_calling_agent path the
+  claim measures was removed in the langchain 1.x line: importing it
+  fails outright. The pre-declared outcome (c) applies: the claim is
+  date-stamped as a statement about the pre-1.0 line rather than
+  re-measured.
 - A zero-API structural probe (anthropic SDK create() patched to capture
-  payloads and return canned tool_use/end_turn responses, identical tool
-  schemas and byte-identical canned tool output in both arms) shows both
-  arms resend system prompt plus tool schemas on every iteration with
-  fixed overhead within 2 percent of each other (1197 vs 1181 chars) and
-  equivalent history growth. Payload structure therefore does not explain
-  the cost gap; the mechanism is call-count and iteration behavior under
-  real Claude responses, consistent with the original artifact's
-  additional-intermediate-calls hypothesis.
+  payloads and return canned tool_use/end_turn responses, same two tools
+  per arm with each arm's own schema serialization, byte-identical canned
+  tool output forcing an identical two-call trajectory) shows both arms
+  resend their fixed prompt and tool-schema material on every iteration
+  with fixed overhead within 2 percent of each other (1197 vs 1181
+  chars). Fixed payload overhead therefore does not explain the cost gap;
+  what does remains unresolved without per-call live traces (extra calls,
+  longer real outputs, and history accumulation all remain possible; the
+  original artifact qualifies its extra-calls hypothesis as "likely").
 
 **Decisions:**
 
-- README's key-insight 6.6x sentence and the comparison artifact are
-  protected findings text and were left untouched. A one-sentence
-  version-stamp addition to the README is proposed in the doc for Jane's
-  review.
+- Per review, the version stamp is APPLIED adjacent to every public 6.6x
+  surface without changing the number: README blockquote (appended
+  stamp paragraph), dashboard reveal caption, meta-strip chip and cost
+  finding card (added note), and a dated addendum in
+  results/comparison_custom_vs_langchain.md. Original findings sentences
+  and numbers are untouched; the finding card's original mechanism
+  sentence (extra re-sends per iteration) is now contradicted by the
+  probe and its rewording is flagged for Jane.
 - The optional magnitude refresh (both arms, 27 questions, single run,
-  ~$0.15) stays behind the paid boundary; runbook with probe-first step
-  is in the doc. If run and the ratio moves, the number flows through
+  ~$0.15) stays behind the paid boundary; runbook in the doc uses
+  --mode deterministic for the custom arm (full mode would add
+  undeclared judge calls) and notes the one-item probe covers only the
+  LangChain arm (evaluate.py has no --max-questions). If run and the
+  ratio moves, the number flows through
   results/comparison_custom_vs_langchain.md and build_reveal_anchor.py,
   never a hand edit.
 - The isolated venv (.venv-phase2, gitignored) is kept for reproducing
