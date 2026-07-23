@@ -959,7 +959,7 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
       <div class="reveal-cost">
         <span class="reveal-cost-lab">cost / query</span>
         <span class="reveal-cost-vals">{{REVEAL_COST_B}} vs {{REVEAL_COST_A}} = <b>{{REVEAL_COST_RATIO}}</b></span>
-        <span class="reveal-cost-note">single-run†, not a campaign interval · langchain 0.3 line (path removed in 1.0)</span>
+        <span class="reveal-cost-note">single-run†, not a campaign interval · pre-1.0 AgentExecutor line (path removed in langchain 1.0)</span>
       </div>
     </div>
 
@@ -979,7 +979,7 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
     <span>R@5 <b>0.83–0.86</b> across 4 configs</span>
     <span>27 FastAPI + 6 K8s questions</span>
     <span>2 corpora · <b>FastAPI</b> · <b>Kubernetes</b></span>
-    <span>6.6× cost delta · custom vs LangChain (Anthropic) · langchain 0.3 line</span>
+    <span>6.6× cost delta · custom vs LangChain (Anthropic) · pre-1.0 AgentExecutor line</span>
   </div>
 
   <div class="ctas">
@@ -1223,8 +1223,8 @@ code, .mono{font-family: var(--font-mono); font-feature-settings: "zero","ss02"}
         <div class="viz-row"><span class="lab">custom</span><span class="track"><span class="fill" style="width:15%"></span></span><span class="num">$0.0007</span></div>
         <div class="viz-row accent"><span class="lab">langchain</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="num">$0.0046</span></div>
       </div>
-      <p>Same model (<span class="mono">claude-haiku-4-5</span>), same retrieval, same 27-question FastAPI set. The multiplier is real but unexplained by payload structure: a zero-API probe shows both pipelines resend the system prompt and tool schemas on every iteration with near-identical fixed overhead. Separating the remaining candidates (extra LLM calls, longer outputs, accumulated history) needs per-call live traces.</p>
-      <p>Version stamp (2026-07): measured on the langchain 0.3 line; langchain 1.0 removed the AgentExecutor path this measures.</p>
+      <p>Same model (<span class="mono">claude-haiku-4-5</span>), same retrieval, same 27-question FastAPI set. The multiplier is real but unexplained by fixed prompt and schema overhead: a zero-API probe shows both pipelines resend the system prompt and tool schemas on every iteration with near-identical fixed overhead. Separating the remaining candidates (extra LLM calls, longer outputs, accumulated history under real responses) needs per-call live traces.</p>
+      <p>Version stamp (2026-07): measured on the pre-1.0 AgentExecutor line of langchain; langchain 1.0 removed the path this measures.</p>
       <a class="link" href="https://github.com/tyy0811/agent-bench/blob/main/docs/provider_comparison.md" target="_blank" rel="noopener">docs/provider_comparison.md ↗</a>
     </div>
 

@@ -56,10 +56,11 @@ Custom pipeline numbers are from `docs/provider_comparison.md` (V2, reranker ena
 
 The LangChain arm above ran on the pre-1.0 AgentExecutor and
 create_tool_calling_agent stack (this repo pins langchain>=0.2.0,<1.0.0).
-langchain 1.0 removed that path, so the cost figures describe the 0.3 line;
-the exact installed minor versions at measurement time were not captured.
-A zero-API structural probe later found both pipelines resend the system
-prompt and tool schemas on every iteration with near-identical fixed
-overhead, so the cost gap's mechanism is not payload structure and remains
-unresolved without per-call live traces. Method and evidence:
-docs/cost_reverification_2026-07.md.
+langchain 1.0 removed that path, so the cost figures describe the pre-1.0
+AgentExecutor line; the exact installed versions at measurement time were
+not captured. A zero-API structural probe later found both pipelines resend
+the system prompt and tool schemas on every iteration with near-identical
+fixed overhead in a canned two-call trajectory, so fixed prompt and schema
+overhead does not explain the gap; history and output structure under real
+responses remain candidates, unresolved without per-call live traces.
+Method and evidence: docs/cost_reverification_2026-07.md.
